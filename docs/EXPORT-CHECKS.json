@@ -1,0 +1,50 @@
+{
+  "source_revision": "2a14ac7604e53c473d3c149f0416de28fc69a617",
+  "export_date_local": "2026-09-14",
+  "timezone": "Europe/Warsaw",
+  "environment": {
+    "node": "24.13.0",
+    "npm": "11.6.2",
+    "platform": "Windows"
+  },
+  "dependency_install": {
+    "command": "npm install --ignore-scripts --no-audit --no-fund",
+    "result": "passed",
+    "lockfile_included": true
+  },
+  "production_build": {
+    "command": "npm run build",
+    "result": "passed",
+    "typescript": "passed",
+    "vite": "8.3.0",
+    "warnings": [
+      "The standalone JavaScript bundle exceeds the default 500 kB warning threshold. Route-level code splitting and performance optimization can be addressed in the destination repository."
+    ],
+    "output": {
+      "javascript_bytes": 1011150,
+      "javascript_gzip_bytes": 312620,
+      "css_bytes": 173800,
+      "css_gzip_bytes": 30120
+    },
+    "output_sizes": "Rounded values reported by Vite"
+  },
+  "logic_tests": {
+    "command": "npm test",
+    "passed": 19,
+    "failed": 0,
+    "files": 4
+  },
+  "extraction_checks": {
+    "relative_imports": "all resolved",
+    "external_imports": "all declared",
+    "ui_components": 25,
+    "validation_copy": "byte-identical frontend source and configuration",
+    "forbidden_artifacts": "none",
+    "source_repository": "left unchanged"
+  },
+  "browser_end_to_end": {
+    "status": "reported complete by product owner",
+    "rerun_during_export": false,
+    "external_report_provided": false
+  }
+}

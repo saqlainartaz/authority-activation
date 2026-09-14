@@ -1,0 +1,70 @@
+/* Scoped to this prototype so the other design explorations retain their themes. */
+html[data-refined] { color-scheme: light; }
+html[data-refined].dark {
+  color-scheme: dark;
+  --background: #18191b; --foreground: #eeedeb;
+  --card: #202124; --card-foreground: #eeedeb;
+  --popover: #252629; --popover-foreground: #eeedeb;
+  --primary: #eeedeb; --primary-foreground: #1b1c1f;
+  --secondary: #2c2d31; --secondary-foreground: #eeedeb;
+  --muted: #222326; --muted-foreground: #aaa8a4;
+  --accent: #303135; --accent-foreground: #eeedeb;
+  --border: #36373b; --input: #46474c; --ring: #999ba3; --destructive: #f49b99;
+  --sidebar: #141517; --sidebar-foreground: #aaa8a4;
+  --sidebar-primary: #eeedeb; --sidebar-primary-foreground: #1b1c1f;
+  --sidebar-accent: #2c2d31; --sidebar-accent-foreground: #eeedeb;
+  --sidebar-border: #303135; --sidebar-ring: #999ba3;
+  --cite: #e8bd7f; --cite-mark: #ddb57a; --cite-line: #846840; --cite-bg: #3b3022;
+  --miss: #f1a3a0; --miss-mark: #e5918e; --miss-line: #865352;
+  background: var(--background);
+}
+html[data-refined].dark .rf-sidebar [data-slot="sidebar-inner"] { background: var(--sidebar); }
+html[data-refined].dark :is(.rf-main, .rf-mobile-nav, .rf-refined-header, .rf-settings-mobile .rf-settings-sidebar) { background: var(--background); }
+html[data-refined].dark :is(.rf-brand, .rf-nav[data-active], .rf-mobile-nav a.active, .rf-post-open b, .rf-empty h2, .rf-copy:hover) { color: var(--foreground); }
+html[data-refined].dark .rf-nav { color: var(--sidebar-foreground); }
+html[data-refined].dark .rf-nav[data-active] { color: var(--foreground); background: var(--sidebar-accent); box-shadow: none; }
+html[data-refined].dark :is(.rf-mobile-nav a.active::before, .rf-count, .rf-copy:hover, .rf-post-person > span) { background: var(--accent); }
+html[data-refined].dark :is(.rf-logo, .rf-mobile-avatar, .rf-agent-mark, .rf-page-heading-mark) { background: #e4e2df; color: #202124; }
+html[data-refined].dark .rf-unread { background: #d4d2ce; }
+html[data-refined].dark :is(.rf-summary, .rf-day-card, .rf-coverage-card, .rf-library-search input, .rf-board, .rf-board-lane, .rf-inline-draft-heading, .rf-inline-draft-actions, .rf-setup-welcome) { background: var(--muted); border-color: var(--border); }
+html[data-refined].dark :is(.rf-inline-draft, .rf-board-post > [data-slot="card"], .rf-settings-nav [data-slot="tabs-trigger"][data-active]) { background: var(--card); border-color: var(--border); }
+html[data-refined].dark :is(.rf-day-card li + li, .rf-refined-header, .sheet, .rf-full-calendar td.rdp-day, .rf-full-calendar .rdp-week:first-child td.rdp-day, .rf-full-calendar .rdp-week td.rdp-day:first-child) { border-color: var(--border); }
+html[data-refined].dark :is(.rf-greeting p, .rf-stats dt, .rf-agent-line, .rf-today > h3, .rf-post-time, .rf-post-row [data-slot="item-description"], .rf-copy, .rf-section-heading > span, .rf-section-description, .rf-count, .rf-rule-number, .rf-rule[data-disabled] .rf-rule-text, .rf-rule-edit, .rf-coverage-card p, .rf-source-list svg, .rf-source-meta, .rf-library-search svg, .rf-library-toolbar > button, .rf-filter-button, .rf-density-control, .rf-filters-sheet-body legend, .rf-filter-date, .rf-filters-sheet-body fieldset small, .rf-library-table th, .rf-library-table td, .rf-post-open > span, .rf-empty, .rf-board h2, .rf-board-post p, .rf-board-post small, .rf-day-agenda small, .rf-day-agenda p, .rf-post-person p, .rf-agent-message, .rf-mobile-nav > a, .rf-mobile-nav > button, .rf-page-heading-brand, .rf-library-list-summary, .rf-applied-filters) { color: var(--muted-foreground); }
+html[data-refined].dark .rf-mobile-nav a.active { color: var(--foreground); }
+html[data-refined].dark .rf-answer { text-decoration-color: #68696f; }
+html[data-refined].dark .rf-coverage-track { background: var(--border); }
+html[data-refined].dark .rf-coverage-track span { background: #b9b6af; }
+html[data-refined].dark .rf-status { color: #c3c0ba; background: var(--muted); border-color: var(--border); }
+html[data-refined].dark .rf-status-approved i { background: #8ebb9c; }
+html[data-refined].dark .rf-status-scheduled i { background: #b0a0d5; }
+html[data-refined].dark .rf-full-calendar button[data-selected-single] { background: var(--accent); color: var(--foreground); box-shadow: inset 0 0 0 1px var(--ring); }
+html[data-refined].dark .rf-full-calendar .rf-calendar-event { background: #37383c; color: #d0cbc3; }
+html[data-refined].dark .rf-user-message { background: #2a2b2f; border-color: var(--border); }
+html[data-refined].dark :is(.rf-schedule-receipt, .rf-data-promise) { background: #20342b; color: #a7d4b7; }
+html[data-refined].dark .rf-inline-needs-source { color: #e1b48a; }
+html[data-refined].dark .rf-usage progress { accent-color: #cbc8c2; }
+html[data-refined].dark .rf-usage progress::-webkit-progress-value { background: #cbc8c2; }
+html[data-refined].dark .rf-usage progress::-moz-progress-bar { background: #cbc8c2; }
+html[data-refined].dark :is(.rf-hero, .rf-question) { box-shadow: inset 0 0 0 1px #ffffff12; }
+/* Entry screens use the same dark paper and raised input surfaces. */
+html[data-refined].dark .rf-entry { color: var(--foreground); background: radial-gradient(ellipse at 95% 0%, #292a30, transparent 60%), #17181a; }
+html[data-refined].dark .rf-auth-form-side { background: var(--card); }
+html[data-refined].dark .rf-auth-form input { color: var(--foreground); background: var(--background); border-color: var(--input); }
+html[data-refined].dark .rf-auth-form input:focus { background: var(--background); border-color: var(--ring); }
+html[data-refined].dark .rf-auth-form input[readonly] { background: var(--muted); color: var(--muted-foreground); }
+html[data-refined].dark :is(.rf-auth-subtitle, .rf-auth-receipt > p, .rf-auth-password > button, .rf-auth-recovery, .rf-entry-note, .rf-auth-help, .rf-onboarding-header > span, .rf-onboarding-reason, .rf-onboarding-body cite, .rf-onboarding-source-quote, .rf-onboarding-source-quote small, .rf-onboarding-followup, .rf-onboarding-followup small, .rf-onboarding-review > div > span, .rf-onboarding-review small) { color: var(--muted-foreground); }
+html[data-refined].dark :is(.rf-entry-note b, .rf-auth-help a, .rf-onboarding-body > blockquote) { color: #d0ccc6; }
+html[data-refined].dark .rf-auth-error { color: var(--destructive); }
+html[data-refined].dark .rf-auth-caps { color: #e8bd7f; }
+html[data-refined].dark :is(.rf-onboarding-card, .rf-onboarding-write) { background: var(--card); color: var(--foreground); border-color: var(--border); }
+html[data-refined].dark .rf-onboarding-option:hover { background: var(--muted); }
+html[data-refined].dark .rf-onboarding-option[data-selected] { background: var(--accent); }
+html[data-refined].dark :is(.rf-onboarding-card:focus-within, .rf-onboarding-write:focus-visible) { border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring); }
+html[data-refined].dark .rf-onboarding .rf-radio { background: var(--background); border-color: var(--ring); }
+html[data-refined].dark .rf-onboarding .rf-radio-dot { background: var(--foreground); }
+html[data-refined].dark .rf-onboarding .rf-radio:focus-visible { outline-color: var(--ring); }
+html[data-refined].dark :is(.rf-onboarding-body > blockquote, .rf-onboarding-review > div) { border-color: var(--border); }
+@media (max-width: 767px) {
+  html[data-refined].dark .rf-onboarding-footer { background: var(--background); border-color: var(--border); }
+  html[data-refined].dark .rf-full-calendar .rf-calendar-event { background: #b9b6af; }
+}

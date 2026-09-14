@@ -1,0 +1,86 @@
+{
+  "@assistant-ui/react": {
+    "version": "0.15.19",
+    "license": "MIT"
+  },
+  "@base-ui/react": {
+    "version": "1.8.0",
+    "license": "MIT"
+  },
+  "@tailwindcss/vite": {
+    "version": "4.3.3",
+    "license": "MIT"
+  },
+  "@types/node": {
+    "version": "24.13.4",
+    "license": "MIT"
+  },
+  "@types/react": {
+    "version": "19.3.0",
+    "license": "MIT"
+  },
+  "@types/react-dom": {
+    "version": "19.3.0",
+    "license": "MIT"
+  },
+  "@vitejs/plugin-react": {
+    "version": "6.1.1",
+    "license": "MIT"
+  },
+  "class-variance-authority": {
+    "version": "0.7.1",
+    "license": "Apache-2.0"
+  },
+  "cn": {
+    "version": "0.3.0",
+    "license": "MIT"
+  },
+  "date-fns": {
+    "version": "4.4.0",
+    "license": "MIT"
+  },
+  "lucide-react": {
+    "version": "1.45.0",
+    "license": "ISC"
+  },
+  "react": {
+    "version": "19.3.0",
+    "license": "MIT"
+  },
+  "react-day-picker": {
+    "version": "10.0.1",
+    "license": "MIT"
+  },
+  "react-dom": {
+    "version": "19.3.0",
+    "license": "MIT"
+  },
+  "react-router-dom": {
+    "version": "7.18.3",
+    "license": "MIT"
+  },
+  "shadcn": {
+    "version": "4.21.0",
+    "license": "MIT"
+  },
+  "sonner": {
+    "version": "2.0.8",
+    "license": "MIT"
+  },
+  "tailwindcss": {
+    "version": "4.3.3",
+    "license": "MIT"
+  },
+  "tw-animate-css": {
+    "version": "1.4.0",
+    "license": "MIT"
+  },
+  "typescript": {
+    "version": "6.0.3",
+    "license": "Apache-2.0"
+  },
+  "vite": {
+    "version": "8.3.0",
+    "license": "MIT"
+  }
+}

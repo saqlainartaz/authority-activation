@@ -1,0 +1,43 @@
+.rf-knowledge { max-width: 1000px; }
+.rf-file-drop { display: flex; align-items: center; gap: 20px; padding: 28px; border: 1px dashed var(--input); border-radius: 14px; background: var(--muted); transition: border-color .15s, background .15s; }
+.rf-file-drop[data-dragging] { border-color: var(--foreground); background: var(--accent); outline: 2px solid var(--ring); outline-offset: 3px; }
+.rf-file-drop-icon { display: grid; place-items: center; width: 48px; height: 56px; flex: none; border: 1px solid var(--border); border-radius: 10px; background: var(--background); color: var(--muted-foreground); }
+.rf-file-drop-icon svg { width: 24px; height: 24px; stroke-width: 1.5; }
+.rf-file-drop h3 { font-size: 16px; font-weight: 500; margin: 0 0 5px; }
+.rf-file-drop p { color: var(--muted-foreground); font-size: 14px; line-height: 1.6; margin: 0; }
+.rf-file-drop small { display: block; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; margin-top: 5px; }
+.rf-file-drop > button { margin-left: auto; min-height: 40px; font-size: 14px; }
+.rf-knowledge-note { margin: 0; }
+.rf-file-error { color: var(--destructive); font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.rf-documents-heading { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.rf-documents-heading h3 { font-size: 14px; font-weight: 600; }
+.rf-documents-heading > span { color: var(--muted-foreground); font-size: 12px; }
+.rf-knowledge .rf-coverage { margin: 16px 0; }
+.rf-document-dialog [data-slot="dialog-title"] { overflow-wrap: anywhere; padding-right: 20px; line-height: 1.5; }
+.rf-document-dialog dl > div { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.rf-document-dialog dt { color: var(--muted-foreground); }
+.rf-document-dialog [data-slot="dialog-footer"] { justify-content: space-between; }
+@media (max-width: 767px) {
+  .rf-file-drop { flex-wrap: wrap; gap: 14px; padding: 20px 18px; }
+  .rf-file-drop-icon { width: 36px; height: 42px; }
+  .rf-file-drop > div { flex: 1; min-width: 0; }
+  .rf-drop-desktop { display: none; }
+  .rf-file-drop > button { width: 100%; min-height: 44px; margin: 2px 0 0; }
+}
+
+.rf-upload-dialog { width: 520px; max-width: calc(100vw - 32px); max-height: calc(100svh - 32px); overflow-y: auto; gap: 18px; }
+.rf-upload-dialog .rf-file-drop { flex-direction: column; align-items: center; text-align: center; padding: 30px 22px; gap: 18px; }
+.rf-upload-dialog .rf-file-drop > button { margin: 0; min-height: 44px; }
+.rf-knowledge .rf-documents-heading { margin-top: 28px; margin-bottom: 4px; }
+.rf-source-list li.rf-uploaded-source { padding: 0; display: block; }
+.rf-source-open { width: 100%; height: auto; min-width: 0; padding: 18px 0; gap: 14px; justify-content: flex-start; text-align: left; border-radius: 0; }
+.rf-source-open > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.rf-source-open small { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--muted-foreground); }
+.rf-source-open .rf-source-meta { flex: none; font-weight: 400; }
+@media (max-width: 767px) {
+  .rf-knowledge > .rf-section-heading > button { min-height: 40px; }
+  .rf-upload-dialog .rf-file-drop { padding: 24px 16px; }
+  .rf-source-open { flex-wrap: wrap; gap: 5px 14px; }
+  .rf-source-open > b { flex: 1; }
+  .rf-source-open .rf-source-meta { width: 100%; padding-left: 38px; }
+}
