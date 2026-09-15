@@ -6,6 +6,7 @@ import { ArrowRight, Check, Copy, Loader2, Sparkles } from "lucide-react";
 import { Button, Card } from "@/components/ui/primitives";
 import { LoadingRegion, Skeleton } from "@/components/ui/admin-skeleton";
 import { labelForAtomType } from "@/lib/atom-labels";
+import { copyText } from "@/lib/clipboard";
 import { computeGroundingGap } from "@/lib/grounding-gap";
 import type { InternalApi } from "./page";
 import { DocumentsPanel } from "./documents-panel";
@@ -368,7 +369,7 @@ function LoginLinkPanel({ clientId, api }: { clientId: string; api: InternalApi 
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const copied = useRef(false);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
 
   async function mint() {
     setBusy(true);
@@ -381,7 +382,7 @@ function LoginLinkPanel({ clientId, api }: { clientId: string; api: InternalApi 
         body: JSON.stringify({ clientId, purpose }),
       });
       setUrl(response.url);
-      copied.current = false;
+      setCopyState("idle");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to mint login link.");
     } finally {
@@ -390,9 +391,14 @@ function LoginLinkPanel({ clientId, api }: { clientId: string; api: InternalApi 
   }
 
   async function copy() {
-    if (!url || copied.current) return;
-    await navigator.clipboard.writeText(url);
-    copied.current = true;
+    if (!url || copyState === "copied") return;
+    setCopyState("idle");
+    try {
+      await copyText(url);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
   }
 
   return (
@@ -412,7 +418,7 @@ function LoginLinkPanel({ clientId, api }: { clientId: string; api: InternalApi 
       </label>
       <Button size="sm" className="mt-5" disabled={busy} onClick={() => void mint()}>{busy ? "Minting…" : "Mint login link"}</Button>
       <Message>{error}</Message>
-      {url ? <div className="mt-4 rounded-xl bg-surface-3 p-4"><p className="break-all text-sm text-ink">{url}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void copy()}><Copy className="h-4 w-4" />Copy link</Button></div> : null}
+      {url ? <div className="mt-4 rounded-xl bg-surface-3 p-4"><p className="break-all text-sm text-ink">{url}</p><Button size="sm" variant="secondary" className="mt-3" onClick={() => void copy()} disabled={copyState === "copied"}>{copyState === "copied" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}{copyState === "copied" ? "Copied" : "Copy link"}</Button>{copyState === "error" ? <p role="alert" className="mt-3 text-sm text-danger">Could not access the clipboard. Select and copy the link above.</p> : null}<span className="sr-only" aria-live="polite">{copyState === "copied" ? "Login link copied to clipboard." : ""}</span></div> : null}
     </Card>
   );
 }

@@ -15,6 +15,7 @@ test.beforeEach(async ({ page }) => {
     const path = url.pathname;
     let json: unknown = {};
     if (path === '/api/internal/clients') json = [client];
+    else if (path === '/api/internal/client-login-link') json = { url: 'https://authority.example/refined/signin?token=synthetic-token' };
     else if (path.endsWith('/summary')) json = {
       atom_counts: { insight: 4, proof_point: 3, pain_point: 2, objection: 1 },
       plays: [{ play_id: 'authority', missing_atom_types: ['quote', 'terminology'] }],
@@ -55,4 +56,19 @@ test('operator shell follows the client design language at desktop, tablet, and 
   const widths = await page.evaluate(() => ({ client: document.documentElement.clientWidth, scroll: document.documentElement.scrollWidth }));
   expect(widths.scroll).toBe(widths.client);
   await page.screenshot({ path: '../docs/integration/screenshots/admin-redesign-phone.png', fullPage: true });
+});
+
+test('login-link copy works when the modern Clipboard API is unavailable', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    document.execCommand = command => command === 'copy';
+  });
+
+  await openAdmin(page);
+  await page.getByRole('button', { name: 'Access' }).click();
+  await page.getByRole('button', { name: 'Mint login link' }).click();
+  await expect(page.getByText('https://authority.example/refined/signin?token=synthetic-token')).toBeVisible();
+  await page.getByRole('button', { name: 'Copy link' }).click();
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+  await expect(page.getByText('Login link copied to clipboard.')).toBeAttached();
 });
