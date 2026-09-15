@@ -1,0 +1,1267 @@
+{
+  "capturedAt": "2026-09-14T07:58:42.487Z",
+  "sourceRevision": "working-tree Next.js migration after ec2f05f83dd70b59cc39d3d2240fad9b291d8d17",
+  "baseUrl": "http://127.0.0.1:4173",
+  "browser": {
+    "executablePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+  },
+  "scenarios": [
+    {
+      "name": "home-phone-light",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": null,
+      "file": "home-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 3185,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "home-phone-dark",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "home-phone-dark.png",
+      "status": "captured",
+      "elapsedMs": 1425,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "home-767-light",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 767,
+        "height": 900
+      },
+      "theme": "light",
+      "action": null,
+      "file": "home-767-light.png",
+      "status": "captured",
+      "elapsedMs": 1417,
+      "metrics": {
+        "innerWidth": 767,
+        "innerHeight": 900,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 767,
+        "documentScrollWidth": 767,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "home-768-light",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "theme": "light",
+      "action": null,
+      "file": "home-768-light.png",
+      "status": "captured",
+      "elapsedMs": 1436,
+      "metrics": {
+        "innerWidth": 768,
+        "innerHeight": 900,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 768,
+        "documentScrollWidth": 768,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "home-1179-light",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 1179,
+        "height": 900
+      },
+      "theme": "light",
+      "action": null,
+      "file": "home-1179-light.png",
+      "status": "captured",
+      "elapsedMs": 1479,
+      "metrics": {
+        "innerWidth": 1179,
+        "innerHeight": 900,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1179,
+        "documentScrollWidth": 1179,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "home-1180-light",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 1180,
+        "height": 900
+      },
+      "theme": "light",
+      "action": null,
+      "file": "home-1180-light.png",
+      "status": "captured",
+      "elapsedMs": 1381,
+      "metrics": {
+        "innerWidth": 1180,
+        "innerHeight": 900,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1180,
+        "documentScrollWidth": 1180,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "home-desktop-light",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "action": null,
+      "file": "home-desktop-light.png",
+      "status": "captured",
+      "elapsedMs": 1593,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "home-desktop-dark",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "home-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1447,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "workspace-empty-phone-light",
+      "url": "/refined/workspace",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": null,
+      "file": "workspace-empty-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1401,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "workspace-empty-tablet-dark",
+      "url": "/refined/workspace",
+      "viewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "workspace-empty-tablet-dark.png",
+      "status": "captured",
+      "elapsedMs": 1381,
+      "metrics": {
+        "innerWidth": 1024,
+        "innerHeight": 900,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1024,
+        "documentScrollWidth": 1024,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "workspace-empty-1179-light",
+      "url": "/refined/workspace",
+      "viewport": {
+        "width": 1179,
+        "height": 900
+      },
+      "theme": "light",
+      "action": null,
+      "file": "workspace-empty-1179-light.png",
+      "status": "captured",
+      "elapsedMs": 1434,
+      "metrics": {
+        "innerWidth": 1179,
+        "innerHeight": 900,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1179,
+        "documentScrollWidth": 1179,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "workspace-empty-1180-light",
+      "url": "/refined/workspace",
+      "viewport": {
+        "width": 1180,
+        "height": 900
+      },
+      "theme": "light",
+      "action": null,
+      "file": "workspace-empty-1180-light.png",
+      "status": "captured",
+      "elapsedMs": 1446,
+      "metrics": {
+        "innerWidth": 1180,
+        "innerHeight": 900,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1180,
+        "documentScrollWidth": 1180,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "workspace-empty-desktop-dark",
+      "url": "/refined/workspace",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "workspace-empty-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1580,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "workspace-generated-phone-light",
+      "url": "/refined/workspace",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": "generateDraft",
+      "file": "workspace-generated-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 5346,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "workspace-generated-1179-light",
+      "url": "/refined/workspace",
+      "viewport": {
+        "width": 1179,
+        "height": 900
+      },
+      "theme": "light",
+      "action": "generateDraft",
+      "file": "workspace-generated-1179-light.png",
+      "status": "captured",
+      "elapsedMs": 5396,
+      "metrics": {
+        "innerWidth": 1179,
+        "innerHeight": 900,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1179,
+        "documentScrollWidth": 1179,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "workspace-generated-1180-light",
+      "url": "/refined/workspace",
+      "viewport": {
+        "width": 1180,
+        "height": 900
+      },
+      "theme": "light",
+      "action": "generateDraft",
+      "file": "workspace-generated-1180-light.png",
+      "status": "captured",
+      "elapsedMs": 5317,
+      "metrics": {
+        "innerWidth": 1180,
+        "innerHeight": 900,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1180,
+        "documentScrollWidth": 1180,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "workspace-schedule-desktop-dark",
+      "url": "/refined/workspace",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": "anonymous",
+      "file": "workspace-schedule-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 5456,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "library-table-phone-light",
+      "url": "/refined/library",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": null,
+      "file": "library-table-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1431,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "library-table-tablet-dark",
+      "url": "/refined/library",
+      "viewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "library-table-tablet-dark.png",
+      "status": "captured",
+      "elapsedMs": 1413,
+      "metrics": {
+        "innerWidth": 1024,
+        "innerHeight": 900,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1024,
+        "documentScrollWidth": 1024,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "library-table-desktop-light",
+      "url": "/refined/library",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "action": null,
+      "file": "library-table-desktop-light.png",
+      "status": "captured",
+      "elapsedMs": 1510,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "library-board-phone-light",
+      "url": "/refined/library",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": "anonymous",
+      "file": "library-board-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1911,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "library-board-desktop-dark",
+      "url": "/refined/library",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": "anonymous",
+      "file": "library-board-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1863,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "library-calendar-phone-light",
+      "url": "/refined/library",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": "anonymous",
+      "file": "library-calendar-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 2043,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "library-calendar-desktop-dark",
+      "url": "/refined/library",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": "anonymous",
+      "file": "library-calendar-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1802,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "library-post-phone-light",
+      "url": "/refined/library",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": "openFirstLibraryPost",
+      "file": "library-post-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1582,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "library-post-desktop-dark",
+      "url": "/refined/library",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": "openFirstLibraryPost",
+      "file": "library-post-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1720,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "training-guidance-phone-dark",
+      "url": "/refined/train?tab=guidance",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "training-guidance-phone-dark.png",
+      "status": "captured",
+      "elapsedMs": 1647,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "training-guidance-desktop-light",
+      "url": "/refined/train?tab=guidance",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "action": null,
+      "file": "training-guidance-desktop-light.png",
+      "status": "captured",
+      "elapsedMs": 1499,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "training-questions-phone-light",
+      "url": "/refined/train?tab=questions",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": null,
+      "file": "training-questions-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1826,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "training-questions-desktop-dark",
+      "url": "/refined/train?tab=questions",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "training-questions-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1655,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "training-knowledge-phone-light",
+      "url": "/refined/train?tab=knowledge",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": null,
+      "file": "training-knowledge-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1492,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "training-knowledge-desktop-dark",
+      "url": "/refined/train?tab=knowledge",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "training-knowledge-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1501,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "knowledge-upload-phone-light",
+      "url": "/refined/train?tab=knowledge",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": "anonymous",
+      "file": "knowledge-upload-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1511,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "knowledge-upload-desktop-dark",
+      "url": "/refined/train?tab=knowledge",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": "anonymous",
+      "file": "knowledge-upload-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1536,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "settings-account-phone-light",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": "openSettings",
+      "file": "settings-account-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1501,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "settings-preferences-phone-dark",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "dark",
+      "action": "anonymous",
+      "file": "settings-preferences-phone-dark.png",
+      "status": "captured",
+      "elapsedMs": 2549,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "settings-account-desktop-light",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "action": "openSettings",
+      "file": "settings-account-desktop-light.png",
+      "status": "captured",
+      "elapsedMs": 1778,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": false,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "settings-data-desktop-dark",
+      "url": "/refined/home",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": "anonymous",
+      "file": "settings-data-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 2038,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": true,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "signin-phone-light",
+      "url": "/refined/signin",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": null,
+      "file": "signin-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1523,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": false,
+        "sidebar": true,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "signin-768-dark",
+      "url": "/refined/signin",
+      "viewport": {
+        "width": 768,
+        "height": 900
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "signin-768-dark.png",
+      "status": "captured",
+      "elapsedMs": 1504,
+      "metrics": {
+        "innerWidth": 768,
+        "innerHeight": 900,
+        "dark": true,
+        "mobileNav": false,
+        "sidebar": true,
+        "bodyScrollWidth": 768,
+        "documentScrollWidth": 768,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "signin-desktop-light",
+      "url": "/refined/signin",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "action": null,
+      "file": "signin-desktop-light.png",
+      "status": "captured",
+      "elapsedMs": 1589,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": false,
+        "mobileNav": false,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "recovery-phone-light",
+      "url": "/refined/signin",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": "anonymous",
+      "file": "recovery-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1617,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": false,
+        "sidebar": true,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "recovery-desktop-dark",
+      "url": "/refined/signin",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": "anonymous",
+      "file": "recovery-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1511,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": false,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "invite-phone-light",
+      "url": "/refined/invite",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": null,
+      "file": "invite-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1717,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": false,
+        "sidebar": true,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "invite-desktop-dark",
+      "url": "/refined/invite",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "invite-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1652,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": false,
+        "sidebar": true,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "onboarding-phone-light",
+      "url": "/refined/onboarding",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": null,
+      "file": "onboarding-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1501,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": false,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "onboarding-tablet-dark",
+      "url": "/refined/onboarding",
+      "viewport": {
+        "width": 1024,
+        "height": 900
+      },
+      "theme": "dark",
+      "action": null,
+      "file": "onboarding-tablet-dark.png",
+      "status": "captured",
+      "elapsedMs": 1609,
+      "metrics": {
+        "innerWidth": 1024,
+        "innerHeight": 900,
+        "dark": true,
+        "mobileNav": false,
+        "sidebar": false,
+        "bodyScrollWidth": 1024,
+        "documentScrollWidth": 1024,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "onboarding-desktop-light",
+      "url": "/refined/onboarding",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "light",
+      "action": null,
+      "file": "onboarding-desktop-light.png",
+      "status": "captured",
+      "elapsedMs": 1592,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": false,
+        "mobileNav": false,
+        "sidebar": false,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "onboarding-context-phone-light",
+      "url": "/refined/onboarding",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "theme": "light",
+      "action": "anonymous",
+      "file": "onboarding-context-phone-light.png",
+      "status": "captured",
+      "elapsedMs": 1466,
+      "metrics": {
+        "innerWidth": 390,
+        "innerHeight": 844,
+        "dark": false,
+        "mobileNav": false,
+        "sidebar": false,
+        "bodyScrollWidth": 390,
+        "documentScrollWidth": 390,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    },
+    {
+      "name": "onboarding-next-packet-desktop-dark",
+      "url": "/refined/onboarding",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "theme": "dark",
+      "action": "anonymous",
+      "file": "onboarding-next-packet-desktop-dark.png",
+      "status": "captured",
+      "elapsedMs": 1999,
+      "metrics": {
+        "innerWidth": 1440,
+        "innerHeight": 1000,
+        "dark": true,
+        "mobileNav": false,
+        "sidebar": false,
+        "bodyScrollWidth": 1440,
+        "documentScrollWidth": 1440,
+        "title": "Authority Activation"
+      },
+      "consoleErrors": [],
+      "pageErrors": []
+    }
+  ],
+  "totals": {
+    "requested": 50,
+    "captured": 50,
+    "failed": 0,
+    "consoleErrors": 0,
+    "pageErrors": 0
+  }
+}

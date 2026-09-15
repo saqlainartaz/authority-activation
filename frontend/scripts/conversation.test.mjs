@@ -6,7 +6,7 @@ import ts from 'typescript';
 const source = await readFile(new URL('../src/refined/conversation.ts', import.meta.url), 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
 const { buildConversationMessages } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
-const ws = (overrides = {}) => ({ phase: 'streaming', thread: [{ who: 'u', text: 'Write my post' }], visible: { done: [{ segs: [{ t: 'Complete paragraph.' }] }], partial: 'Still writing' }, fmt: 'li', title: 'My post', xPosts: [{ t: 'My X post' }], ...overrides });
+const ws = (overrides = {}) => ({ phase: 'streaming', showDraft: true, thread: [{ who: 'u', text: 'Write my post' }], visible: { done: [{ segs: [{ t: 'Complete paragraph.' }] }], partial: 'Still writing' }, fmt: 'li', title: 'My post', xPosts: [{ t: 'My X post' }], ...overrides });
 const texts = messages => messages.map(m => m.content[0].text);
 
 test('compact conversation streams the actual partial draft after the request', () => {
@@ -27,6 +27,20 @@ test('rewriting preserves earlier conversation and displays one current draft', 
 });
 test('desktop keeps the draft in its existing separate canvas', () => {
   assert.equal(buildConversationMessages(ws(), false).some(m => m.id === 'current-draft'), false);
+});
+test('connected conversation streaming does not invent a draft before draft.ready', () => {
+  const messages = buildConversationMessages(ws({ showDraft: false, thread: [{ who: 'u', text: 'How do I do it?' }, { who: 'a', text: 'What should the post be about?', text2: '', strong: '' }] }), true);
+  assert.deepEqual(messages.map(m => m.id), ['0', '1']);
+  assert.equal(messages.some(m => m.id === 'current-draft'), false);
+});
+test('adjacent assistant records stay complete but read as one conversational turn', () => {
+  const messages = buildConversationMessages(ws({ showDraft: false, phase: 'empty', thread: [
+    { who: 'u', text: 'How do I do it?' },
+    { who: 'a', text: 'What should the post be about?', text2: '', strong: '' },
+    { who: 'a', text: 'Once I know the topic, I can find the matching passages.', text2: '', strong: '' },
+  ] }), true);
+  assert.deepEqual(messages.map(m => m.id), ['0', '1']);
+  assert.equal(texts(messages)[1], 'What should the post be about?\n\nOnce I know the topic, I can find the matching passages.');
 });
 test('opening a saved record without a transcript still exposes its draft', () => {
   const messages = buildConversationMessages(ws({ phase: 'record', thread: [] }), true);

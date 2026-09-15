@@ -1,0 +1,50 @@
+{
+  "$defs": {
+    "Citation": {
+      "additionalProperties": false,
+      "description": "One claim in the post, tied to the atom that supports it.",
+      "properties": {
+        "atom_id": {
+          "title": "Atom Id",
+          "type": "string"
+        },
+        "claim_text": {
+          "title": "Claim Text",
+          "type": "string"
+        },
+        "quoted_span": {
+          "title": "Quoted Span",
+          "type": "string"
+        }
+      },
+      "required": [
+        "atom_id",
+        "quoted_span",
+        "claim_text"
+      ],
+      "title": "Citation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A LinkedIn post, plus one citation for each claim it makes.",
+  "properties": {
+    "body": {
+      "title": "Body",
+      "type": "string"
+    },
+    "cited_atom_ids": {
+      "items": {
+        "$ref": "#/$defs/Citation"
+      },
+      "title": "Cited Atom Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "body",
+    "cited_atom_ids"
+  ],
+  "title": "Draft",
+  "type": "object"
+}

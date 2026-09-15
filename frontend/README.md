@@ -1,26 +1,25 @@
-# Authority Activation frontend
+# Authority Activation
 
-Runnable React/TypeScript application extracted from the approved design. Before integrating, read the repository [agent instructions](../AGENTS.md), [handoff](../docs/AGENT-HANDOFF.md) and [design contract](../docs/DESIGN-CONTRACT.md).
+Deployment-ready Next.js migration of the approved Authority Activation frontend, connected to the compatible previous application stack where that stack has real support.
+
+Requirements: Node 22.12 or newer and a separately running Python backend pinned in [the architecture record](../docs/ARCHITECTURE.md).
 
 ```sh
 npm ci
-npm run dev
-npm test
+npm run check
 npm run build
+npm run dev
 ```
 
-Use Node 22.12 or newer. Vite prints the development URL. Build output goes to `dist/`; `npm run preview` serves that output locally.
+Public client routes remain under `/refined/*`; the retained admin dashboard is `/internal`. Supported connected behavior uses same-origin Next route handlers and server-only credentials. Set `NEXT_PUBLIC_AUTHORITY_DEMO=1` only to run the preserved fixture/demo behavior.
 
-- Default: `/refined/home`
-- Sign-in: `/refined/signin` (demo password `preview-only`)
-- Invitation: `/refined/invite`
-- Onboarding: `/refined/onboarding`
-- Knowledge: `/refined/train?tab=knowledge`
+Start with:
 
-No API environment variables are required for the current demo. Configure real services using the destination backend repository's conventions. Never place private service keys in browser code.
+- [Local setup](../docs/LOCAL-SETUP.md)
+- [Manual E2E cheat sheet](../docs/E2E-CHEAT-SHEET.md)
+- [Capability map](../docs/CAPABILITY-MAP.md)
+- [Verification evidence](../docs/VERIFICATION.md)
+- [Feature gaps](../docs/FEATURE-GAPS.md)
+- [Vercel and backend handoff](../docs/DEPLOYMENT-HANDOFF.md)
 
-`src/refined/` owns product behavior. `src/components/ui/` contains the required Base UI-backed shadcn primitives. `src/shared/data.ts` holds fixtures. See the [integration guide](../docs/INTEGRATION.md) for a complete replacement map.
-
-This application is browser-first and assumes a single BrowserRouter. Its styles apply theme tokens to the document root so dialogs and popovers match. Take care with router, alias, CSS and theme ownership when embedding it in an existing frontend.
-
-Keep the approved visual design and flows unchanged during integration. Source code changes for real data, handlers and functional fixes are expected; a visual redesign is not.
+The application has been verified locally with synthetic data and deterministic provider substitutes. It has not been published or deployed, and unsupported features are not represented as integrated.

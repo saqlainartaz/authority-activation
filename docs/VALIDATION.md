@@ -1,5 +1,7 @@
 # Validation and provenance
 
+> This file records the initial exported baseline. Independent migration and connected-stack evidence is in [baseline/README.md](baseline/README.md), [migration/README.md](migration/README.md), and [VERIFICATION.md](VERIFICATION.md). Its earlier statement that no new browser run occurred is not the status of the completed local migration.
+
 ## Source snapshot
 
 - Export date: 14 September 2026, Europe/Warsaw.

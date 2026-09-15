@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ArrowUp, Square, Plus, Pencil, ChevronDown, ChevronLeft, ChevronRight, ListChecks, Star, RotateCcw, MessageSquare, Check, Eye } from 'lucide-react';
 import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
@@ -22,15 +22,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useData } from './state';
 import { useMobile, useTwoPane } from '@/shared/frame';
-import { CITES, COPY, PERSON, TEMPLATES, type Channel, type Para } from '@/shared/data';
+import { CITES, COPY, PERSON, TEMPLATES, type Channel, type Para, type Source } from '@/shared/data';
+import { newPostConfirmationKind, showsConversation } from './workspace-presentation';
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = { how: ListChecks, win: Star, mistake: RotateCcw, question: MessageSquare };
 const Mark = ({ ch, className }: { ch: Channel; className?: string }) => (
   <span className={cn('inline-flex size-4 items-center justify-center rounded-[4px] text-[8px] font-bold text-white', ch === 'li' ? 'bg-[#0A66C2]' : 'bg-black', className)}>{ch === 'li' ? 'in' : 'X'}</span>
 );
 
-function Cite({ n }: { n: string }) {
-  const c = CITES[n];
+function Cite({ n, sources }: { n: string; sources: Source[] }) {
+  const source = sources.find(candidate => candidate.n === n);
+  const fixture = CITES[n];
+  const c = fixture ?? (source ? { q: source.quote || 'The server linked this claim to the source below.', mark: source.mark, s: source.t, loc: source.loc, bad: source.bad } : null);
+  if (!c) return <sup className="pl-px font-sans text-[9.5px] font-bold text-muted-foreground">{n}</sup>;
   return (
     <Popover>
       <PopoverTrigger className={cn('cursor-pointer pl-px align-super font-sans text-[9.5px] font-bold', c.bad ? 'text-[var(--miss)]' : 'text-[var(--cite)]')}>{n}</PopoverTrigger>
@@ -42,7 +46,7 @@ function Cite({ n }: { n: string }) {
   );
 }
 
-function ParaView({ p, lens, onEdit }: { p: Para; lens: boolean; onEdit?: (text: string) => void }) {
+function ParaView({ p, lens, sources, onEdit }: { p: Para; lens: boolean; sources: Source[]; onEdit?: (text: string) => void }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState('');
   if (editing) return <Textarea autoFocus aria-label="Edit paragraph" className="rf-paragraph-editor" value={text} onChange={e => setText(e.target.value)} onBlur={() => { onEdit?.(text); setEditing(false); }} />;
@@ -51,7 +55,7 @@ function ParaView({ p, lens, onEdit }: { p: Para; lens: boolean; onEdit?: (text:
       {p.segs.map((s, i) =>
         s.claim ? (
           <span key={i} className={cn('underline decoration-2 underline-offset-4', s.claim.bad ? 'text-[var(--miss)] decoration-[var(--miss-line)]' : 'decoration-[var(--cite-line)]', lens && 'text-foreground')}>
-            {s.t}<Cite n={s.claim.n} />
+            {s.t}<Cite n={s.claim.n} sources={sources} />
           </span>
         ) : (<span key={i}>{s.t}</span>),
       )}
@@ -85,7 +89,7 @@ function Sheet({ ws }: { ws: WS }) {
         {ws.visible.done.map((p, i) => (
           <div key={i} className="contents">
             <span className={cn('text-right font-mono text-xs leading-[1.72] select-none', p.g === 'c' ? 'text-[var(--cite-mark)]' : p.g === 'm' ? 'text-[var(--miss-mark)]' : 'text-transparent')}>—</span>
-            <ParaView p={p} lens={ws.lens} onEdit={ws.phase === 'record' ? text => ws.editPara(i, text) : undefined} />
+            <ParaView p={p} lens={ws.lens} sources={v.sources} onEdit={ws.phase === 'record' ? text => ws.editPara(i, text) : undefined} />
           </div>
         ))}
         {ws.visible.partial !== undefined && (
@@ -95,7 +99,7 @@ function Sheet({ ws }: { ws: WS }) {
       {ws.phase === 'record' && (
         <div className="sources mt-7 border-t pt-4">
           <p className="ui-label mb-2 text-xs text-muted-foreground">Sources</p>
-          {v.sources.map((s) => <p key={s.n} className="flex items-baseline gap-3 py-1 text-xs"><span className={cn('w-3 font-semibold', s.bad ? 'text-[var(--miss)]' : 'text-[var(--cite)]')}>{s.n}</span><span>{s.t}</span><span className="locator ml-auto font-mono text-[10.5px] text-muted-foreground">{s.loc}</span></p>)}
+          {v.sources.map((s) => <p key={s.n} className="flex items-baseline gap-3 py-1 text-xs"><span className={cn('w-3 font-semibold', s.bad ? 'text-[var(--miss)]' : 'text-[var(--cite)]')}>{s.n}</span><span>{s.t}</span>{s.loc && <span className="locator ml-auto font-mono text-[10.5px] text-muted-foreground">{s.loc}</span>}</p>)}
         </div>
       )}
     </CardContent></Card>
@@ -107,14 +111,15 @@ function Sheet({ ws }: { ws: WS }) {
  *  at some scroll position whatever padding is under it, and that is what read as chrome dropped
  *  onto the screen. `short` is the phone form, four words instead of a sentence. */
 function Evidence({ ws, iconLens, className }: { ws: WS; iconLens?: boolean; className?: string }) {
+  const label = ws.lens ? 'Hide evidence' : 'Show evidence';
   return (
     <div className={cn('flex min-w-0 items-center gap-1.5 text-xs', className)}>
       <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
         <span className="size-1.5 shrink-0 rounded-full bg-[var(--cite-mark)]" />
         <span className="truncate">{ws.evidenceShort}</span>
       </span>
-      <Button variant={ws.lens ? 'default' : 'ghost'} size={iconLens ? 'icon-xs' : 'xs'} className="shrink-0 gap-1.5 rounded-full" onClick={ws.toggleLens} aria-label={iconLens ? 'Evidence lens' : undefined}>
-        <Eye className="size-3" />{!iconLens && 'Evidence lens'}
+      <Button variant={ws.lens ? 'default' : 'ghost'} size={iconLens ? 'icon-xs' : 'xs'} className="shrink-0 gap-1.5 rounded-full" onClick={ws.toggleLens} disabled={!ws.hasEvidenceClaims} aria-pressed={ws.lens} aria-label={iconLens ? label : undefined} title={!ws.hasEvidenceClaims ? 'This draft has no claim-level evidence links.' : label}>
+        <Eye className="size-3" />{!iconLens && label}
       </Button>
     </div>
   );
@@ -151,7 +156,7 @@ function Composer({ ws, placeholder, channels, onChannels, initialText, selected
               <ToggleGroupItem value="x" className="gap-1.5"><Mark ch="x" /> X {channels.includes('x') && <Check className="size-3" />}</ToggleGroupItem>
             </ToggleGroup>
           )}
-          {ws.phase === 'streaming'
+          {ws.phase === 'streaming' || ws.phase === 'reading'
             ? <InputGroupButton size="icon-sm" variant="default" className="ml-auto rounded-full" onClick={ws.stop} aria-label="Stop"><Square className="size-3 fill-current" /></InputGroupButton>
             : <InputGroupButton size="icon-sm" variant="default" className="ml-auto rounded-full" onClick={submit} aria-label="Send"><ArrowUp /></InputGroupButton>}
         </InputGroupAddon>
@@ -161,12 +166,17 @@ function Composer({ ws, placeholder, channels, onChannels, initialText, selected
 }
 
 function Thread({ ws, inlineDraft = false, draft }: { ws: WS; inlineDraft?: boolean; draft?: ReactNode }) {
+  const progress = ws.agentActivity
+    || (ws.phase === 'streaming'
+      ? ws.showDraft ? COPY.writing(ws.paragraphsDone, ws.version.paras.length) : 'Responding'
+      : null);
   return (
     <div className="flex flex-col gap-3.5">
       <AgentThread ws={ws} inlineDraft={inlineDraft} draft={draft} />
-      {ws.phase === 'reading' && (<><Badge variant="outline" className="w-fit animate-pulse font-normal text-muted-foreground">{COPY.reading}…</Badge><Card><CardContent className="space-y-2.5 p-4"><Skeleton className="h-3 w-2/5" /><Skeleton className="h-3 w-3/4" /><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-2/3" /></CardContent></Card></>)}
-      {ws.phase === 'streaming' && <Badge variant="outline" className="w-fit animate-pulse font-normal text-muted-foreground">{COPY.writing(ws.paragraphsDone, ws.version.paras.length)}</Badge>}
-      {ws.typing && <div className="flex gap-1 px-2 py-2"><span className="size-1.5 animate-bounce rounded-full bg-muted-foreground" /><span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:.15s]" /><span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:.3s]" /></div>}
+      {progress && <Badge variant="outline" className="w-fit animate-pulse font-normal text-muted-foreground">{progress}{progress.endsWith('…') ? '' : '…'}</Badge>}
+      {ws.phase === 'reading' && <Card><CardContent className="space-y-2.5 p-4"><Skeleton className="h-3 w-2/5" /><Skeleton className="h-3 w-3/4" /><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-2/3" /></CardContent></Card>}
+      {ws.typing && !progress && <div className="flex gap-1 px-2 py-2"><span className="size-1.5 animate-bounce rounded-full bg-muted-foreground" /><span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:.15s]" /><span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:.3s]" /></div>}
+      {ws.agentNotice && <Card role="alert"><CardContent className="p-4 text-sm text-muted-foreground">{ws.agentNotice}</CardContent></Card>}
     </div>
   );
 }
@@ -184,10 +194,10 @@ function InlineDraft({ ws, onRename }: { ws: WS; onRename: () => void }) {
     <div className="rf-inline-draft-controls"><FormatTabs ws={ws} />{!streaming && <div className="rf-inline-view-controls"><Button variant={preview ? 'secondary' : 'ghost'} aria-pressed={preview} onClick={() => { setEditing(false); ws.setView(preview ? 'write' : 'preview'); }}><Eye />{preview ? 'Back to draft' : 'Preview post'}</Button><Button variant={editing ? 'secondary' : 'ghost'} aria-pressed={editing} onClick={() => { ws.setView('write'); setEditing(value => !value); }} disabled={ws.fmt === 'x'}><Pencil />{editing ? 'Done editing' : 'Edit text'}</Button></div>}</div>
     <div className={`rf-inline-draft-text ${preview ? 'rf-inline-feed-preview' : ''}`}>
       {preview && <div className="rf-inline-author"><Avatar className="size-9"><AvatarFallback>{PERSON.initials}</AvatarFallback></Avatar><span><b>{profile.name}</b><small>{profile.headline} · {ws.fmt === 'li' ? 'LinkedIn' : 'X'}</small></span></div>}
-      {ws.fmt === 'x' && !streaming ? ws.xPosts.map((post, i) => <p className="post-p" key={i}>{post.t}</p>) : ws.visible.done.map((p, i) => preview ? !p.miss && <p className="post-p" key={i}>{p.segs.map(s => s.t).join('')}</p> : editing ? <Textarea key={i} aria-label={`Edit paragraph ${i + 1}`} className="rf-paragraph-editor" value={p.segs.map(s => s.t).join('')} onChange={event => ws.editPara(i, event.target.value)} /> : <div key={i}><ParaView p={p} lens={ws.lens} />{p.miss && <span className="rf-inline-needs-source">Needs a source · excluded from the feed preview</span>}</div>)}
+      {ws.fmt === 'x' && !streaming ? ws.xPosts.map((post, i) => <p className="post-p" key={i}>{post.t}</p>) : ws.visible.done.map((p, i) => preview ? !p.miss && <p className="post-p" key={i}>{p.segs.map(s => s.t).join('')}</p> : editing ? <Textarea key={i} aria-label={`Edit paragraph ${i + 1}`} className="rf-paragraph-editor" value={p.segs.map(s => s.t).join('')} onChange={event => ws.editPara(i, event.target.value)} /> : <div key={i}><ParaView p={p} lens={ws.lens} sources={ws.version.sources} />{p.miss && <span className="rf-inline-needs-source">Needs a source · excluded from the feed preview</span>}</div>)}
       {streaming && <p className="post-p">{ws.visible.partial}<span className="rf-inline-caret" aria-hidden="true" /></p>}
     </div>
-    {!streaming && !preview && <Collapsible className="rf-inline-evidence"><CollapsibleTrigger render={<Button variant="ghost" />} className="rf-inline-evidence-trigger"><span>{ws.evidenceShort}</span><ChevronDown /></CollapsibleTrigger><CollapsibleContent><Evidence ws={ws} />{ws.version.sources.length ? <ul>{ws.version.sources.map(source => <li key={source.n}><span>{source.n}. {source.t}</span><small>{source.loc}</small></li>)}</ul> : <p>No source citations in this draft.</p>}</CollapsibleContent></Collapsible>}
+    {!streaming && !preview && <Collapsible className="rf-inline-evidence"><CollapsibleTrigger render={<Button variant="ghost" />} className="rf-inline-evidence-trigger"><span>{ws.evidenceShort}</span><ChevronDown /></CollapsibleTrigger><CollapsibleContent><Evidence ws={ws} />{ws.version.sources.length ? <ul>{ws.version.sources.map(source => <li key={source.n}><span>{source.n}. {source.t}</span>{source.loc && <small>{source.loc}</small>}</li>)}</ul> : <p>No source citations in this draft.</p>}</CollapsibleContent></Collapsible>}
     {streaming && <div className="rf-inline-draft-actions"><span>{COPY.writing(ws.paragraphsDone, ws.version.paras.length)}</span><Button variant="outline" onClick={ws.stop}><Square /> Stop</Button></div>}
   </Card>;
 }
@@ -248,16 +258,41 @@ export default function Workspace() {
   const twoPane = useTwoPane();
   const [sched, setSched] = useState(false);
   const [discard, setDiscard] = useState(false);
+  const [startingNew, setStartingNew] = useState(false);
   const [rename, setRename] = useState(false);
   const [title, setTitle] = useState('');
   const conversationScroll = useRef<HTMLDivElement>(null);
   const followConversation = useRef(true);
-  useLayoutEffect(() => {
-    const panel = conversationScroll.current;
-    if (panel && panel.clientHeight > 0 && followConversation.current) panel.scrollTop = panel.scrollHeight;
-  }, [ws.pos, ws.thread.length, ws.phase]);
-  const hasRecord = ws.phase === 'streaming' || ws.phase === 'record';
-  const tryNew = () => { if (!ws.newPost()) setDiscard(true); };
+  const scrollFrame = useRef<number | null>(null);
+  useEffect(() => {
+    if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
+    scrollFrame.current = requestAnimationFrame(() => {
+      const panel = conversationScroll.current;
+      if (panel && panel.clientHeight > 0 && followConversation.current) panel.scrollTop = panel.scrollHeight;
+    });
+    return () => { if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current); };
+  }, [ws.lastAgent?.text, ws.pos, ws.thread.length, ws.phase]);
+  const conversation = showsConversation(ws.phase, ws.thread.length);
+  const hasRecord = ws.showDraft;
+  const [draftPaneVisible, setDraftPaneVisible] = useState(false);
+  useEffect(() => {
+    if (!hasRecord) { setDraftPaneVisible(false); return; }
+    const frame = requestAnimationFrame(() => setDraftPaneVisible(true));
+    return () => cancelAnimationFrame(frame);
+  }, [hasRecord]);
+  const newPostKind = newPostConfirmationKind(ws.phase, ws.thread.length, hasRecord);
+  const tryNew = () => setDiscard(true);
+  const confirmNew = async () => {
+    setStartingNew(true);
+    try {
+      if (await ws.startNewPost()) setDiscard(false);
+    } finally {
+      setStartingNew(false);
+    }
+  };
+  const discardBody = newPostKind === 'draft' ? COPY.discardBody : COPY.endConversationBody;
+  const keepCurrent = newPostKind === 'draft' ? COPY.keepEditing : COPY.keepTalking;
+  const confirmLabel = newPostKind === 'draft' ? COPY.discard : COPY.endConversation;
 
   const record = hasRecord && (
     <div className="flex h-full min-h-0 flex-col">
@@ -287,7 +322,7 @@ export default function Workspace() {
 
   const agent = (
     <div className="flex min-h-0 flex-1 flex-col">
-      {ws.phase === 'empty' ? <Fresh ws={ws} mobile={mobile} /> : (
+      {!conversation ? <Fresh ws={ws} mobile={mobile} /> : (
         <>
           <div ref={conversationScroll} onScroll={e => { const panel = e.currentTarget; followConversation.current = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 80; }} className="rf-conversation-scroll flex min-h-0 flex-1 flex-col overflow-auto px-6 py-5"><div className="mx-auto w-full max-w-[680px]"><Thread ws={ws} inlineDraft={!twoPane} draft={!twoPane ? <InlineDraft ws={ws} onRename={() => { setTitle(ws.title); setRename(true); }} /> : undefined} /></div></div>
           <div className="rf-workspace-composer flex-none px-6 pb-5"><div className="mx-auto max-w-[680px]">
@@ -305,7 +340,7 @@ export default function Workspace() {
       <header className="rf-workspace-header rf-refined-header flex h-13 flex-none items-center gap-2 border-b px-4">
         <PageHeading title="Workspace" />
         <span className="flex-1" />
-        {(hasRecord || ws.hasRecord) && <Button variant="ghost" size="sm" className="rf-header-new-post" onClick={tryNew}><Plus /> {COPY.newPost}</Button>}
+        {newPostKind && <Button variant="ghost" size="sm" className="rf-header-new-post" onClick={tryNew}><Plus /> {COPY.newPost}</Button>}
       </header>
       <div className="flex min-h-0 flex-1 flex-col">
       {twoPane ? (
@@ -314,23 +349,23 @@ export default function Workspace() {
           {/* The document grows with the screen, but never starves the agent. A fixed 600px left
               the agent 244px at the 1100px two-pane threshold, narrow enough to wrap a short
               message onto five lines. */}
-          {hasRecord && <aside className="w-[clamp(440px,52%,640px)] flex-none border-l">{record}</aside>}
+          {hasRecord && <aside className={cn('rf-draft-pane', draftPaneVisible && 'is-visible')}><div className="rf-draft-pane-content">{record}</div></aside>}
         </div>
       ) : (
         <div className="rf-workspace-panel">{agent}</div>
       )}
       </div>
-      <Schedule open={sched} onClose={() => setSched(false)} onPick={(label, date) => { setSched(false); ws.approve(label || undefined, date); }} />
+      <Schedule open={sched} onClose={() => setSched(false)} onPick={async (label, date, time) => { if (await ws.approve(label || undefined, date, time)) setSched(false); }} />
       <Dialog open={rename} onOpenChange={setRename}><DialogContent><DialogHeader><DialogTitle>Rename post</DialogTitle><DialogDescription>A title to find this post in your Library.</DialogDescription></DialogHeader><Input autoFocus aria-label="Post title" value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && title.trim()) { ws.rename(title); setRename(false); } }} /><DialogFooter><Button variant="outline" onClick={() => setRename(false)}>Cancel</Button><Button disabled={!title.trim()} onClick={() => { ws.rename(title); setRename(false); }}>Save title</Button></DialogFooter></DialogContent></Dialog>
       {mobile ? (
         <Drawer open={discard} onOpenChange={setDiscard} showSwipeHandle>
-          <DrawerContent><DrawerHeader><DrawerTitle>{COPY.discardTitle}</DrawerTitle><DrawerDescription>{COPY.discardBody}</DrawerDescription></DrawerHeader>
-            <DrawerFooter className="flex-row"><Button variant="outline" className="flex-1" onClick={() => setDiscard(false)}>{COPY.keepEditing}</Button><Button className="flex-1" onClick={() => { setDiscard(false); ws.discard(); }}>{COPY.discard}</Button></DrawerFooter>
+          <DrawerContent><DrawerHeader><DrawerTitle>{COPY.discardTitle}</DrawerTitle><DrawerDescription>{discardBody}</DrawerDescription></DrawerHeader>
+            <DrawerFooter className="flex-row"><Button variant="outline" className="flex-1" disabled={startingNew} onClick={() => setDiscard(false)}>{keepCurrent}</Button><Button className="flex-1" disabled={startingNew} onClick={confirmNew}>{startingNew ? 'Starting…' : confirmLabel}</Button></DrawerFooter>
           </DrawerContent>
         </Drawer>
       ) : (
         <Dialog open={discard} onOpenChange={setDiscard}>
-          <DialogContent className="sm:max-w-[420px]"><DialogHeader><DialogTitle>{COPY.discardTitle}</DialogTitle><DialogDescription>{COPY.discardBody}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setDiscard(false)}>{COPY.keepEditing}</Button><Button onClick={() => { setDiscard(false); ws.discard(); }}>{COPY.discard}</Button></DialogFooter></DialogContent>
+          <DialogContent className="sm:max-w-[420px]"><DialogHeader><DialogTitle>{COPY.discardTitle}</DialogTitle><DialogDescription>{discardBody}</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={startingNew} onClick={() => setDiscard(false)}>{keepCurrent}</Button><Button disabled={startingNew} onClick={confirmNew}>{startingNew ? 'Starting…' : confirmLabel}</Button></DialogFooter></DialogContent>
         </Dialog>
       )}
       {(twoPane || !hasRecord) && ws.toast && (

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from './navigation';
 import { ArrowRight, Check, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -37,26 +37,31 @@ function CopyPost({ text, title }: { text: string; title: string }) {
 export default function Home({ questions }: { questions: number }) {
   const navigate = useNavigate();
   const d = useData();
-  const posts = d.posts.filter(p => p.status === 'scheduled' && p.date === '2026-03-04').sort((a, b) => (a.when || '').localeCompare(b.when || ''));
+  const now = d.isDemo ? new Date(2026, 2, 4, 9) : new Date();
+  const todayKey = d.isDemo ? '2026-03-04' : new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: d.timeZone }).format(now);
+  const dateLabel = d.isDemo ? 'Wednesday, 4 March' : new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: d.timeZone }).format(now);
+  const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', hourCycle: 'h23', timeZone: d.timeZone }).format(now));
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const posts = d.posts.filter(p => p.status === 'scheduled' && p.date === todayKey).sort((a, b) => (a.when || '').localeCompare(b.when || ''));
   return <>
     <header className="rf-topbar rf-home-topbar rf-refined-header"><PageHeading title="Home" /></header>
     <div className="rf-home-scroll"><div className="rf-home-grid">
-      <div className="rf-greeting"><div className="rf-mobile-avatar" aria-hidden="true">SA</div><div><h2>Good morning, Saqlain</h2><p>Wednesday, 4 March</p></div></div>
+      <div className="rf-greeting"><div className="rf-mobile-avatar" aria-hidden="true">{d.profile.name.split(/\s+/).map(part => part[0]).slice(0, 2).join('').toUpperCase()}</div><div><h2>{greeting}, {d.profile.name.split(/\s+/)[0]}</h2><p>{dateLabel}</p></div></div>
       <Card className="rf-hero"><CardContent>
         <h3>Write this week's post</h3>
-        <p>Tell me what happened this week and I will draft something you can actually use. Fourteen sources, ready.</p>
+        <p>Tell me what happened this week and I will draft something you can actually use. {d.sourceCount} {d.sourceCount === 1 ? 'source' : 'sources'} available.</p>
         <Button className="rf-hero-button" onClick={() => navigate('/refined/workspace')}>Open the workspace <ArrowRight /></Button>
       </CardContent></Card>
       <Card className="rf-summary"><CardContent>
         <h3>This month</h3>
-        <dl className="rf-stats"><div><dd>3</dd><dt>posts</dt></div><div><dd>4</dd><dt>day streak</dt></div><div><dd>14</dd><dt>sources</dt></div></dl>
+        <dl className="rf-stats"><div><dd>{d.posts.length}</dd><dt>posts</dt></div><div><dd>{d.isDemo ? '4' : '—'}</dd><dt>day streak</dt></div><div><dd>{d.sourceCount}</dd><dt>sources</dt></div></dl>
         <h3 className="rf-agent-title">Your agent</h3>
-        <div className="rf-agent-line"><span>{questions ? `${questions} questions waiting` : 'You’re all caught up'}</span><Button variant="link" className="rf-answer" onClick={() => navigate('/refined/train?tab=questions')}>{questions ? 'Answer' : 'Review'}</Button></div>
+        <div className="rf-agent-line"><span>{d.isDemo && questions ? `${questions} questions waiting` : d.isDemo ? 'You’re all caught up' : 'Review your knowledge'}</span><Button variant="link" className="rf-answer" onClick={() => navigate('/refined/train?tab=questions')}>{d.isDemo && questions ? 'Answer' : 'Review'}</Button></div>
       </CardContent></Card>
       <section className="rf-today" aria-labelledby="rf-today-title"><h3 id="rf-today-title">Today</h3>
         <Card className="rf-day-card"><CardContent><ul>
           {posts.map(post => <li key={post.id}><Item className="rf-post-row">
-            <time dateTime={`2026-03-04T${post.when?.split(', ')[1] || '09:00'}`} className="rf-post-time">{post.when?.split(', ')[1]}</time>
+            <time dateTime={`${todayKey}T${post.when?.split(', ')[1] || '09:00'}`} className="rf-post-time">{post.when?.split(', ')[1] || post.when}</time>
             <ChannelMark channel={post.ch} />
             <ItemContent><ItemTitle>{post.name}</ItemTitle><ItemDescription>{post.body.split('\n')[0]}</ItemDescription></ItemContent>
             <CopyPost text={post.body} title={post.name} />

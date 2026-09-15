@@ -61,15 +61,27 @@ Preserve the Home composition: greeting, dark writing call-to-action, today's sc
 
 ## Workspace
 
-The fresh state presents a writing prompt, channel selection and templates. Desktop uses a small template grid. Phone uses one horizontal card carousel with previous/next controls, a visible count and a partial next card. Selecting a template fills the composer; browsing templates does not submit a prompt.
+The fresh state presents a writing prompt, channel selection and templates. Desktop uses a small template grid. Phone uses one horizontal card carousel with previous/next controls, a visible count and a partial next card. Selecting a template fills the composer with a short, complete discovery request, not a dangling heading; browsing templates does not submit a prompt. The visible card names and descriptions remain unchanged.
+
+The fresh state ends as soon as the user sends the first message. From that point the Workspace is a continuous chat: the submitted message remains visible, the agent exposes its current activity and streamed response, and clarification turns stay in the conversation instead of falling back to the starter prompt. Consecutive persisted assistant records may be grouped into one visual response, but their text must not be dropped or duplicated.
+
+The chat remains the only main surface until the backend has produced an authoritative draft. Conversational prose and streaming deltas are not themselves a draft and must not open or populate the document pane. Once a persisted draft is available, desktop adds the right-hand document pane and compact layouts insert the draft into the conversation. Demo mode may retain its clearly identified fixture draft behavior.
+
+**New post** is available as soon as a conversation exists, including while the agent is still clarifying and no draft has been produced. It opens a confirmation that distinguishes ending a conversation from discarding a draft. Confirmation calls the backend's authoritative `start_new_post` command, waits for success, then clears the old transcript and opens the replacement session. A failed replacement leaves the current conversation visible.
+
+The agent is a conversational guide, not a questionnaire gate. Ordinary clarification replies should be concise, ask no more than one useful question, and avoid repeating an already answered question. “Choose for me,” “write about anything,” “what do my clients ask?” or a template that asks the agent to find an angle delegates topic discovery: use authenticated topic suggestions and a small set of active objections, pain points, insights, proof points and quotes to choose a specific retrieval subject instead of demanding another choice. Those discovery candidates are not citable draft material. An empty generation snapshot describes that attempted topic, not the whole account. When neither candidates nor retrieved evidence exist, offer a few clearly labelled hypotheses rather than inventing a client fact or repeating the server question. Questions such as “Who am I?” and “How much data do you have?” use a narrow authenticated overview of identity, extracted knowledge counts, represented sources, and onboarding suggestions; the answer must distinguish those account-wide facts from material frozen for a particular draft.
 
 Desktop has a conversation and document pane, Write/Preview switching, evidence, editable draft text and a persistent footer beneath the document. That footer exposes **Keep as draft** and **Approve** directly, aligned right. There is no desktop Post actions dropdown.
 
 Compact layouts keep the full draft inside the conversation stream. Preview post changes that result in place. Evidence expands within the result. Keep as draft and Approve sit above the composer, outside the conversation scroller. The draft must remain visible on small screens, not disappear behind a canvas-only mode.
 
-Shorter/Longer/Punchier suggestion chips were removed. The user types requested changes. Streaming exposes Stop. A failed real operation should preserve the user's input and draft when the backend is connected.
+Shorter/Longer/Punchier suggestion chips were removed. The user types requested changes. Streaming exposes Stop. Stop ends the browser display, while New post replaces the persisted conversation; the compatible backend still cannot cancel a model turn already executing. A failed real operation should preserve the user's input and draft when the backend is connected.
 
 The evidence lens distinguishes supported claims and unsupported material. Preview omits paragraphs marked as missing support. Manual paragraph edits clear their previous segment-level evidence metadata; the backend should recompute evidence for changed content rather than retaining stale citations.
+
+Connected evidence must use the selected persisted version's receipt. **Show evidence** is enabled only when claim-level spans exist. It dims ordinary text, keeps supported spans legible and underlined, and exposes the receipt quote/source/locator from each numbered marker. A source label without claim offsets may still be listed, but must not be presented as sentence-level evidence. Missing locator fields remain absent rather than being replaced with invented text.
+
+When the first authoritative draft arrives at or above 1,180 px, the document pane expands and fades in while the conversation remains mounted; below 1,180 px the inline result rises gently into the thread. Subsequent streamed conversation remains visible. Reduced-motion preference collapses these effects to effectively instantaneous changes. The transition does not delay, simulate, or manufacture the backend's draft-ready state.
 
 Approve opens scheduling. The user may approve without a date or pick a date and time. Preserve the distinction between draft, approved and scheduled.
 
@@ -102,6 +114,14 @@ Keep the sections Account, Preferences, Usage and Data. On mobile the initial se
 Desktop entry uses a split floating card: a dark brand/message panel beside a focused form. Phone stacks a shorter brand panel above the form. Password visibility, Caps Lock feedback, validation and recovery stay in the form flow. There is no open sign-up or social-login design.
 
 Invitation setup has an email and password field; the real system must obtain that email from an invitation. Recovery stays within the entry card. Do not imply an email was sent when its backend request failed.
+
+## Admin dashboard
+
+The operator dashboard retains Overview, People, Sources, Knowledge, Voice profile, Access, and Held drafts with their existing backend operations. Its revised shell uses the client product's system type, black primary actions, white cards, warm gray secondary surfaces, quiet borders, and restrained motion while remaining clearly labelled **Operator**.
+
+At 1,180 px and above, the operator shell uses a 238 px persistent client/module rail. Below 1,180 px, identity and client selection become compact rows and modules become a horizontally scrollable control rail above the work; the desktop sidebar must not consume most of a tablet or phone screen. At phone widths, controls stack without document-level horizontal overflow. Switching modules uses the existing short rise transition, and reduced-motion preference is respected.
+
+The admin route owns an isolated stylesheet so these visual alignments do not leak admin utilities into the client workspace. Tailwind's source inventory must include `src/app/internal`; otherwise admin-only responsive grid utilities are absent from production output even when development type checks pass.
 
 ## Onboarding
 

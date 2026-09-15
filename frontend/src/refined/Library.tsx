@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from './navigation';
 import { format } from 'date-fns';
 import { Check, Copy, Search, CalendarDays, List, Columns3, SlidersHorizontal } from 'lucide-react';
 import { Radio } from '@base-ui/react/radio';
@@ -23,11 +23,21 @@ import { ChannelMark } from './Home';
 import Schedule from './Schedule';
 import { useMobile } from '@/shared/frame';
 import PageHeading from './PageHeading';
+import { postJson } from '@/lib/api';
+import { instantInZone } from '@/lib/zoned-instant';
 
 const labels = { draft: 'Draft', approved: 'Approved', scheduled: 'Scheduled' };
-function Status({ value }: { value: keyof typeof labels }) { return <Badge variant="outline" className={`rf-status rf-status-${value}`}><i />{labels[value]}</Badge>; }
+function backendLabel(value?: string | null) {
+  if (!value) return null;
+  return value.replaceAll('_', ' ').replace(/^./, letter => letter.toUpperCase());
+}
+function Status({ value, backendState }: { value: keyof typeof labels; backendState?: string | null }) {
+  const label = value === 'scheduled' ? labels.scheduled : backendLabel(backendState) || labels[value];
+  return <Badge variant="outline" className={`rf-status rf-status-${value}`}><i />{label}</Badge>;
+}
 export default function Library() {
   const d = useData();
+  const today = d.isDemo ? new Date(2026, 2, 4) : new Date();
   const navigate = useNavigate();
   const mobile = useMobile();
   const [boardStatus, setBoardStatus] = useState('draft');
@@ -36,8 +46,8 @@ export default function Library() {
   const [status, setStatus] = useState('all');
   const [channels, setChannels] = useState<string[]>([]);
   const [date, setDate] = useState<Date>();
-  const [selectedDay, setSelectedDay] = useState(new Date(2026, 2, 4));
-  const [peekId, setPeekId] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState(today);
+  const [peekId, setPeekId] = useState<number | string | null>(null);
   const [schedule, setSchedule] = useState(false);
   const [compact, setCompact] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -53,6 +63,29 @@ export default function Library() {
   const boardPosts = (value: string) => filtered.filter(p => p.status === value).map(post => <button key={post.id} className="rf-board-post" onClick={() => setPeekId(post.id)}><Card><CardContent><ChannelMark channel={post.ch} /><h3>{post.name}</h3><p>{post.body.split('\n')[0]}</p><small>{post.when || post.created}</small></CardContent></Card></button>);
   function clear() { setQuery(''); setStatus('all'); setChannels([]); setDate(undefined); }
   const copy = async (post: SavedPost) => { try { await navigator.clipboard.writeText(post.body); toast.success('Post copied'); } catch { toast.error('Could not access the clipboard.'); } };
+  const applySchedule = async (when: string, date?: string, time?: string) => {
+    if (!peek) return;
+    if (d.isDemo || typeof peek.id === 'number') {
+      d.savePostLocal({ ...peek, status: when ? 'scheduled' : 'approved', when: when || undefined, date, day: date ? Number(date.slice(-2)) : undefined });
+      setSchedule(false);
+      toast.success(when ? `Demo scheduled for ${when}` : 'Approved in demo storage');
+      return;
+    }
+    try {
+      const id = encodeURIComponent(peek.id);
+      if (peek.status === 'draft') await postJson(`/api/client/content-items/${id}/approve`, undefined, { idempotencyKey: crypto.randomUUID() });
+      if (when) {
+        if (!date || !time) throw new Error('Pick a date and a time.');
+        if (peek.slotId) await postJson(`/api/client/schedule-slots/${encodeURIComponent(peek.slotId)}/reschedule`, { slot_at: instantInZone(date, time, d.timeZone) }, { idempotencyKey: crypto.randomUUID() });
+        else await postJson(`/api/client/content-items/${id}/schedule`, { date, time }, { idempotencyKey: crypto.randomUUID() });
+      } else if (peek.slotId) {
+        throw new Error('The previous backend cannot remove a schedule while keeping the item approved. Choose another date instead.');
+      }
+      await d.refreshPosts();
+      setSchedule(false);
+      toast.success(when ? `Scheduled for ${when}` : 'Approved without a date');
+    } catch (reason) { toast.error(reason instanceof Error ? reason.message : 'The schedule was not changed.'); }
+  };
   return <>
     <header className="rf-topbar rf-refined-header rf-library-header"><PageHeading title="Library" />{mobile ? <Select value={view} onValueChange={value => value && setView(String(value))}><SelectTrigger aria-label="Library view" className="rf-library-view-picker"><SelectValue>{view === 'table' ? 'Table' : view === 'board' ? 'Board' : 'Calendar'}</SelectValue></SelectTrigger><SelectContent align="end" alignItemWithTrigger={false}><SelectItem value="table"><List />Table</SelectItem><SelectItem value="board"><Columns3 />Board</SelectItem><SelectItem value="calendar"><CalendarDays />Calendar</SelectItem></SelectContent></Select> : searchControl}</header>
     <Tabs value={view} onValueChange={value => setView(String(value))} className="rf-library-tabs">
@@ -71,15 +104,15 @@ export default function Library() {
       </div>
       <div className="rf-library-filters"><Tabs value={status} onValueChange={value => setStatus(String(value))}><TabsList variant="line" aria-label="Post status">{['all', 'draft', 'approved', 'scheduled'].map(value => <TabsTrigger key={value} value={value}>{value === 'all' ? 'All' : value === 'draft' ? 'Drafts' : labels[value as keyof typeof labels]}<span className="rf-count">{statusCount(value)}</span></TabsTrigger>)}</TabsList></Tabs>
         <Popover><PopoverTrigger render={<Button variant="outline" className="rf-filter-button" />}>{channels.length === 1 ? channels[0] === 'li' ? 'LinkedIn' : 'X' : 'Channel'}</PopoverTrigger><PopoverContent className="rf-filter-popover" align="start">{[['li', 'LinkedIn'], ['x', 'X']].map(([value, label]) => <label key={value}><Checkbox checked={channels.includes(value)} onCheckedChange={checked => setChannels(c => checked ? [...c, value] : c.filter(x => x !== value))} /><ChannelMark channel={value} />{label}</label>)}</PopoverContent></Popover>
-        <Popover><PopoverTrigger render={<Button variant="outline" className="rf-filter-button" />}>{date ? format(date, 'd MMM') : 'Date'}</PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={setDate} defaultMonth={new Date(2026, 2, 1)} today={new Date(2026, 2, 4)} /></PopoverContent></Popover>{hasFilters && <Button variant="ghost" onClick={clear}>Clear filters</Button>}
+        <Popover><PopoverTrigger render={<Button variant="outline" className="rf-filter-button" />}>{date ? format(date, 'd MMM') : 'Date'}</PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={date} onSelect={setDate} defaultMonth={today} today={today} /></PopoverContent></Popover>{hasFilters && <Button variant="ghost" onClick={clear}>Clear filters</Button>}
       </div>
-      <TabsContent value="table" className="rf-library-content"><Table className={compact ? 'rf-library-table rf-compact' : 'rf-library-table'}><colgroup><col className="rf-library-channel-column" /><col /><col className="rf-library-status-column" /><col className="rf-library-created-column" /></colgroup><TableHeader><TableRow><TableHead><span className="sr-only">Channel</span></TableHead><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead>Created</TableHead></TableRow></TableHeader><TableBody>{filtered.map(post => <TableRow key={post.id}><TableCell><ChannelMark channel={post.ch} /></TableCell><TableCell><button className="rf-post-open" onClick={() => setPeekId(post.id)}><b>{post.name}</b>{!compact && <span>{post.body.split('\n')[0]}</span>}</button></TableCell><TableCell><Status value={post.status} /></TableCell><TableCell>{post.created}</TableCell></TableRow>)}</TableBody></Table>{!filtered.length && <div className="rf-empty"><h2>No posts found</h2><p>Try a different search or clear your filters.</p><Button variant="outline" onClick={clear}>Clear filters</Button></div>}</TabsContent>
+      <TabsContent value="table" className="rf-library-content"><Table className={compact ? 'rf-library-table rf-compact' : 'rf-library-table'}><colgroup><col className="rf-library-channel-column" /><col /><col className="rf-library-status-column" /><col className="rf-library-created-column" /></colgroup><TableHeader><TableRow><TableHead><span className="sr-only">Channel</span></TableHead><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead>Created</TableHead></TableRow></TableHeader><TableBody>{filtered.map(post => <TableRow key={post.id}><TableCell><ChannelMark channel={post.ch} /></TableCell><TableCell><button className="rf-post-open" onClick={() => setPeekId(post.id)}><b>{post.name}</b>{!compact && <span>{post.body.split('\n')[0]}</span>}</button></TableCell><TableCell><Status value={post.status} backendState={post.backendState} /></TableCell><TableCell>{post.created}</TableCell></TableRow>)}</TableBody></Table>{!filtered.length && <div className="rf-empty"><h2>No posts found</h2><p>Try a different search or clear your filters.</p><Button variant="outline" onClick={clear}>Clear filters</Button></div>}</TabsContent>
       <TabsContent value="board" className={mobile ? 'rf-mobile-board' : 'rf-board'}>{mobile ? <Tabs value={boardLane} onValueChange={value => { setBoardStatus(String(value)); if (status !== 'all') setStatus(String(value)); }} className="rf-board-status-tabs"><TabsList variant="line" aria-label="Board status">{(['draft', 'approved', 'scheduled'] as const).map(value => <TabsTrigger key={value} value={value}>{value === 'draft' ? 'Drafts' : labels[value]}<span className="rf-count">{statusCount(value)}</span></TabsTrigger>)}</TabsList>{(['draft', 'approved', 'scheduled'] as const).map(value => <TabsContent key={value} value={value} className="rf-board-lane">{boardPosts(value)}{!filtered.some(p => p.status === value) && <div className="rf-empty"><h2>No {value === 'draft' ? 'drafts' : `${value} posts`}</h2><p>{hasFilters ? 'Try clearing your filters to see more posts.' : 'Posts will appear here when you save or approve them.'}</p>{hasFilters && <Button variant="outline" onClick={clear}>Clear filters</Button>}</div>}</TabsContent>)}</Tabs> : (['draft', 'approved', 'scheduled'] as const).map(value => <section key={value}><h2><Status value={value} /><span>{filtered.filter(p => p.status === value).length}</span></h2>{boardPosts(value)}</section>)}</TabsContent>
-      <TabsContent value="calendar" className="rf-calendar-layout"><Calendar mode="single" selected={selectedDay} onSelect={value => value && setSelectedDay(value)} defaultMonth={new Date(2026, 2, 1)} today={new Date(2026, 2, 4)} weekStartsOn={1} className="rf-full-calendar" components={{ DayButton: props => { const posts = filtered.filter(p => p.date === format(props.day.date, 'yyyy-MM-dd')); return <CalendarDayButton {...props}><span className="rf-day-number">{props.day.date.getDate()}</span>{posts.slice(0, 3).map(p => <span className="rf-calendar-event" key={p.id}>{p.name}</span>)}{posts.length > 3 && <span>+{posts.length - 3} more</span>}</CalendarDayButton>; } }} /><aside className="rf-day-agenda"><h2>{format(selectedDay, 'EEEE, d MMMM')}</h2>{filtered.filter(p => p.date === format(selectedDay, 'yyyy-MM-dd')).map(post => <button key={post.id} onClick={() => setPeekId(post.id)}><ChannelMark channel={post.ch} /><span><b>{post.name}</b><small>{post.when?.split(', ')[1]}</small></span></button>)}{!filtered.some(p => p.date === format(selectedDay, 'yyyy-MM-dd')) && <p>No posts scheduled for this day.</p>}</aside></TabsContent>
+      <TabsContent value="calendar" className="rf-calendar-layout"><Calendar mode="single" selected={selectedDay} onSelect={value => value && setSelectedDay(value)} defaultMonth={today} today={today} weekStartsOn={1} className="rf-full-calendar" components={{ DayButton: props => { const posts = filtered.filter(p => p.date === format(props.day.date, 'yyyy-MM-dd')); return <CalendarDayButton {...props}><span className="rf-day-number">{props.day.date.getDate()}</span>{posts.slice(0, 3).map(p => <span className="rf-calendar-event" key={p.id}>{p.name}</span>)}{posts.length > 3 && <span>+{posts.length - 3} more</span>}</CalendarDayButton>; } }} /><aside className="rf-day-agenda"><h2>{format(selectedDay, 'EEEE, d MMMM')}</h2>{filtered.filter(p => p.date === format(selectedDay, 'yyyy-MM-dd')).map(post => <button key={post.id} onClick={() => setPeekId(post.id)}><ChannelMark channel={post.ch} /><span><b>{post.name}</b><small>{post.when?.split(', ')[1]}</small></span></button>)}{!filtered.some(p => p.date === format(selectedDay, 'yyyy-MM-dd')) && <p>No posts scheduled for this day.</p>}</aside></TabsContent>
     </Tabs>
     <Dialog open={!!peek && !schedule} onOpenChange={open => !open && !schedule && setPeekId(null)}><DialogContent className="rf-peek"><DialogHeader><DialogTitle>{peek?.name}</DialogTitle><DialogDescription>{peek?.ch === 'li' ? 'LinkedIn post' : 'X post'}</DialogDescription></DialogHeader>
-      {peek && peek.status !== 'draft' && <div className="rf-schedule-receipt" role="status"><Check /><div><b>{labels[peek.status]}</b><p>{peek.when || 'Approved without a date. Schedule it whenever you’re ready.'}</p></div></div>}
+      {peek && (peek.status !== 'draft' || peek.backendState) && <div className="rf-schedule-receipt" role="status"><Check /><div><b>{peek.status === 'scheduled' ? labels.scheduled : backendLabel(peek.backendState) || labels[peek.status]}</b><p>{peek.when || (peek.backendState === 'posted' ? 'Recorded by the backend as posted.' : 'Approved without a date. Schedule it whenever you’re ready.')}</p></div></div>}
       <div className="rf-post-person"><span>SA</span><div><b>Saqlain Artaz</b><p>Founder at InsideSuccess · {peek?.ch === 'li' ? 'LinkedIn' : 'X'}</p></div></div><div className="rf-peek-body">{peek?.body.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}</div><DialogFooter><Button variant="outline" onClick={() => peek && copy(peek)}><Copy /> Copy text</Button><Button variant="outline" onClick={() => setSchedule(true)}>{peek?.status === 'scheduled' ? 'Change schedule' : 'Schedule'}</Button><Button onClick={() => peek && navigate(`/refined/workspace?post=${peek.id}`)}>Open</Button></DialogFooter></DialogContent></Dialog>
-    <Schedule open={schedule} onClose={() => setSchedule(false)} onPick={(when, date) => { if (peek) d.savePost({ ...peek, status: when ? 'scheduled' : 'approved', when: when || undefined, date, day: date ? Number(date.slice(-2)) : undefined }); setSchedule(false); toast.success(when ? `Scheduled for ${when}` : 'Approved without a date'); }} />
+    <Schedule open={schedule} onClose={() => setSchedule(false)} onPick={applySchedule} />
   </>;
 }

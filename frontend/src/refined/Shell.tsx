@@ -1,5 +1,5 @@
 import { type CSSProperties, type ReactNode } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink } from './navigation';
 import { BookOpen, Brain, ChevronLeft, ChevronRight, Home, MessageSquare, Settings, Moon, Sun } from 'lucide-react';
 import { useTheme } from './Theme';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, useSidebar } from '@/components/ui/sidebar';

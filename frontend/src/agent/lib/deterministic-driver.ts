@@ -1,0 +1,112 @@
+import "server-only";
+
+import type { Driver, DriverRequest, TurnResult } from "@/agent/lib/driver";
+
+const USAGE = {
+  inputTokens: 0,
+  outputTokens: 0,
+  cacheReadInputTokens: 0,
+  cacheCreationInputTokens: 0,
+};
+
+function result(overrides: Partial<TurnResult>): TurnResult {
+  return { text: "", toolCalls: [], stopReason: "end_turn", usage: USAGE, ...overrides };
+}
+
+async function validationPause(): Promise<void> {
+  const configured = Number(process.env.AUTHORITY_DETERMINISTIC_DELAY_MS ?? 0);
+  const delay = Number.isFinite(configured) ? Math.max(0, Math.min(configured, 2000)) : 0;
+  if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+}
+
+function decodedToolResult(request: DriverRequest, tool: string): Record<string, unknown> | null {
+  const marker = `<tool-result tool="${tool}">`;
+  const message = [...request.messages].reverse().find((entry) => entry.content.includes(marker));
+  if (!message) return null;
+  const start = message.content.indexOf(marker) + marker.length;
+  const end = message.content.lastIndexOf("</tool-result>");
+  if (end <= start) return null;
+  const json = message.content.slice(start, end).replaceAll("&lt;", "<").replaceAll("&amp;", "&");
+  try { return JSON.parse(json) as Record<string, unknown>; } catch { return null; }
+}
+
+function decodeBody(value: string): string {
+  return value.replaceAll("&lt;", "<").replaceAll("&amp;", "&");
+}
+
+function latestClientMessage(request: DriverRequest): string {
+  const message = [...request.messages].reverse().find((entry) => entry.content.includes("<client-message>"));
+  if (!message) return "Create a grounded LinkedIn post from the supplied context.";
+  const match = message.content.match(/<client-message>([\s\S]*?)<\/client-message>/);
+  return match ? decodeBody(match[1]).trim() : "Create a grounded LinkedIn post from the supplied context.";
+}
+
+function isClarificationReply(request: DriverRequest): boolean {
+  return request.messages.some((entry) => entry.content.includes("<server-question>"));
+}
+
+function firstMaterial(request: DriverRequest): { handle: string; text: string } {
+  const prepared = decodedToolResult(request, "prepare_generation");
+  const material = typeof prepared?.material === "string" ? prepared.material : "";
+  const match = material.match(/\[(M\d+)] <material[^>]*>\n([\s\S]*?)\n<\/material>/);
+  if (!match || match[2].trim().length < 8) {
+    throw new Error("The deterministic validation driver received no citable material.");
+  }
+  return { handle: match[1], text: match[2].trim() };
+}
+
+/**
+ * A keyless, network-free driver for local integration checks only. It uses
+ * the real agent loop and real Python tools; only the paid model decision is
+ * deterministic. Production remains Anthropic unless the server-only
+ * AUTHORITY_AGENT_DRIVER variable is explicitly set to `deterministic`.
+ */
+export const deterministicDriver: Driver = {
+  toProviderTools: (tools) => tools,
+  async runTurn(request) {
+    await validationPause();
+    const prepared = decodedToolResult(request, "prepare_generation");
+    if (!prepared) {
+      return result({
+        stopReason: "tool_use",
+        toolCalls: [{
+          id: "deterministic-prepare",
+          name: "prepare_generation",
+          input: {
+            message: latestClientMessage(request),
+            operation: isClarificationReply(request) ? "resume" : "generate",
+          },
+        }],
+      });
+    }
+    if (prepared.status === "answer_needed") {
+      const question = prepared.question;
+      const prompt = question && typeof question === "object" && typeof (question as { prompt?: unknown }).prompt === "string"
+        ? (question as { prompt: string }).prompt
+        : "What should this LinkedIn post be about?";
+      request.onText(prompt);
+      return result({ text: prompt });
+    }
+    if (!decodedToolResult(request, "submit_draft")) {
+      const material = firstMaterial(request);
+      const claim = material.text.slice(0, 160).trim();
+      const body = `A useful detail from your source:\n\n${claim}`;
+      return result({
+        stopReason: "tool_use",
+        toolCalls: [{
+          id: "deterministic-submit",
+          name: "submit_draft",
+          input: {
+            body,
+            cited_atom_ids: [{ handle: material.handle, quoted_span: claim, claim_text: claim }],
+            agent_text: "I drafted this from a verified source in your knowledge base.",
+          },
+        }],
+      });
+    }
+    const closing = "Your grounded draft is ready to review.";
+    request.onText("Your grounded draft ");
+    request.onText("is ready to review.");
+    return result({ text: closing });
+  },
+};

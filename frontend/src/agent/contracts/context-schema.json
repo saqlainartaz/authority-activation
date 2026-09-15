@@ -1,0 +1,288 @@
+{
+  "$defs": {
+    "BackgroundV1": {
+      "additionalProperties": false,
+      "description": "Broader corpus context. Colour, not citable evidence.",
+      "properties": {
+        "source_type": {
+          "title": "Source Type",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "trust": {
+          "const": "untrusted",
+          "default": "untrusted",
+          "title": "Trust",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_type",
+        "text"
+      ],
+      "title": "BackgroundV1",
+      "type": "object"
+    },
+    "ConflictV1": {
+      "additionalProperties": false,
+      "description": "A material fact with more than one declared value in the client's own material.\n\n2026-08-24 (Task 9, TS-agent-backend plan): before this field existed, the\nonly place these values appeared was inside `readiness.note`'s composed\nprose \u2014 atom-derived text stored with `role=\"assistant\"`\n(`chat/generation.py:227-244` names the seam this closes: a stateless\nagent replaying transcript turns would read untrusted client-corpus text\nas the server's own voice). `values` carries the same values `note`\nalready named \u2014 D5 (2026-08-21) is unchanged, the draft still writes\naround the contested fact and both values are still surfaced \u2014 just as a\nlabelled data field instead of prose, and marked `trust: \"untrusted\"`\nlike `MaterialV1` because the values themselves are read out of the\nclient's uploaded documents, not authored by this service.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        },
+        "trust": {
+          "const": "untrusted",
+          "default": "untrusted",
+          "title": "Trust",
+          "type": "string"
+        },
+        "values": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Values",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "label",
+        "values"
+      ],
+      "title": "ConflictV1",
+      "type": "object"
+    },
+    "GapV1": {
+      "additionalProperties": false,
+      "description": "A missing fact. Python says WHAT is missing; the agent decides how to ask.\n\n`label` is a short human phrase, never an internal key, and new gap kinds\nproduce new ITEMS rather than new FIELDS \u2014 so the ontology can add fifty of\nthem without bumping `context.v1`.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "label": {
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "label"
+      ],
+      "title": "GapV1",
+      "type": "object"
+    },
+    "MaterialV1": {
+      "additionalProperties": false,
+      "description": "One passage of the client's own material, and the id that cites it.",
+      "properties": {
+        "atom_id": {
+          "title": "Atom Id",
+          "type": "string"
+        },
+        "atom_type": {
+          "title": "Atom Type",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "trust": {
+          "const": "untrusted",
+          "default": "untrusted",
+          "title": "Trust",
+          "type": "string"
+        }
+      },
+      "required": [
+        "atom_id",
+        "atom_type",
+        "text"
+      ],
+      "title": "MaterialV1",
+      "type": "object"
+    },
+    "QuestionV1": {
+      "additionalProperties": false,
+      "description": "The one server-authored question. The agent may rephrase, never broaden.",
+      "properties": {
+        "fact_key": {
+          "title": "Fact Key",
+          "type": "string"
+        },
+        "prompt": {
+          "title": "Prompt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "prompt",
+        "fact_key"
+      ],
+      "title": "QuestionV1",
+      "type": "object"
+    },
+    "VoiceV1": {
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audience"
+        },
+        "avoid_phrases": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Avoid Phrases",
+          "type": "array"
+        },
+        "do_phrases": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Do Phrases",
+          "type": "array"
+        },
+        "tone": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Tone",
+          "type": "array"
+        }
+      },
+      "title": "VoiceV1",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "background": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/BackgroundV1"
+      },
+      "title": "Background",
+      "type": "array"
+    },
+    "banned_phrases": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Banned Phrases",
+      "type": "array"
+    },
+    "conflicts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ConflictV1"
+      },
+      "title": "Conflicts",
+      "type": "array"
+    },
+    "contract_version": {
+      "const": "context.v1",
+      "default": "context.v1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "gaps": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/GapV1"
+      },
+      "title": "Gaps",
+      "type": "array"
+    },
+    "material": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/MaterialV1"
+      },
+      "title": "Material",
+      "type": "array"
+    },
+    "platform": {
+      "const": "linkedin",
+      "default": "linkedin",
+      "title": "Platform",
+      "type": "string"
+    },
+    "question": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/QuestionV1"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "snapshot_id": {
+      "title": "Snapshot Id",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "answer_needed"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "subject": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Subject"
+    },
+    "task": {
+      "default": "",
+      "title": "Task",
+      "type": "string"
+    },
+    "voice": {
+      "$ref": "#/$defs/VoiceV1",
+      "default": {
+        "audience": null,
+        "avoid_phrases": [],
+        "do_phrases": [],
+        "tone": []
+      }
+    }
+  },
+  "required": [
+    "snapshot_id",
+    "status"
+  ],
+  "title": "ContextV1",
+  "type": "object"
+}

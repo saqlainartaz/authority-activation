@@ -1,5 +1,7 @@
 # Integration guide
 
+> Historical design-export guide. The operator-approved Next.js migration and previous-stack integration have now been implemented. For authoritative current status use [ARCHITECTURE.md](ARCHITECTURE.md), [CAPABILITY-MAP.md](CAPABILITY-MAP.md), [FEATURE-GAPS.md](FEATURE-GAPS.md), and [DEPLOYMENT-HANDOFF.md](DEPLOYMENT-HANDOFF.md). Statements below that the app is Vite-only, unconnected, or still requires future integration describe the initial `ec2f05f` input, not the delivered local application.
+
 ## 1. What is being handed over
 
 Authority Activation is a React and TypeScript frontend for writing source-informed social posts. The selected implementation uses shadcn/ui components built on Base UI, assistant-ui for the conversation, and React DayPicker for calendars. It includes Home, Workspace, Library, Train your AI, Settings, sign-in, invitation setup and onboarding.

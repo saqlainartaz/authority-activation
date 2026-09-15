@@ -1,0 +1,469 @@
+{
+  "comparedAt": "2026-09-14T07:58:50.487Z",
+  "baselineRoot": "C:\\Users\\saqla\\Desktop\\InsideSuccess\\marketing tool\\local\\stakeholder-integration\\frontend\\docs\\baseline\\screenshots",
+  "candidateRoot": "C:\\Users\\saqla\\Desktop\\InsideSuccess\\marketing tool\\local\\stakeholder-integration\\frontend\\docs\\migration\\screenshots",
+  "channelThreshold": 16,
+  "missing": [],
+  "extra": [],
+  "comparisons": [
+    {
+      "file": "home-1179-light.png",
+      "comparable": true,
+      "width": 1179,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "home-1180-light.png",
+      "comparable": true,
+      "width": 1180,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "home-767-light.png",
+      "comparable": true,
+      "width": 767,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "home-768-light.png",
+      "comparable": true,
+      "width": 768,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "home-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "home-desktop-light.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "home-phone-dark.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "home-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "invite-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "invite-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "knowledge-upload-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "knowledge-upload-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "library-board-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "library-board-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "library-calendar-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "library-calendar-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "library-post-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "library-post-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "library-table-desktop-light.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "library-table-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "library-table-tablet-dark.png",
+      "comparable": true,
+      "width": 1024,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "onboarding-context-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "onboarding-desktop-light.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "onboarding-next-packet-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "onboarding-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "onboarding-tablet-dark.png",
+      "comparable": true,
+      "width": 1024,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "recovery-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "recovery-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "settings-account-desktop-light.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0.000008796296296296296
+    },
+    {
+      "file": "settings-account-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "settings-data-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "settings-preferences-phone-dark.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "signin-768-dark.png",
+      "comparable": true,
+      "width": 768,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "signin-desktop-light.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "signin-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "training-guidance-desktop-light.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "training-guidance-phone-dark.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "training-knowledge-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "training-knowledge-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "training-questions-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "training-questions-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "workspace-empty-1179-light.png",
+      "comparable": true,
+      "width": 1179,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "workspace-empty-1180-light.png",
+      "comparable": true,
+      "width": 1180,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "workspace-empty-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "workspace-empty-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "workspace-empty-tablet-dark.png",
+      "comparable": true,
+      "width": 1024,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "workspace-generated-1179-light.png",
+      "comparable": true,
+      "width": 1179,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "workspace-generated-1180-light.png",
+      "comparable": true,
+      "width": 1180,
+      "height": 900,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "workspace-generated-phone-light.png",
+      "comparable": true,
+      "width": 390,
+      "height": 844,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    },
+    {
+      "file": "workspace-schedule-desktop-dark.png",
+      "comparable": true,
+      "width": 1440,
+      "height": 1000,
+      "changedPixels": 0,
+      "changedPercent": 0,
+      "meanAbsoluteChannelDifference": 0
+    }
+  ],
+  "summary": {
+    "baselineFiles": 50,
+    "candidateFiles": 50,
+    "comparable": 50,
+    "dimensionMismatches": 0,
+    "exact": 50,
+    "maxChangedPercent": 0,
+    "meanChangedPercent": 0
+  }
+}

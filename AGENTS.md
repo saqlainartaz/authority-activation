@@ -2,7 +2,7 @@
 
 ## Objective
 
-Integrate the approved Authority Activation frontend with the existing backend. Preserve the approved frontend design and user flow. This is not a redesign task or a component-library evaluation.
+Integrate the approved Authority Activation frontend with the existing backend. Preserve the approved client design and user flow. The product owner later approved the documented conversational transition/evidence refinements and redesign of the retained admin shell in the client's visual language; this is still not a component-library evaluation or authority for unrelated client redesign.
 
 Read, in order:
 
@@ -17,7 +17,7 @@ Read, in order:
 
 - Inspect the destination backend and use its actual contracts. Do not invent endpoints or credentials.
 - Replace fixture data, local persistence and simulated handlers with real services. Frontend implementation changes needed for that wiring are allowed.
-- Preserve layout, spacing, typography, colors, themes, component choices, responsive behavior, navigation, action placement and approved interaction patterns.
+- Preserve client layout, spacing, typography, colors, themes, component choices, responsive behavior, navigation, action placement and approved interaction patterns. Preserve every admin module/action while following the admin decisions now recorded in `docs/DESIGN-AND-BEHAVIOR.md`.
 - Reuse the existing components and state/presentation boundaries. Do not replace Base UI components with Radix variants, add a new UI library, or rebuild the screens.
 - Functional bug fixes and necessary loading/error feedback are allowed when they retain the existing design. Do not do unrelated cleanup, visual polish or dependency upgrades as part of integration.
 - A change to the approved visual design or user flow requires explicit product-owner approval. If a backend limitation conflicts with the design, explain the exact conflict and proposed change before implementing the visual/flow change. Continue independent integration work meanwhile.
