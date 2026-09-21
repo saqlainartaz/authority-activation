@@ -126,6 +126,8 @@ html[data-refined] {
 .rf-dna-fields dd { min-width: 0; margin: 0; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .rf-dna-editor { display: flex; flex-direction: column; gap: 10px; }
 .rf-dna-editor textarea { width: 100%; min-height: 110px; line-height: 1.55; resize: vertical; }
+.rf-answer-limit { margin: 0; color: var(--muted-foreground); font-size: 11px; line-height: 1.4; text-align: right; font-variant-numeric: tabular-nums; }
+.rf-answer-limit[data-over-limit] { color: var(--destructive); }
 .rf-dna-option { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; cursor: pointer; }
 .rf-dna-option .rf-radio { margin-top: 2px; }
 .rf-dna-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }

@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { onboardingTextLength } from '@/lib/onboarding-profile';
 import type { OnboardingPrefill } from '@/lib/product';
 import { EntryBrand } from './Auth';
 import {
@@ -31,6 +32,15 @@ import {
 
 const emptyAnswer: SetupAnswer = { selected: [], text: '' };
 const emptySetup: Setup = { answers: {}, completed: false };
+
+function AnswerLimit({ id, value, limit }: { id: string; value: string; limit?: number }) {
+  if (limit === undefined) return null;
+  const count = onboardingTextLength(value);
+  const over = count > limit;
+  return <p id={id} className="rf-answer-limit" data-over-limit={over || undefined}>
+    {count} / {limit} characters{over ? ' · Shorten this answer to continue.' : ''}
+  </p>;
+}
 
 function firstConnectedIndex(packets: readonly Packet[], setup: Setup): number {
   if (setup.completed) return packets.length;
@@ -57,6 +67,8 @@ export default function Onboarding() {
   const setup = d.isDemo ? d.onboarding : connected?.setup ?? emptySetup;
   const packet = packets[index];
   const answer = packet ? setup.answers[packet.id] || emptyAnswer : emptyAnswer;
+  const answerLimitId = packet?.maxTextChars !== undefined ? `rf-answer-limit-${packet.id}` : undefined;
+  const answerOverLimit = Boolean(packet?.maxTextChars !== undefined && onboardingTextLength(answer.text) > packet.maxTextChars);
   const ready = d.isDemo || connected !== null;
   const valid = ready && (packet ? canContinue(packet, answer) : setupComplete(setup, packets));
 
@@ -177,8 +189,8 @@ export default function Onboarding() {
         {(packet.quote || packet.options?.some(option => option.quote)) ? <Collapsible key={packet.id} className="rf-onboarding-context"><CollapsibleTrigger render={<Button variant="ghost" />}><FileText /> View source context <ChevronDown className="rf-context-chevron" /></CollapsibleTrigger><CollapsibleContent><div className="rf-context-excerpts"><p>{packet.why}</p>{packet.quote && <blockquote>{packet.quote}<cite>{packet.source}</cite></blockquote>}{packet.options?.filter(option => option.quote).map(option => <blockquote key={option.label}><span>{option.label}</span>{option.quote}<cite>{option.source}</cite></blockquote>)}</div></CollapsibleContent></Collapsible> : <p className="rf-onboarding-instruction">{packet.type === 'multi' ? 'Choose all that apply.' : packet.why}</p>}
         {packet.options ? <Card className="rf-onboarding-card">
           {packet.type === 'multi' ? <div role="group" aria-label={packet.headline}>{[...packet.options, { label: OTHER }].map(option => <label className="rf-onboarding-option" key={option.label} data-selected={answer.selected.includes(option.label) || undefined}><Checkbox checked={answer.selected.includes(option.label)} onCheckedChange={() => choose(option.label)} /><span>{option.label === OTHER ? 'Something else, I will type it' : option.label}</span></label>)}</div> : <RadioGroup aria-label={packet.headline} value={answer.selected[0] || ''} onValueChange={value => choose(String(value))}>{[...packet.options, { label: OTHER }].map(option => <label className="rf-onboarding-option" key={option.label} data-selected={answer.selected.includes(option.label) || undefined}><Radio.Root className="rf-radio" value={option.label}><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option.label === OTHER ? 'Something else, I will type it' : option.label}</span></label>)}</RadioGroup>}
-          {answer.selected.includes(OTHER) && <Textarea autoFocus key={`${packet.id}-other`} className="rf-onboarding-other" aria-label="Your own answer" placeholder="The real answer, in your own words." value={answer.text} onChange={event => write({ text: event.target.value })} rows={3} />}
-        </Card> : packet.type === 'short' ? <Input key={packet.id} className="rf-onboarding-write" aria-label={packet.headline} placeholder={packet.placeholder} value={answer.text} onChange={event => write({ text: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); next(); } }} /> : <Textarea key={packet.id} className="rf-onboarding-write rf-onboarding-long" aria-label={packet.headline} placeholder={packet.placeholder} value={answer.text} onChange={event => write({ text: event.target.value })} rows={6} />}
+          {answer.selected.includes(OTHER) && <><Textarea autoFocus key={`${packet.id}-other`} className="rf-onboarding-other" aria-label="Your own answer" aria-invalid={answerOverLimit || undefined} aria-describedby={answerLimitId} placeholder="The real answer, in your own words." value={answer.text} onChange={event => write({ text: event.target.value })} rows={3} /><AnswerLimit id={answerLimitId!} value={answer.text} limit={packet.maxTextChars} /></>}
+        </Card> : packet.type === 'short' ? <><Input key={packet.id} className="rf-onboarding-write" aria-label={packet.headline} aria-invalid={answerOverLimit || undefined} aria-describedby={answerLimitId} placeholder={packet.placeholder} value={answer.text} onChange={event => write({ text: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); next(); } }} /><AnswerLimit id={answerLimitId!} value={answer.text} limit={packet.maxTextChars} /></> : <><Textarea key={packet.id} className="rf-onboarding-write rf-onboarding-long" aria-label={packet.headline} aria-invalid={answerOverLimit || undefined} aria-describedby={answerLimitId} placeholder={packet.placeholder} value={answer.text} onChange={event => write({ text: event.target.value })} rows={6} /><AnswerLimit id={answerLimitId!} value={answer.text} limit={packet.maxTextChars} /></>}
       </> : <><p className="rf-onboarding-reason">A quick check before you start writing.</p><h1 ref={title} tabIndex={-1}>Does this sound right?</h1><div className="rf-onboarding-review">{packets.map((candidate, candidateIndex) => <div key={candidate.id}><span>{candidate.topic}</span><p>{reviewAnswer(candidate, setup.answers[candidate.id])}</p><Button variant="ghost" disabled={busy} onClick={() => { setChanging(true); setIndex(candidateIndex); }} aria-label={`Change ${candidate.topic}`}>Change</Button></div>)}</div><p className="rf-entry-note">{d.isDemo ? 'Your answers are saved on this device for the demo.' : 'Your answers are saved together and can be reviewed later in Business DNA.'}</p></>}
       {ready && error && <p className="rf-auth-error" role="alert">{error}</p>}
     </section></div>

@@ -1,4 +1,4 @@
-export type Packet = { id: string; type: 'choice' | 'pick_source' | 'multi' | 'short' | 'long'; why: string; headline: string; topic: string; required?: boolean; questionVersion?: string; quote?: string; source?: string; options?: { label: string; quote?: string; source?: string }[]; placeholder?: string };
+export type Packet = { id: string; type: 'choice' | 'pick_source' | 'multi' | 'short' | 'long'; why: string; headline: string; topic: string; required?: boolean; questionVersion?: string; quote?: string; source?: string; options?: { label: string; quote?: string; source?: string }[]; placeholder?: string; maxTextChars?: number };
 export type SetupAnswer = { selected: string[]; text: string };
 export type Setup = { answers: Record<string, SetupAnswer>; completed: boolean };
 export const OTHER = '__other__';
@@ -12,6 +12,7 @@ export const PACKETS: Packet[] = [
 export function packetAnswer(packet: Packet, answer?: SetupAnswer): string[] | null {
   if (!answer) return null;
   const text = answer.text.trim();
+  if (packet.maxTextChars !== undefined && Array.from(text).length > packet.maxTextChars) return null;
   if (!packet.options) return text ? [text] : null;
   if (!answer.selected.length || (answer.selected.includes(OTHER) && !text)) return null;
   const selected = packet.type === 'multi' ? answer.selected : answer.selected.slice(0, 1);

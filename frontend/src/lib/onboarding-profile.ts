@@ -6,7 +6,7 @@ import type {
   QuestionnaireEnvelope,
 } from "@/lib/product";
 
-const MAX_TEXT_CHARS = 300;
+const MAX_ONBOARDING_METADATA_CHARS = 300;
 export const OTHER_VALUE = "__other__";
 export const BUSINESS_DNA_CATALOGUE_VERSION = "business-dna/1.0.0";
 export const BUSINESS_DNA_QUESTION_IDS = [
@@ -31,10 +31,23 @@ function objectValue(value: unknown, label: string): Record<string, unknown> {
 function normalizeText(value: unknown, label: string): string {
   if (typeof value !== "string") throw new Error(`${label} must be text.`);
   const normalized = value.replace(/\r\n?/g, "\n").trim();
-  if (normalized.length > MAX_TEXT_CHARS) {
-    throw new Error(`${label} cannot exceed ${MAX_TEXT_CHARS} characters.`);
+  if (onboardingTextLength(normalized) > MAX_ONBOARDING_METADATA_CHARS) {
+    throw new Error(`${label} cannot exceed ${MAX_ONBOARDING_METADATA_CHARS} characters.`);
   }
   return normalized;
+}
+
+function normalizeAnswerText(value: unknown, label: string, maxTextChars: number): string {
+  if (typeof value !== "string") throw new Error(`${label} must be text.`);
+  const normalized = value.replace(/\r\n?/g, "\n").trim();
+  if (onboardingTextLength(normalized) > maxTextChars) {
+    throw new Error(`${label} cannot exceed ${maxTextChars} characters.`);
+  }
+  return normalized;
+}
+
+export function onboardingTextLength(value: string): number {
+  return Array.from(value.replace(/\r\n?/g, "\n").trim()).length;
 }
 
 function stringList(value: unknown): string[] {
@@ -70,6 +83,7 @@ export function decodeQuestions(prefill: OnboardingPrefill): OnboardingQuestion[
         "input_type",
         "required",
         "choices",
+        "max_text_chars",
       ],
       `Question ${index + 1}`,
     );
@@ -94,6 +108,9 @@ export function decodeQuestions(prefill: OnboardingPrefill): OnboardingQuestion[
     if (!Array.isArray(raw.choices) || !raw.choices.every((choice) => typeof choice === "string")) {
       throw new Error(`Question ${questionId} has malformed choices.`);
     }
+    if (!Number.isSafeInteger(raw.max_text_chars) || Number(raw.max_text_chars) < 1) {
+      throw new Error(`Question ${questionId} has an invalid text limit.`);
+    }
     const choices = raw.choices.map((choice) => normalizeText(choice, `Question ${questionId} choice`));
     if (new Set(choices).size !== choices.length || choices.some((choice) => !choice)) {
       throw new Error(`Question ${questionId} has blank or duplicate choices.`);
@@ -113,6 +130,7 @@ export function decodeQuestions(prefill: OnboardingPrefill): OnboardingQuestion[
       input_type: inputType,
       required: raw.required,
       choices,
+      max_text_chars: Number(raw.max_text_chars),
     };
   });
 
@@ -145,7 +163,7 @@ function normalizeResponse(
   }
   if (!Array.isArray(raw.selected)) throw new Error(`Response ${questionId} selected must be a list.`);
   const selected = raw.selected.map((choice) => normalizeText(choice, `Response ${questionId} choice`));
-  const text = normalizeText(raw.text, `Response ${questionId} text`);
+  const text = normalizeAnswerText(raw.text, `Response ${questionId} text`, question.max_text_chars);
   if (question.input_type === "long") {
     if (selected.length) throw new Error(`Long-text response ${questionId} cannot select a choice.`);
     if (question.required && !text) throw new Error(`Response ${questionId} cannot be blank.`);
@@ -214,7 +232,12 @@ export function decodeStoredResponses(prefill: OnboardingPrefill): OnboardingQue
       ) {
         throw new Error(`Stored response ${questionId} does not match the current catalogue.`);
       }
-      const answers = stringList(record.answers);
+      if (!Array.isArray(record.answers)) {
+        throw new Error(`Stored response ${questionId} answers must be a list.`);
+      }
+      const answers = record.answers.map((answer) =>
+        normalizeAnswerText(answer, `Stored response ${questionId} answer`, question.max_text_chars)
+      );
       if (answers.length !== 1) throw new Error(`Stored response ${questionId} must have one answer.`);
       const answer = answers[0];
       if (question.input_type === "long") {

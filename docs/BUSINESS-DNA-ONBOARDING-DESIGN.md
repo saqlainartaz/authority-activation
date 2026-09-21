@@ -156,6 +156,13 @@ This is “dynamic” in a deterministic product sense: server options, server
 prompts, saved answers and required states shape the rendered sequence. It is
 not an LLM-authored questionnaire.
 
+Each question publishes its authoritative `max_text_chars` value. The frontend
+uses that value for counters and validation instead of maintaining a competing
+questionnaire limit. The current connected catalogue permits up to 2,000
+Unicode characters for free-text answers so a client can paste a short
+document, article or detailed account without silent truncation. The separate
+legacy guardrail-list fields retain their existing 300-character item limit.
+
 ### Loading and restoration
 
 Connected onboarding waits for `GET /api/client/onboarding` before presenting a
