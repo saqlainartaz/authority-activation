@@ -1,6 +1,6 @@
 # Verification record
 
-Verified locally on 2026-09-14 and rechecked through 2026-09-20 (Europe/Warsaw). Nothing in this record is a
+Verified locally on 2026-09-14 and rechecked through 2026-09-21 (Europe/Warsaw). Nothing in this record is a
 deployment or live-provider claim.
 
 ## Pinned inputs
@@ -13,8 +13,8 @@ deployment or live-provider claim.
   `6a7429f9779537a777c99e89ac6d4b5da2bdc736`
 - Deployment-port base and structured-intent commit:
   `04e9e9a5080f00ea8b2284d6a30bda36a82ecd43` +
-  `12d857299a108ece3324467018a529aac0249369`; the temporary-variant receipt and
-  fail-closed harness changes remain an uncommitted local diff on top.
+  `12d857299a108ece3324467018a529aac0249369`; the completed compatibility work
+  is merged as `66a7ab6f34a57b0f831d56b706d210abd8eb6f1e` through backend PR #32.
 
 ## Migration parity
 
@@ -33,6 +33,31 @@ deployment or live-provider claim.
   at 1,440, 1,000, and 390 px using intercepted synthetic reads.
 
 ## Final automated results
+
+### Clean frontend PR-branch recheck — 2026-09-21
+
+- The isolated checkout was created from `authority-activation/main` at
+  `ef827e32ee452fd6e242bf64df809e7849fa5843`; no `.env*` file was present or
+  read. `npm ci` completed with zero reported vulnerabilities.
+- `ALLOW_MISSING_ENGINE_FIXTURES=1 npm run check` passed: 22 design tests, 350
+  Vitest tests across 42 files, TypeScript, and all agent/BFF/static gates.
+  The two cross-repository schema comparisons explicitly used their documented
+  standalone mode because the clean frontend worktree has no sibling backend;
+  their full comparison remains covered by the earlier connected verification.
+- `npm run build` passed with Next.js 16.3.3, producing 23 static pages and all
+  listed dynamic BFF routes.
+- Eleven isolated Playwright checks passed against a loopback-only synthetic
+  `/v1/me` identity service: Business DNA and Train Your AI (5 tests), plus the
+  onboarding responsive matrix at 390, 767, 768, 1,179, 1,180, and 1,440 px
+  (6 tests). Browser API responses were deterministic fixtures; no backend
+  data, retained database, Render service, or provider was contacted.
+- The first browser attempt correctly failed at sign-in because browser route
+  interception cannot satisfy the Next proxy's server-side identity check. The
+  successful run supplied that missing server-side identity fixture; no product
+  authentication bypass or retry was added.
+- This recheck packages the application implementation commit `9f5b26a` for
+  an explicitly authorized frontend PR. It does not authorize or claim a merge
+  or deployment.
 
 ### Business DNA/onboarding completion recheck — 2026-09-20
 
@@ -315,12 +340,10 @@ not rerun against Render or Anthropic.
 
 All implementation, generated screenshots, and handoff records are under the
 ignored `local/stakeholder-integration/` boundary. The original
-`Final Front End` reference and the overhaul repository were not edited. No
-PR, merge, publish, or deployment was performed. The only remote write was the
-separately authorized compatibility commit
-`12d857299a108ece3324467018a529aac0249369` on the isolated
-`fix/stakeholder-flexible-agent-intent` branch; the later receipt and harness
-changes remain local and uncommitted.
+`Final Front End` reference and the overhaul repository were not edited. The
+backend compatibility work was merged by the operator through PR #32. The
+frontend work is isolated on its own delivery branch for the authorized pull
+request; it remains unmerged, unpublished, and undeployed.
 
 After the suites completed, the exact task-owned PostgreSQL container
 `aa-stakeholder-pg-20260914` and the isolated backend's 109 generated synthetic

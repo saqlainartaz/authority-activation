@@ -1,22 +1,25 @@
 # Stakeholder application architecture
 
-Status: verified local implementation. This onboarding/Business DNA goal made
-no commit, push, PR, merge, publication, or deployment. The backend checkout
-already had an isolated review-branch commit before this goal; all changes
-described below remain reviewable local work on top of the pinned revisions.
+Status: verified local implementation prepared on the isolated
+`feat/business-dna-onboarding` branch for the operator-authorized frontend pull
+request. It has not been merged, published, or deployed.
 
 ## Pinned inputs
 
 - Approved frontend baseline: `ec2f05f83dd70b59cc39d3d2240fad9b291d8d17` in this repository.
 - Preserved previous Next/admin/agent reference: `8c790eba6920a3397d64486bd5162815f28ef96c` in `Final Front End` (2026-08-26).
 - Compatible previous-stack backend base: `6a7429f9779537a777c99e89ac6d4b5da2bdc736`, retained in the sibling isolated checkout `../backend` and used for the connected browser verification.
-- Deployment-port base: remote `main` at `04e9e9a5080f00ea8b2284d6a30bda36a82ecd43`. Isolated branch `fix/stakeholder-flexible-agent-intent` contains pushed commit `12d857299a108ece3324467018a529aac0249369`; its local `backend-main-port` worktree additionally contains the browser-only temporary-variant receipt and fail-closed disposable-test-harness changes. Those local changes are not committed or pushed.
+- Compatible deployment backend: merge commit
+  `66a7ab6f34a57b0f831d56b706d210abd8eb6f1e`, merged through backend PR #32
+  on 2026-09-20. Its reviewed head was
+  `14f3ba04beca8fd935f0c0201c2f3cf0bc3bcea7` on top of
+  `8a09781a012e0b801b8bc370385153ccd5235863`.
 - Framework: Next.js `16.3.3`, React `19.3.0`, TypeScript, Node 22.12 or newer.
-- Current stakeholder checkout HEAD: `ef827e32ee452fd6e242bf64df809e7849fa5843`
-  on `main`, with the documented uncommitted stakeholder diff.
-- Current isolated backend HEAD: `12d857299a108ece3324467018a529aac0249369`
-  on `fix/stakeholder-flexible-agent-intent`, with the documented uncommitted
-  compatibility diff.
+- Frontend delivery base: `ef827e32ee452fd6e242bf64df809e7849fa5843`
+  on `authority-activation/main`.
+- Frontend application implementation: `9f5b26a` on the isolated
+  `feat/business-dna-onboarding` branch, followed only by PR-handoff record
+  updates.
 
 The backend revision was selected by matching the old BFF's real `/v1` callers, auth token shapes, chat context/draft endpoints, persistence models, migrations, worker behavior, and tests. Date proximity was not used as proof.
 

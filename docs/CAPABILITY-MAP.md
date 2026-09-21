@@ -1,6 +1,6 @@
 # Capability and integration map
 
-Evidence baseline: stakeholder frontend at initial revision `ec2f05f...`, previous BFF/admin/agent at `8c790eb...`, connected previous-stack backend at `6a7429f...`, and deployment port at `12d8572...` plus the documented local receipt/harness diff. “Verified” means local synthetic checks against the isolated backend, not a live provider.
+Evidence baseline: stakeholder frontend at initial revision `ec2f05f...`, previous BFF/admin/agent at `8c790eb...`, connected previous-stack backend at `6a7429f...`, and the deployment-compatible backend merged as `66a7ab6...` through backend PR #32. “Verified” means local synthetic checks against the isolated backend, not a live provider.
 
 | Surface / workflow | Implemented path and authoritative backend evidence | Persistence / async behavior | Status and verification |
 | --- | --- | --- | --- |

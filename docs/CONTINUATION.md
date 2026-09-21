@@ -1,13 +1,13 @@
 # Compact continuation record
 
-Updated: 2026-09-20, Europe/Warsaw.
+Updated: 2026-09-21, Europe/Warsaw.
 
 ## Current result
 
 - Application root: `frontend/frontend`
 - Next.js 16.3.3 migration complete; approved `/refined` routes and fixture presentation retained.
 - Client-facing BFF, TypeScript marketing-copy agent, and `/internal` admin retained from `Final Front End` revision `8c790eba6920a3397d64486bd5162815f28ef96c`.
-- Compatible previous-stack verification checkout pinned at `6a7429f9779537a777c99e89ac6d4b5da2bdc736`. The deployment port is isolated in `backend-main-port`: pushed commit `12d857299a108ece3324467018a529aac0249369` on `fix/stakeholder-flexible-agent-intent`, plus local uncommitted browser-receipt and disposable-harness changes. It is not merged or deployed.
+- Compatible previous-stack verification checkout pinned at `6a7429f9779537a777c99e89ac6d4b5da2bdc736`. The deployment-compatible backend work is now merged as `66a7ab6f34a57b0f831d56b706d210abd8eb6f1e` through backend PR #32. It was not deployed by this work.
 - Supported capability wiring and accepted gaps are recorded in `CAPABILITY-MAP.md` and `FEATURE-GAPS.md`.
 - Vercel/backend operator requirements are in `DEPLOYMENT-HANDOFF.md`.
 - The operator-facing connected test sequence is in `E2E-CHEAT-SHEET.md`.
@@ -26,7 +26,10 @@ Updated: 2026-09-20, Europe/Warsaw.
 
 ## Important operational facts
 
-- The isolated backend compatibility branch and commit above were pushed for review in an earlier authorized step. No later receipt/harness change was committed or pushed; no PR, merge, deployment, real email, or social publication was performed. The two inherited live-smoke calls made by the final backend suite are recorded below.
+- The operator merged backend PR #32. The frontend implementation is isolated
+  on `feat/business-dna-onboarding`, based on delivery `main` at `ef827e3`, and
+  is being packaged for the separately authorized frontend PR. It has not been
+  merged or deployed. No real email or social publication was performed.
 - The root overhaul, its databases/services/plans/progress, and preserved `Final Front End` reference were not modified.
 - Verification used disposable synthetic data, fake Python providers, and a server-only deterministic TypeScript driver. Production remains the Anthropic driver unless the test flag is explicitly set.
 - The 2026-09-15 Workspace rechecks used separate loopback-only synthetic engines; they did not read `.env.local`, contact Render, or call Anthropic. The latest recheck performed only the supported synthetic `start_new_post` write and counted it exactly once.
@@ -37,7 +40,9 @@ Updated: 2026-09-20, Europe/Warsaw.
   envless Next production build, 162 affected backend tests, one complete
   connected browser journey, and six connected breakpoint checks all passed.
   The disposable service used loopback port 55443 and fake/deterministic
-  providers. No action in this goal was committed, pushed, merged or deployed.
+  providers. That verification preceded the later operator authorization to
+  package the work on a frontend PR branch; the frontend remains unmerged and
+  undeployed.
   One source-tree build attempt was stopped when Next reported automatically
   loading `.env.local`; no value was inspected or printed. The authoritative
   production build passed in the zero-env-file mirror.
