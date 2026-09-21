@@ -51,6 +51,7 @@ const questions: OnboardingQuestion[] = ids.map((question_id, index) => ({
   input_type: question_id === "content_objective" || question_id === "tone" ? "single" : "long",
   required: ["business_overview", "audience_context", "known_for", "content_objective"].includes(question_id),
   choices: question_id === "content_objective" ? contentChoices : question_id === "tone" ? toneChoices : [],
+  max_text_chars: 2_000,
 }));
 
 function prefill(answers: Record<string, unknown> = {}): OnboardingPrefill {
@@ -93,6 +94,14 @@ describe("connected onboarding projection", () => {
     expect(canContinue(packets[3], undefined)).toBe(true);
     expect(canContinue(packets[8], { selected: [OTHER], text: "" })).toBe(false);
     expect(setupComplete({ ...setup, answers: { ...setup.answers, tone: { selected: [OTHER], text: "" } } }, packets)).toBe(false);
+  });
+
+  it("accepts a short document and rejects only text over the published limit", () => {
+    const packet = connectedPackets(prefill())[0];
+
+    expect(packet.maxTextChars).toBe(2_000);
+    expect(canContinue(packet, { selected: [], text: "x".repeat(2_000) })).toBe(true);
+    expect(canContinue(packet, { selected: [], text: "x".repeat(2_001) })).toBe(false);
   });
 
   it("auto-advances only an ordinary single choice and keeps a custom choice on the card", () => {

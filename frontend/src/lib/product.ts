@@ -534,6 +534,7 @@ export type OnboardingQuestion = {
   input_type: "long" | "single";
   required: boolean;
   choices: string[];
+  max_text_chars: number;
 };
 
 export type OnboardingQuestionResponse = {

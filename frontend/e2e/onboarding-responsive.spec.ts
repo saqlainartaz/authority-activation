@@ -19,6 +19,7 @@ const questions = [
   input_type,
   required,
   choices,
+  max_text_chars: 2_000,
 }));
 
 const prefill = {
@@ -115,6 +116,34 @@ test('connected onboarding can retry a transient prefill failure', async ({ page
   await page.getByRole('button', { name: 'Retry' }).click();
   await expect(page.getByText('Question 1 of 9')).toBeVisible();
   expect(reads).toBeGreaterThanOrEqual(2);
+});
+
+test('connected onboarding explains the answer limit before submission', async ({ page }) => {
+  await page.context().addCookies([{
+    name: 'aa_client_token',
+    value: 'synthetic-local-token',
+    url: 'http://localhost:3100',
+    httpOnly: true,
+    sameSite: 'Lax',
+  }]);
+  await page.route('**/api/client/onboarding', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify(prefill),
+  }));
+
+  await page.goto('/refined/onboarding');
+  const answer = page.getByRole('textbox', { name: questions[0].prompt as string });
+  const next = page.getByRole('button', { name: 'Next' });
+
+  await answer.fill('x'.repeat(2_001));
+  await expect(answer).toHaveAttribute('aria-invalid', 'true');
+  await expect(page.getByText('2001 / 2000 characters · Shorten this answer to continue.')).toBeVisible();
+  await expect(next).toBeDisabled();
+
+  await answer.fill('x'.repeat(2_000));
+  await expect(page.getByText('2000 / 2000 characters')).toBeVisible();
+  await expect(next).toBeEnabled();
 });
 
 test('final onboarding save locks review navigation and an expired session returns to sign-in', async ({ page }) => {

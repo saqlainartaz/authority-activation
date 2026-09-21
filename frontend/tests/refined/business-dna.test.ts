@@ -28,6 +28,7 @@ const questions: OnboardingQuestion[] = definitions.map(
     input_type,
     required,
     choices: [...choices],
+    max_text_chars: 2_000,
   }),
 );
 

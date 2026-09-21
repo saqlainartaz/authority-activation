@@ -40,6 +40,7 @@ const questions: OnboardingQuestion[] = questionDefinitions.map(([question_id, r
   input_type,
   required,
   choices: [...choices],
+  max_text_chars: 2_000,
 }));
 const question = questions[0];
 const response = {

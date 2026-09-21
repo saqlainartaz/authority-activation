@@ -23,6 +23,7 @@ const questions: OnboardingQuestion[] = [
     input_type: "long",
     required: true,
     choices: [],
+    max_text_chars: 2_000,
   },
   {
     question_id: "audience_context",
@@ -32,6 +33,7 @@ const questions: OnboardingQuestion[] = [
     input_type: "long",
     required: true,
     choices: [],
+    max_text_chars: 2_000,
   },
   {
     question_id: "known_for",
@@ -41,6 +43,7 @@ const questions: OnboardingQuestion[] = [
     input_type: "long",
     required: true,
     choices: [],
+    max_text_chars: 2_000,
   },
   {
     question_id: "distinctive_approach",
@@ -50,6 +53,7 @@ const questions: OnboardingQuestion[] = [
     input_type: "long",
     required: false,
     choices: [],
+    max_text_chars: 2_000,
   },
   {
     question_id: "content_objective",
@@ -59,6 +63,7 @@ const questions: OnboardingQuestion[] = [
     input_type: "single",
     required: true,
     choices: ["Build recognition and trust.", "Explain what I do more clearly."],
+    max_text_chars: 2_000,
   },
   {
     question_id: "problem_or_goal",
@@ -68,6 +73,7 @@ const questions: OnboardingQuestion[] = [
     input_type: "long",
     required: false,
     choices: [],
+    max_text_chars: 2_000,
   },
   {
     question_id: "recurring_questions",
@@ -77,6 +83,7 @@ const questions: OnboardingQuestion[] = [
     input_type: "long",
     required: false,
     choices: [],
+    max_text_chars: 2_000,
   },
   {
     question_id: "proof",
@@ -86,6 +93,7 @@ const questions: OnboardingQuestion[] = [
     input_type: "long",
     required: false,
     choices: [],
+    max_text_chars: 2_000,
   },
   {
     question_id: "tone",
@@ -95,6 +103,7 @@ const questions: OnboardingQuestion[] = [
     input_type: "single",
     required: false,
     choices: ["Clear and direct.", "Warm and conversational."],
+    max_text_chars: 2_000,
   },
 ];
 
@@ -129,6 +138,12 @@ describe("onboarding profile adapter", () => {
         questions: [{ ...questions[0], choices: ["hidden choice"] }],
       }),
     ).toThrow(/long/i);
+    expect(() =>
+      decodeQuestions({
+        ...prefill(),
+        questions: [{ ...questions[0], max_text_chars: 0 }],
+      }),
+    ).toThrow(/text limit/i);
     expect(() =>
       decodeQuestions({
         ...prefill(),
@@ -268,17 +283,27 @@ describe("onboarding profile adapter", () => {
     expect(body).not.toHaveProperty("user_id");
   });
 
-  it("refuses browser text beyond the backend's 300-character limit", () => {
+  it("accepts a short document and refuses browser text beyond the published limit", () => {
+    const accepted = buildCompatibleConfirm(prefill(), [
+      {
+        question_id: "business_overview",
+        question_version: VERSION,
+        selected: [],
+        text: "x".repeat(2_000),
+      },
+    ]);
+
+    expect(accepted.responses?.[0].text).toHaveLength(2_000);
     expect(() =>
       buildCompatibleConfirm(prefill(), [
         {
           question_id: "business_overview",
           question_version: VERSION,
           selected: [],
-          text: "x".repeat(301),
+          text: "x".repeat(2_001),
         },
       ]),
-    ).toThrow(/300/);
+    ).toThrow(/2000/);
   });
 
   it("merges section edits into current canonical answers and clears an optional answer", () => {

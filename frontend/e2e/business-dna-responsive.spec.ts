@@ -19,6 +19,7 @@ const questions = [
   input_type,
   required,
   choices,
+  max_text_chars: 2_000,
 }));
 
 function record(questionId: string, answer: string, ordinal: number) {
@@ -169,6 +170,21 @@ test('editing one section protects its unsaved text from another editor', async 
   const audience = page.getByRole('heading', { name: 'Who it is for' }).locator('..').locator('..');
   await expect(audience.getByRole('button', { name: 'Edit' })).toBeDisabled();
   await expect(identity.getByLabel('About you')).toHaveValue('Unsaved text that must remain in this editor.');
+});
+
+test('Business DNA keeps an over-limit edit visible and blocks its save', async ({ page }) => {
+  await mockConnectedPage(page, populatedAnswers);
+  await page.goto('/refined/profile');
+
+  const identity = page.getByRole('heading', { name: 'Identity' }).locator('..').locator('..');
+  await identity.getByRole('button', { name: 'Edit' }).click();
+  const overview = identity.getByLabel('About you');
+  await overview.fill('x'.repeat(2_001));
+
+  await expect(overview).toHaveValue('x'.repeat(2_001));
+  await expect(overview).toHaveAttribute('aria-invalid', 'true');
+  await expect(identity.getByText('2001 / 2000 characters · Shorten this answer to save.')).toBeVisible();
+  await expect(identity.getByRole('button', { name: /Save/ })).toBeDisabled();
 });
 
 test('an optional saved tone can be explicitly cleared with a partial merge request', async ({ page }) => {

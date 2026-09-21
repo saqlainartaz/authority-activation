@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { OTHER_VALUE } from '@/lib/onboarding-profile';
+import {
+  onboardingTextLength,
+  OTHER_VALUE,
+} from '@/lib/onboarding-profile';
 import type { OnboardingPrefill } from '@/lib/product';
 import {
   businessDnaSections,
@@ -19,11 +22,20 @@ import type { SetupAnswer } from './setup-packets';
 
 function validField(field: BusinessDnaField, answer: SetupAnswer): boolean {
   if (!field.question) return true;
+  if (onboardingTextLength(answer.text) > field.question.max_text_chars) return false;
   if (field.question.input_type === 'long') {
     return field.required === false || Boolean(answer.text.trim());
   }
   if (!answer.selected.length) return field.required === false;
   return answer.selected[0] !== OTHER_VALUE || Boolean(answer.text.trim());
+}
+
+function AnswerLimit({ id, value, limit }: { id: string; value: string; limit: number }) {
+  const count = onboardingTextLength(value);
+  const over = count > limit;
+  return <p id={id} className="rf-answer-limit" data-over-limit={over || undefined}>
+    {count} / {limit} characters{over ? ' · Shorten this answer to save.' : ''}
+  </p>;
 }
 
 export default function BusinessDna() {
@@ -129,7 +141,7 @@ export default function BusinessDna() {
         return <Card className="rf-dna-card" key={section.id}><CardContent>
           <div className="rf-dna-section-heading"><h3>{section.title}</h3>{!active && <Button variant="ghost" disabled={editing !== null || busy} onClick={() => begin(section)}><Pencil /> Edit</Button>}</div>
           <dl className="rf-dna-fields">{section.fields.map(field => <div key={field.id}><dt>{field.label}</dt><dd>
-            {!active || !field.editable ? field.value : field.question?.input_type === 'single' ? <div className="rf-dna-editor"><RadioGroup disabled={busy} aria-label={field.label} value={draft[field.id]?.selected[0] || ''} onValueChange={value => write(field.id, { selected: [String(value)], text: String(value) === OTHER_VALUE ? draft[field.id]?.text ?? '' : '' })}>{[...(field.question.choices ?? []), OTHER_VALUE].map(option => <label className="rf-dna-option" key={option}><Radio.Root className="rf-radio" value={option}><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option === OTHER_VALUE ? 'Something else' : option}</span></label>)}</RadioGroup>{field.required === false && <Button variant="ghost" disabled={busy} onClick={() => write(field.id, { selected: [], text: '' })}>Clear answer</Button>}{draft[field.id]?.selected[0] === OTHER_VALUE && <Textarea disabled={busy} aria-label={`${field.label} custom answer`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [OTHER_VALUE], text: event.target.value })} rows={3} />}</div> : <Textarea disabled={busy} aria-label={field.label} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [], text: event.target.value })} rows={4} />}
+            {!active || !field.editable ? field.value : field.question?.input_type === 'single' ? <div className="rf-dna-editor"><RadioGroup disabled={busy} aria-label={field.label} value={draft[field.id]?.selected[0] || ''} onValueChange={value => write(field.id, { selected: [String(value)], text: String(value) === OTHER_VALUE ? draft[field.id]?.text ?? '' : '' })}>{[...(field.question.choices ?? []), OTHER_VALUE].map(option => <label className="rf-dna-option" key={option}><Radio.Root className="rf-radio" value={option}><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option === OTHER_VALUE ? 'Something else' : option}</span></label>)}</RadioGroup>{field.required === false && <Button variant="ghost" disabled={busy} onClick={() => write(field.id, { selected: [], text: '' })}>Clear answer</Button>}{draft[field.id]?.selected[0] === OTHER_VALUE && <><Textarea disabled={busy} aria-label={`${field.label} custom answer`} aria-invalid={onboardingTextLength(draft[field.id]?.text ?? '') > field.question.max_text_chars || undefined} aria-describedby={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [OTHER_VALUE], text: event.target.value })} rows={3} /><AnswerLimit id={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} limit={field.question.max_text_chars} /></>}</div> : <div className="rf-dna-editor"><Textarea disabled={busy} aria-label={field.label} aria-invalid={onboardingTextLength(draft[field.id]?.text ?? '') > field.question!.max_text_chars || undefined} aria-describedby={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [], text: event.target.value })} rows={4} /><AnswerLimit id={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} limit={field.question!.max_text_chars} /></div>}
           </dd></div>)}</dl>
           {active && <div className="rf-dna-actions"><Button variant="ghost" disabled={busy} onClick={() => { setEditing(null); setError(''); }}>Cancel</Button><Button disabled={!canSave || busy} onClick={() => void save(section)}>{busy ? 'Saving…' : <>Save <Check /></>}</Button></div>}
         </CardContent></Card>;

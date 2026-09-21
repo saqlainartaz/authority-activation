@@ -1,4 +1,8 @@
-import { decodeQuestions, decodeStoredResponses, OTHER_VALUE } from "@/lib/onboarding-profile";
+import {
+  decodeQuestions,
+  decodeStoredResponses,
+  OTHER_VALUE,
+} from "@/lib/onboarding-profile";
 import type { OnboardingPrefill, OnboardingQuestionResponse } from "@/lib/product";
 import {
   packetAnswer,
@@ -22,6 +26,7 @@ export function connectedPackets(prefill: OnboardingPrefill): Packet[] {
     topic: question.review_label,
     required: question.required,
     questionVersion: question.question_version,
+    maxTextChars: question.max_text_chars,
     options: question.input_type === "single"
       ? question.choices.map((label) => ({ label }))
       : undefined,
