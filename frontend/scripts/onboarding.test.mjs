@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import ts from 'typescript';
 const source = await readFile(new URL('../src/refined/setup-packets.ts', import.meta.url), 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
-const { PACKETS, OTHER, packetAnswer, setupComplete, advancesOnChoice, restoreSetup } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+const { PACKETS, OTHER, packetAnswer, setupComplete, canContinue, advancesOnChoice, restoreSetup } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const complete = () => ({ completed: true, answers: Object.fromEntries(PACKETS.map(p => [p.id, { selected: p.options ? [p.options[0].label] : [], text: p.options ? '' : 'An answer in my words.' }])) });
 
 test('all five packet types require an answer and typed alternatives cannot be blank', () => {
@@ -32,6 +32,12 @@ test('only explicit single choices advance; custom, multi and written answers st
     assert.equal(advancesOnChoice(packet, 'Unknown option'), false);
     for (const option of packet.options || []) assert.equal(advancesOnChoice(packet, option.label), ['choice', 'pick_source'].includes(packet.type));
   }
+});
+test('a blank optional packet can continue, but an attempted invalid optional answer cannot', () => {
+  const optional = { ...PACKETS[0], required: false };
+  assert.equal(canContinue(optional), true);
+  assert.equal(canContinue(optional, { selected: [], text: '' }), true);
+  assert.equal(canContinue(optional, { selected: [OTHER], text: '' }), false);
 });
 test('removed follow-up flags are discarded while preserving saved answers', () => {
   const setup = complete();

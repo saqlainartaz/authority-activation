@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode } from 'react';
 import { NavLink } from './navigation';
-import { BookOpen, Brain, ChevronLeft, ChevronRight, Home, MessageSquare, Settings, Moon, Sun } from 'lucide-react';
+import { BookOpen, Brain, ChevronLeft, ChevronRight, Fingerprint, Home, MessageSquare, Settings, Moon, Sun } from 'lucide-react';
 import { useTheme } from './Theme';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ const destinations = [
   { id: 'workspace', title: 'Workspace', icon: MessageSquare },
   { id: 'library', title: 'Library', icon: BookOpen },
   { id: 'train', title: 'Train your AI', icon: Brain },
+  { id: 'profile', title: 'Business DNA', icon: Fingerprint },
 ];
 
 function Collapse() {
@@ -32,7 +33,7 @@ export default function Shell({ active, children, onSettings, questions }: { act
       <SidebarFooter><SidebarMenu><SidebarMenuItem><SidebarMenuButton className="rf-nav" aria-label="Settings" tooltip="Settings" onClick={onSettings}><Settings /><span>Settings</span></SidebarMenuButton></SidebarMenuItem><SidebarMenuItem><SidebarMenuButton className="rf-nav" aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} tooltip={dark ? 'Light mode' : 'Dark mode'} onClick={() => setAppearance(dark ? 'light' : 'dark')}>{dark ? <Sun /> : <Moon />}<span>{dark ? 'Light mode' : 'Dark mode'}</span></SidebarMenuButton></SidebarMenuItem><SidebarMenuItem><Collapse /></SidebarMenuItem></SidebarMenu></SidebarFooter>
     </Sidebar>
     <SidebarInset className="rf-main"><div className="rf-page">{children}</div>
-      <nav className="rf-mobile-nav" aria-label="Main navigation">{destinations.map(({ id, title, icon: Icon }) => <NavLink key={id} to={`/refined/${id}`}><Icon /><span>{id === 'train' ? 'Train' : title}</span>{id === 'train' && questions > 0 && <i className="rf-unread" />}</NavLink>)}<Button variant="ghost" onClick={onSettings}><Settings /><span>Settings</span></Button></nav>
+      <nav className="rf-mobile-nav" aria-label="Main navigation">{destinations.map(({ id, title, icon: Icon }) => <NavLink key={id} to={`/refined/${id}`}><Icon /><span>{id === 'train' ? 'Train' : id === 'profile' ? 'DNA' : title}</span>{id === 'train' && questions > 0 && <i className="rf-unread" />}</NavLink>)}<Button variant="ghost" onClick={onSettings}><Settings /><span>Settings</span></Button></nav>
     </SidebarInset>
   </SidebarProvider>;
 }

@@ -13,7 +13,7 @@ import {
   type WorkspaceConversationMessage,
   type WorkspacePhase,
 } from './workspace-presentation';
-import { versionFromBody, versionFromReceipt, type ReceiptClaim } from './evidence';
+import { versionFromBody, versionFromReceipt, versionFromVariant, type ReceiptClaim } from './evidence';
 
 type Msg = WorkspaceConversationMessage | { who: 't'; n: number };
 type State = { composer: string; phase: WorkspacePhase; thread: Msg[]; variant: 'full' | 'short'; version: Version; pos: number; formats: Channel[]; fmt: Channel; view: 'write' | 'preview'; status: 'draft' | 'approved' | 'scheduled'; settled: boolean; lens: boolean; typing: boolean; hasRecord: boolean; title: string; id: number | string; when?: string; date?: string };
@@ -67,9 +67,10 @@ export function useWorkspace() {
   const selectedVariant = chat.session?.variants.find(variant => variant.id === chat.session?.selected_variant_id) ?? chat.session?.variants.at(-1);
   const selectedBody = selectedVariant?.body ?? null;
   const selectedContentItemId = chat.session?.session.content_item_id ?? null;
+  const selectedReceipt = selectedVariant?.receipt;
 
   useEffect(() => {
-    if (d.isDemo || !selectedBody || !selectedContentItemId) return;
+    if (d.isDemo || selectedReceipt?.length || !selectedBody || !selectedContentItemId) return;
     let active = true;
     void getJson<VersionHistory>(`/api/client/content-items/${encodeURIComponent(selectedContentItemId)}/versions`)
       .then(history => {
@@ -86,7 +87,7 @@ export function useWorkspace() {
         // The UI continues to show only the source labels that backend actually returned.
       });
     return () => { active = false; };
-  }, [d.isDemo, selectedBody, selectedContentItemId]);
+  }, [d.isDemo, selectedBody, selectedContentItemId, selectedReceipt]);
 
   useEffect(() => {
     if (d.isDemo || params.has('post')) return;
@@ -119,7 +120,7 @@ export function useWorkspace() {
     const visibleThread = assembleWorkspaceConversation(envelope.messages, chat.echo, streamedText);
     if (selected && selected.id !== lastServerVariant.current) {
       lastServerVariant.current = selected.id;
-      const version = versionFromBody(selected.body, selected.sources ?? []);
+      const version = versionFromVariant(selected);
       set(current => ({ ...current, id: envelope.session.content_item_id ?? current.id, phase: 'record', version, pos: versionChars(version), hasRecord: true, settled: true, typing: working, thread: visibleThread, formats: ['li'], fmt: 'li', status: 'draft', title: selected.body.split(/\r?\n/)[0]?.slice(0, 72) || TITLE }));
     } else {
       set(current => ({ ...current, phase: working ? (chat.phase.kind === 'working' && chat.phase.text ? 'streaming' : 'reading') : settledWorkspacePhase(current.hasRecord), typing: working, thread: visibleThread.length ? visibleThread : current.thread }));
@@ -147,25 +148,29 @@ export function useWorkspace() {
   }
 
   function send(text: string, channels: Channel[]) {
-    if (!['empty', 'record'].includes(s.phase)) return;
+    if (!['empty', 'record'].includes(s.phase)) return false;
+    if (!d.isDemo && !chat.canSend) return false;
     const message = text.trim() || DEMO_MSG;
     if (!d.isDemo && channels.includes('li')) {
       if (channels.includes('x')) notify.info('LinkedIn is connected. X remains a local demonstration because the previous backend supports LinkedIn only.');
       patch({ phase: 'reading', thread: [...s.thread, { who: 'u', text: message }], formats: ['li'], fmt: 'li', settled: false });
       chat.sendTurn(message);
-      return;
+      return true;
     }
     if (!d.isDemo) notify.info('X generation remains a local demonstration; the previous backend has no X draft contract.');
     patch({ phase: 'reading', thread: [{ who: 'u', text: message }], formats: channels.length ? channels : ['li'], fmt: channels[0] || 'li', settled: false });
     delay.current = window.setTimeout(() => streamDemo('full'), 850);
+    return true;
   }
 
   function askChange(text: string) {
-    if (s.phase !== 'record' || !text.trim()) return;
-    if (!d.isDemo && s.fmt === 'li') { patch({ typing: true }); chat.sendTurn(text); return; }
+    if (s.phase !== 'record' || !text.trim()) return false;
+    if (!d.isDemo && !chat.canSend) return false;
+    if (!d.isDemo && s.fmt === 'li') { patch({ typing: true }); chat.sendTurn(text); return true; }
     const variant = /short|punch/i.test(text) ? 'short' : /long/i.test(text) ? 'full' : null;
     set(x => ({ ...x, thread: [...x.thread, { who: 'u', text }], typing: true }));
     delay.current = window.setTimeout(() => { if (variant) streamDemo(variant); else set(x => ({ ...x, typing: false, thread: [...x.thread, { who: 'a', text: 'You can type “make it shorter” or “make it longer” to try a sample rewrite, or edit the draft directly.', text2: '', strong: '' }] })); }, 500);
+    return true;
   }
 
   const visible: { done: Para[]; partial?: string } = (() => {
@@ -250,7 +255,9 @@ export function useWorkspace() {
   const claims = s.version.paras.flatMap(p => p.segs.flatMap(seg => seg.claim ? [seg.claim] : []));
   const sourced = claims.filter(c => !c.bad).length;
   const showDraft = showsDraft(s.phase, s.hasRecord, d.isDemo);
-  const agentActivity = chat.phase.kind === 'working'
+  const agentActivity = chat.restoring
+    ? 'Restoring your session'
+    : chat.phase.kind === 'working'
     ? chat.phase.text ? null : chat.phase.label || (chat.session ? COPY.reading : 'Starting your session')
     : s.phase === 'reading'
       ? chat.session ? COPY.reading : 'Starting your session'
@@ -268,6 +275,7 @@ export function useWorkspace() {
     ...s, visible, total, showDraft, agentActivity, agentNotice, xPosts: params.has('post') ? s.version.paras.map(p => ({ t: paraText(p), n: `${paraText(p).length} / 280` })) : XPOSTS, paragraphsDone: visible.done.length + (visible.partial ? 1 : 0), progress: total ? Math.min(100, s.pos / total * 100) : 0,
     evidence: s.version.sources.length ? `${s.version.sources.length} sources retained` : `${sourced} of ${claims.length} claims sourced`, evidenceShort: s.version.sources.length ? `${s.version.sources.length} sources` : claims.length ? `${sourced} of ${claims.length} claims sourced` : 'Your writing', hasEvidenceClaims: claims.length > 0,
     lastAgent: [...s.thread].reverse().find((m): m is Extract<Msg, { who: 'a' }> => m.who === 'a'), toast: undefined as string | undefined,
+    canSend: d.isDemo || chat.canSend,
     send, askChange, stop, keep: () => save('draft'), approve: (when?: string, date?: string, time?: string) => save(when ? 'scheduled' : 'approved', when, date, time),
     startNewPost, openRecord: () => patch({ phase: 'record', hasRecord: true }),
     setComposer: (composer: string) => patch({ composer }), setFmt: (fmt: Channel) => patch({ fmt }), setView: (view: 'write' | 'preview') => patch({ view }), toggleLens: () => patch({ lens: !s.lens }),

@@ -1,9 +1,37 @@
 import { describe, expect, it } from 'vitest';
 
-import { versionFromReceipt } from '@/refined/evidence';
+import { versionFromReceipt, versionFromVariant } from '@/refined/evidence';
 import { paraText } from '@/shared/data';
 
 describe('connected draft evidence', () => {
+  it('uses a temporary chat variant receipt before the draft is promoted', () => {
+    const body = 'A useful detail from your source:\n\nCustomers delegate sooner.';
+    const start = Array.from(body).indexOf('C');
+    const version = versionFromVariant({
+      body,
+      sources: [{ source_label: 'your interview', locator: "{'line': 3}" }],
+      receipt: [{
+        ordinal: 0,
+        claim_text: 'Customers delegate sooner.',
+        quoted_span: 'Customers delegate sooner.',
+        body_start: start,
+        body_end: start + Array.from('Customers delegate sooner.').length,
+        source_label: 'your interview',
+        line: 3,
+        timecode: null,
+        speaker: null,
+      }],
+    });
+
+    expect(version.paras.flatMap(paragraph => paragraph.segs).some(segment => segment.claim)).toBe(true);
+    expect(version.sources).toEqual([{
+      n: '0',
+      t: 'your interview',
+      loc: 'line 3',
+      quote: 'Customers delegate sooner.',
+    }]);
+  });
+
   it('maps server receipt code-point offsets to highlighted claims and source detail', () => {
     const body = 'A 🚀 launch moved faster.\n\nClients asked why.';
     const chars = Array.from(body);

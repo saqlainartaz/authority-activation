@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getOnboarding, listClientAtoms } from "@/lib/product";
+import { getOnboarding, listClientAtoms, type OnboardingPrefill } from "@/lib/product";
 import { escapeForBody, type ModelMessage } from "@/agent/transcript";
 
 const TOPIC_SOURCE_TYPES = ["insight", "quote", "objection", "proof_point"] as const;
@@ -56,12 +56,15 @@ function topicSuggestions(answers: Record<string, unknown>): string[] {
   return result;
 }
 
-export async function readWorkspaceOverview(token: string): Promise<WorkspaceOverview> {
+export async function readWorkspaceOverview(
+  token: string,
+  preloadedOnboarding?: OnboardingPrefill,
+): Promise<WorkspaceOverview> {
   // Both routes use the authenticated client's two-part credential. Do not
   // reach through the service-only client to make this overview richer: an
   // agent turn must never gain a path that omits the user's session token.
   const [onboarding, atoms] = await Promise.all([
-    getOnboarding(token),
+    preloadedOnboarding ? Promise.resolve(preloadedOnboarding) : getOnboarding(token),
     listClientAtoms(token),
   ]);
   const atomCount = Object.values(atoms.atom_counts).reduce(

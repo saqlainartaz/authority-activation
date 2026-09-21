@@ -35,6 +35,13 @@ const NO_USAGE = { inputTokens: null, outputTokens: null, cacheReadInputTokens: 
 
 const SKILL_VERSIONS = [{ slug: "instructions", version: "1.1.0" }];
 
+const prepareArgs = (message: string) => ({
+  message,
+  operation: "generate" as const,
+  subject: message,
+  retrieval_query: message,
+});
+
 function build() {
   return createExecutor({
     sessionId: "session-1",
@@ -90,7 +97,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
     expect(state.snapshotId).toBeNull();
     expect(state.handles.size).toBe(0);
 
-    const execution = await executor("prepare_generation", { message: "write a post", operation: "generate" });
+    const execution = await executor("prepare_generation", prepareArgs("write a post"));
 
     expect(execution.kind).toBe("ok");
     expect(state.snapshotId).toBe("snap-1");
@@ -130,7 +137,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
     });
     vi.mocked(submitDraft).mockResolvedValue({ outcome: "verified", variant_id: "v1" });
 
-    await executor("prepare_generation", { message: "m", operation: "generate" });
+    await executor("prepare_generation", prepareArgs("m"));
     await executor("submit_draft", {
       body: "we doubled revenue",
       cited_atom_ids: [{ handle: "M1", quoted_span: "we doubled revenue", claim_text: "we doubled revenue" }],
@@ -153,7 +160,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
       problems: [{ kind: "span_too_short", detail: "too short" }],
     });
 
-    await executor("prepare_generation", { message: "m", operation: "generate" });
+    await executor("prepare_generation", prepareArgs("m"));
     const execution = await executor("submit_draft", {
       body: "b",
       cited_atom_ids: [{ handle: "M1", quoted_span: "x", claim_text: "x" }],
@@ -184,7 +191,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
     vi.mocked(prepareGeneration).mockResolvedValue(materialContext());
     vi.mocked(submitDraft).mockResolvedValue({ outcome: "held", rejectionKind: "citation_absent" });
 
-    await executor("prepare_generation", { message: "m", operation: "generate" });
+    await executor("prepare_generation", prepareArgs("m"));
     const execution = await executor("submit_draft", {
       body: "b",
       cited_atom_ids: [{ handle: "M1", quoted_span: "x", claim_text: "x" }],
@@ -204,7 +211,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
     vi.mocked(prepareGeneration).mockResolvedValue(materialContext());
     vi.mocked(submitDraft).mockResolvedValue({ outcome: "verified", variant_id: "v1" });
 
-    await executor("prepare_generation", { message: "m", operation: "generate" });
+    await executor("prepare_generation", prepareArgs("m"));
     const execution = await executor("submit_draft", {
       body: "b",
       cited_atom_ids: [{ handle: "M1", quoted_span: "x", claim_text: "x" }],
@@ -222,7 +229,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
     vi.mocked(prepareGeneration).mockResolvedValue(materialContext());
     vi.mocked(submitDraft).mockResolvedValue({ outcome: "verified", variant_id: "v1" });
 
-    await executor("prepare_generation", { message: "the launch", operation: "generate" });
+    await executor("prepare_generation", prepareArgs("the launch"));
     await executor("submit_draft", {
       body: "A post citing M1.",
       cited_atom_ids: [{ handle: "M1", quoted_span: "we doubled revenue", claim_text: "A post citing M1." }],
@@ -357,7 +364,7 @@ describe("item 3, through the real executor — a local pre-flight hold spends n
   });
   const prepareOnce = (id: string): TurnResult => ({
     text: "",
-    toolCalls: [{ id, name: "prepare_generation", input: { message: "write a post", operation: "generate" } }],
+    toolCalls: [{ id, name: "prepare_generation", input: prepareArgs("write a post") }],
     stopReason: "tool_use",
     usage: NO_USAGE_2,
   });

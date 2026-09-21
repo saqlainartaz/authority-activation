@@ -1,6 +1,6 @@
 # Verification record
 
-Verified locally on 2026-09-14 and rechecked on 2026-09-15 (Europe/Warsaw). Nothing in this record is a
+Verified locally on 2026-09-14 and rechecked through 2026-09-21 (Europe/Warsaw). Nothing in this record is a
 deployment or live-provider claim.
 
 ## Pinned inputs
@@ -11,6 +11,10 @@ deployment or live-provider claim.
   `8c790eba6920a3397d64486bd5162815f28ef96c`
 - Compatible isolated Python backend:
   `6a7429f9779537a777c99e89ac6d4b5da2bdc736`
+- Deployment-port base and structured-intent commit:
+  `04e9e9a5080f00ea8b2284d6a30bda36a82ecd43` +
+  `12d857299a108ece3324467018a529aac0249369`; the completed compatibility work
+  is merged as `66a7ab6f34a57b0f831d56b706d210abd8eb6f1e` through backend PR #32.
 
 ## Migration parity
 
@@ -30,15 +34,89 @@ deployment or live-provider claim.
 
 ## Final automated results
 
+### Clean frontend PR-branch recheck — 2026-09-21
+
+- The isolated checkout was created from `authority-activation/main` at
+  `ef827e32ee452fd6e242bf64df809e7849fa5843`; no `.env*` file was present or
+  read. `npm ci` completed with zero reported vulnerabilities.
+- `ALLOW_MISSING_ENGINE_FIXTURES=1 npm run check` passed: 22 design tests, 354
+  Vitest tests across 43 files, TypeScript, and all agent/BFF/static gates.
+  The two cross-repository schema comparisons explicitly used their documented
+  standalone mode because the clean frontend worktree has no sibling backend;
+  their full comparison remains covered by the earlier connected verification.
+- `npm run build` passed with Next.js 16.3.3, producing 23 static pages and all
+  listed dynamic BFF routes.
+- Nineteen isolated Playwright checks passed against a loopback-only synthetic
+  `/v1/me` identity service: Business DNA (7 tests), Train Your AI (3 tests),
+  and onboarding (9 tests, including the responsive matrix at 390, 767, 768,
+  1,179, 1,180, and 1,440 px). Browser API responses were deterministic
+  fixtures; no backend
+  data, retained database, Render service, or provider was contacted.
+- The first browser attempt correctly failed at sign-in because browser route
+  interception cannot satisfy the Next proxy's server-side identity check. The
+  successful run supplied that missing server-side identity fixture; no product
+  authentication bypass or retry was added.
+- This recheck packages the application implementation commit `9f5b26a` for
+  an explicitly authorized frontend PR. It does not authorize or claim a merge
+  or deployment.
+
+### Business DNA/onboarding completion recheck — 2026-09-20
+
+- Envless frontend mirror:
+  `C:/Users/saqla/AppData/Local/Temp/authority-aa-envless-20260920`;
+  zero `.env*` files were present before verification.
+- Production-application diff SHA-256 (`frontend/src`, package manifests and
+  Next config): `083c7fbb2306785e2c9cbf6724c7b1ff25d2c400f0f3736b6f22eae93e507e5b`.
+  The production session-boundary file has identical source/mirror UTC write
+  time `2026-09-20T19:43:40.2642528Z`; later source-only changes were tests,
+  screenshots and documentation.
+- `npm run check`: passed — 22 design tests and 350 Vitest tests across
+  42 files, plus TypeScript and all agent/BFF/schema/static gates.
+- `npm run build`: passed in the envless mirror with Next.js 16.3.3; 23 static
+  pages and all listed dynamic BFF routes compiled.
+- One attempted source-checkout build announced that Next had automatically
+  loaded `.env.local`; it was stopped immediately. No value was printed or
+  inspected, and that run is not completion evidence. The passing build above
+  was performed only after confirming the mirror contained zero `.env*` files.
+- Affected backend gate: 162 tests passed; Ruff passed; Import Linter kept all
+  8 contracts.
+- Connected Playwright journey: 1 passed in 1.1 minutes against fake Python
+  providers, the deterministic TypeScript driver, and disposable database
+  `aa_stakeholder_e2e_onboarding_20260920` on loopback port 55443. The serving
+  API used `engine_app`, the worker used `engine_worker`, and only migrations
+  used the admin role, so the foreign-tenant document assertion exercised RLS
+  and returned 404.
+- Connected responsive matrix: 6 passed at 390, 767, 768, 1,179, 1,180 and
+  1,440 px; dark at 390/1,179 and light elsewhere. Screenshots are under
+  `docs/integration/screenshots/business-dna-connected-*` and were visually
+  inspected for overflow, action placement and breakpoint continuity.
+- The journey covered the nine-question onboarding, optional/custom choices,
+  Business DNA edit/cancel/failure retention/reload, real provisional-atom
+  decisions and replay, client-brief identity answer, source async state,
+  cross-tenant denial, streaming/evidence, new-session restoration, draft
+  versions, scheduling/rescheduling, cancellation wording and logout.
+- During verification, an immediate send after a workspace reload reproduced a
+  real race between active-session restoration and session creation. The
+  composer now distinguishes “not restored yet” from “confirmed no active
+  session,” preserves the prompt, disables send for that brief window, and is
+  pinned by unit plus the connected journey.
+- No paid/live provider, Render service, email, publication, deployment,
+  commit, push, PR or merge was used for this goal.
+- After evidence capture, the exact labelled disposable container
+  `authority-aa-onboarding-pg-20260920` and volume
+  `authority-aa-onboarding-pgdata-20260920` were removed. Their synthetic test
+  data is not recoverable; no task-owned server remains listening on ports
+  55443, 8001 or 3100.
+
 Run from `frontend/frontend`:
 
-- `npm run check`: passed.
+- Earlier retained gate: `npm run check` passed.
   - design tests: 21 passed
-  - stack unit/integration tests: 307 passed across 36 files
+  - stack unit/integration tests: 315 passed across 36 files
   - TypeScript and all agent/BFF/schema/static boundary checks passed
 - `npm run build`: passed with Next.js 16.3.3; all App Router pages and route
   handlers compiled and page generation completed.
-- Connected production-build Playwright journey: 1 passed in 23.5 seconds.
+- Connected production-build Playwright journey: 1 passed in 26.9 seconds.
 
 Run from the isolated backend with `.env` loading disabled and explicit
 task-owned database URLs on loopback port 55432:
@@ -49,6 +127,23 @@ task-owned database URLs on loopback port 55432:
 
 The four backend skips are optional Docling/live-provider checks. Anthropic and
 Voyage keys were blank; no paid or live-provider call was made.
+
+The deployment-port checkout was then rechecked on 2026-09-20 against a newly
+created, labelled PostgreSQL container bound only to loopback port 55444. The
+clean regression selection completed at 100% with exit code 0: 2,745 passed and
+2 skipped across 2,747 collected tests. `tests/test_unban.py` was excluded because its
+assertions complete but its inherited process does not terminate, and
+`tests/test_worker_operational_guards.py` was excluded because it hard-codes an
+ambient `localhost:5432` database. The migration-neutrality maintenance URL and
+all three application-role URLs were explicitly pinned to the disposable
+container. The affected chat/context set also passed 61 tests and Ruff. Render
+was not contacted. A presence-only environment check after the run established
+that the process inherited an Anthropic key, so the inherited suite's two tests
+explicitly marked as live Anthropic smoke tests ran and passed; the Voyage and
+Docling checks were the two skips. The key was neither read nor printed, and the
+connected application journey itself remained deterministic and keyless. The
+live calls were outside the intended keyless verification profile and are
+recorded here as a verification incident, not as production-agent validation.
 
 ## Connected journey evidence
 
@@ -64,9 +159,10 @@ decision substitute. It exercised:
   refusal with retained input, and compatible synthetic test setup;
 - source upload, asynchronous atomisation status, reload persistence, and a
   foreign-tenant document returning the same 404 as an absent object;
-- chat creation, clarification, reload, grounded generation through the actual
-  agent tool loop, persisted citations, direct session links, and UI-only
-  cancellation with explicit unsupported-server wording;
+- chat creation, delegated grounded generation through the actual agent tool
+  loop, browser-only temporary-variant claim receipts, evidence availability
+  before save and after reload, persisted citations, direct session links, and
+  deterministic UI-only cancellation with explicit unsupported-server wording;
 - content promotion, editing, immutable version history, direct post links,
   approval, scheduling, rescheduling, authoritative scheduled presentation,
   reload persistence, and logout/cookie invalidation.
@@ -87,8 +183,10 @@ covered by the complete backend suite.
 - a real schedule slot was visually overwritten by the content item's expected
   underlying `approved` state;
 - Stop was unreachable during the pre-delta working phase.
-- connected drafts discarded version-receipt claim offsets, leaving the
-  evidence control with no real spans to reveal;
+- connected drafts exposed only source labels until promotion, leaving the
+  pre-save evidence control with no real spans to reveal; the browser session
+  now receives an allowlisted temporary receipt while runtime/model responses
+  continue to exclude receipts and locators;
 - Tailwind's explicit source set omitted `src/app/internal`, so admin-only
   responsive grid utilities were missing from the production stylesheet.
 
@@ -156,7 +254,7 @@ shape, not hosted latency or live-model quality.
   this is a local smoke measurement, not a hosted performance promise.
 
 Current frontend gates after these changes: `npm run check` passed (21 design
-tests; 307 stack tests across 36 files), `npm run build` passed, and the focused
+tests; 315 stack tests across 36 files), `npm run build` passed, and the focused
 admin Chromium test passed. The earlier full connected-backend/browser and
 backend-suite evidence remains valid for unchanged integration paths; it was
 not rerun against Render or Anthropic.
@@ -186,6 +284,45 @@ not rerun against Render or Anthropic.
   connected Render/Anthropic pass remains an operator test in
   `E2E-CHEAT-SHEET.md`.
 
+### Flexible agent retrieval refinement — 2026-09-19
+
+- Root cause: the TypeScript agent previously had to encode intent inside one
+  prose `message`, while the compatible backend could resolve a subject from
+  only a few phrase shapes. A documentary-specific normalizer improved one
+  example but retained the same brittle coupling.
+- `prepare_generation` now requires three distinct values: the client's
+  meaning-preserving request, a subject/selection target, and a standalone
+  semantic retrieval query assembled from the conversation. This single
+  contract covers named or unnamed sources, delegated topic choice, recurring
+  client questions, concrete topics, revisions, and resumed clarification.
+- The Python context endpoint accepts the two new values optionally for rolling
+  compatibility. The retrieval query drives the existing tenant-scoped hybrid
+  retrieval; the subject drives readiness only. Neither is inserted into facts,
+  evidence, references, citations, or provenance, and the immutable snapshot
+  records the canonical writing task rather than the search query.
+- Agent instructions permit one meaningfully different re-retrieval when the
+  first material is mismatched, prohibit equivalent query loops, and retain the
+  hard `answer_needed` and verified-draft boundaries. An empty result remains a
+  statement about that query, not the whole account.
+- Test-first frontend runs failed on the missing fields, rewritten request, and
+  deterministic-driver payload before implementation. After the change,
+  `npm run check` passed (21 design tests and 315 stack tests across 36 files)
+  and the Next.js 16.3.3 production build completed successfully.
+- The affected backend set passed 61 tests. It includes varied phrase-agnostic
+  subject cases, proof that subject intent never replaces evidence, proof that
+  the retrieval query selects context without replacing the persisted task,
+  legacy answer-needed behavior, idempotency conflict detection when structured
+  intent changes under a reused key, proof that semantic query wording cannot
+  bypass canonical-task conflict filtering, and the real FastAPI context endpoint against
+  a migrated loopback-only disposable PostgreSQL container. That container was
+  removed after the run.
+- No `.env.local` content was inspected or printed; the ordinary Next.js build
+  did load it as its configured environment source. Render was not contacted.
+  The later broad backend run did execute the two inherited Anthropic live-smoke
+  tests described above; this does not validate live agent decision quality or
+  hosted retrieval latency, which remain for the operator's documented demo
+  smoke test.
+
 ## Honest limits
 
 - Production Anthropic behavior, Voyage embeddings, Docling availability, real
@@ -204,10 +341,20 @@ not rerun against Render or Anthropic.
 
 All implementation, generated screenshots, and handoff records are under the
 ignored `local/stakeholder-integration/` boundary. The original
-`Final Front End` reference and the overhaul repository were not edited. No
-commit, push, PR, merge, publish, or deployment was performed.
+`Final Front End` reference and the overhaul repository were not edited. The
+backend compatibility work was merged by the operator through PR #32. The
+frontend work is isolated on its own delivery branch for the authorized pull
+request; it remains unmerged, unpublished, and undeployed.
 
 After the suites completed, the exact task-owned PostgreSQL container
 `aa-stakeholder-pg-20260914` and the isolated backend's 109 generated synthetic
 raw fixture files were removed. Those disposable test artifacts are not
 recoverable and contained no client material.
+
+For the 2026-09-20 recheck, the exact labelled container
+`aa-stakeholder-flex-e2e-pg-20260920` and its anonymous data volume were removed;
+ports 8001, 3102, and 55444 were no longer listening. The latest 109 synthetic
+raw fixtures and two locally extracted Playwright trace directories remain only
+as ignored task-owned files because the environment safety layer refused their
+recursive deletion after exact-path validation. They contain no client material
+and are not services or databases.

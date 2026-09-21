@@ -50,6 +50,16 @@ export function versionFromBody(body: string, sources: Array<{ source_label: str
   };
 }
 
+export function versionFromVariant(variant: {
+  body: string;
+  sources?: Array<{ source_label: string; locator?: string }>;
+  receipt?: ReceiptClaim[];
+}): Version {
+  return variant.receipt?.length
+    ? versionFromReceipt(variant.body, variant.receipt)
+    : versionFromBody(variant.body, variant.sources ?? []);
+}
+
 export function versionFromReceipt(body: string, receipt: ReceiptClaim[]): Version {
   const chars = Array.from(body);
   const claims = receipt

@@ -28,8 +28,10 @@ const handleCitation = z.object({
 
 export const TOOL_INPUT_SCHEMAS: Record<ToolName, z.ZodType> = {
   prepare_generation: z.object({
-    message: z.string().describe("What the client asked for, in your words if theirs was indirect"),
+    message: z.string().min(1).max(4_000).describe("The client's writing request, preserving their meaning instead of inserting retrieval syntax"),
     operation: z.enum(["generate", "revise", "resume"]).describe("generate for a new piece, revise when reacting to an existing draft, resume to pick up unfinished work"),
+    subject: z.string().min(1).max(500).describe("The intended topic or selection target. This is request context, never evidence. When the client delegates the choice, name a broad grounded target such as the strongest useful lesson in their available knowledge"),
+    retrieval_query: z.string().min(1).max(2_000).describe("A standalone semantic search query for the client's knowledge. Include relevant conversation and source hints, but never invent facts or identifiers"),
   }),
   submit_draft: z.object({
     body: z.string().describe("The post itself, and only the post"),
@@ -56,7 +58,7 @@ export const TOOL_INPUT_SCHEMAS: Record<ToolName, z.ZodType> = {
 };
 
 const DESCRIPTIONS: Record<ToolName, string> = {
-  prepare_generation: "Freeze a snapshot of this client's context and return it. Call before writing. Call again if the material is wrong for the piece — re-retrieval is a feature, not a retry.",
+  prepare_generation: "Retrieve and freeze a snapshot of this client's context from an explicit subject and standalone search query. Call before writing. One meaningfully different re-retrieval is allowed when the returned material is mismatched.",
   submit_draft: "Submit a candidate draft plus your reply for verification. Returns verified or held. Two calls per turn.",
   get_variant_sources: "Show the receipts behind a draft that is already stored.",
   propose_durable_fact: "Propose a fact for the client's knowledge base. Proposes only — confirming is the client's, always.",

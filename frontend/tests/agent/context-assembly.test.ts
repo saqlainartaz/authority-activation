@@ -44,6 +44,26 @@ describe("the turn messages", () => {
     expect(messages[messages.length - 1].content).toContain("write the launch post");
   });
 
+  it("places bounded turn context after transcript and before the current client message", () => {
+    const { messages } = buildTurnMessages(
+      material,
+      [{ role: "user", content: "<client-message>earlier</client-message>" }],
+      "write the launch post",
+      [
+        { role: "user", content: '<client-profile trust="client-authored-untrusted" citable="false">{}</client-profile>' },
+        { role: "user", content: '<workspace-overview trust="server-derived">{}</workspace-overview>' },
+      ],
+    );
+
+    expect(messages.map(message => message.content)).toEqual([
+      expect.stringContaining("<material-set>"),
+      "<client-message>earlier</client-message>",
+      '<client-profile trust="client-authored-untrusted" citable="false">{}</client-profile>',
+      '<workspace-overview trust="server-derived">{}</workspace-overview>',
+      "<client-message>write the launch post</client-message>",
+    ]);
+  });
+
   it("returns the handle map the citation path depends on", () => {
     // §4.7 mechanism 1: the runtime substitutes real atom_ids from THIS map.
     // Returning it here rather than recomputing it later is what stops the two

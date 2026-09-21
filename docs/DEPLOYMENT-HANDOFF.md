@@ -18,6 +18,22 @@ This is a local readiness handoff. Nothing was published or deployed, so hosted 
 
 The application uses the Node.js runtime, not Edge, because the agent loads server-only filesystem assets and backend calls can stream for a full turn. Keep functions close to the separately hosted backend/database region.
 
+## Required rollout order for structured agent intent
+
+Deploy the compatible Python backend before deploying this web build. The
+reviewed backend change is merged as
+`66a7ab6f34a57b0f831d56b706d210abd8eb6f1e` through backend PR #32 (reviewed
+head `14f3ba04beca8fd935f0c0201c2f3cf0bc3bcea7`). This record confirms source
+integration only; it does not establish that the Render service is already
+running that merge commit.
+The backend fields `subject` and `retrieval_query` are optional, so the updated
+backend accepts both the old and new web requests. The old backend forbids
+unknown request fields, so deploying the new web build first would make
+`prepare_generation` receive a 422 response. After the backend health and one
+legacy context request pass, deploy the web build and run the flexible-agent
+smoke matrix in `E2E-CHEAT-SHEET.md`. This is a handoff instruction only; no
+deployment was performed here.
+
 ## Web environment inventory
 
 | Variable | Consumer and purpose | Required / exposure / timing | Local | Preview | Production | Safe example / source |

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { dedupeEcho, needsSessionRead } from "@/components/compose/useChatSession";
+import { dedupeEcho, isSessionReadReady, needsSessionRead } from "@/components/compose/useChatSession";
 import type { ChatMessage } from "@/lib/product";
 
 function task(body: string): ChatMessage {
@@ -86,5 +86,16 @@ describe("session read lifecycle", () => {
     expect(needsSessionRead("session-1", "session-1")).toBe(false);
     expect(needsSessionRead(null, "active")).toBe(true);
     expect(needsSessionRead("session-1", "session-2")).toBe(true);
+  });
+
+  it("does not allow a send until the initial active-session read settles", () => {
+    expect(isSessionReadReady(null, "active", false)).toBe(false);
+    expect(isSessionReadReady("active", "active", false)).toBe(true);
+    expect(isSessionReadReady("session-1", "session-1", false)).toBe(true);
+    expect(isSessionReadReady("session-1", "session-2", false)).toBe(false);
+  });
+
+  it("keeps the composer closed after a failed restore", () => {
+    expect(isSessionReadReady("active", "active", true)).toBe(false);
   });
 });

@@ -13,6 +13,7 @@ import type { ToolName } from "@/agent/profile";
 import { renderMaterial, type HandleMap } from "@/agent/render";
 import { getVariantSources } from "@/agent/tools/get-variant-sources";
 import { prepareGeneration } from "@/agent/tools/prepare-generation";
+import type { PrepareGenerationArgs } from "@/agent/tools/prepare-generation";
 import { proposeDurableFact } from "@/agent/tools/propose-durable-fact";
 import { schedule } from "@/agent/tools/schedule";
 import { submitDraft } from "@/agent/tools/submit-draft";
@@ -166,7 +167,7 @@ export function createExecutor(options: CreateExecutorOptions): { executor: Tool
     try {
       switch (name) {
         case "prepare_generation": {
-          const args = parsed.data as { message: string; operation: "generate" | "revise" | "resume" };
+          const args = parsed.data as PrepareGenerationArgs;
           const contextV1 = await prepareGeneration(args, context, attempt);
           // Ruling R2: rendered exactly ONCE. `state.handles` is what
           // `submit_draft` reads on every later call via the SAME
