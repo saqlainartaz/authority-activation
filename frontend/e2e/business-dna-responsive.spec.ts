@@ -81,6 +81,8 @@ async function mockConnectedPage(
   answers: Record<string, unknown>,
   failSave = false,
   onSave?: (body: { merge?: boolean; responses: Array<{ question_id: string; selected: string[]; text: string }> }) => void,
+  saveGate?: Promise<void>,
+  saveStatus = 200,
 ) {
   await page.context().addCookies([{
     name: 'aa_client_token',
@@ -103,6 +105,12 @@ async function mockConnectedPage(
     }
     const body = route.request().postDataJSON() as { merge?: boolean; responses: Array<{ question_id: string; selected: string[]; text: string }> };
     onSave?.(body);
+    await saveGate;
+    if (saveStatus === 401) {
+      await page.context().clearCookies();
+      await route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"Your session has expired."}' });
+      return;
+    }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ answers: canonicalAnswers(body.responses), confirmed_at: '2026-09-20T10:10:00Z' }) });
   });
 }
@@ -178,4 +186,36 @@ test('an optional saved tone can be explicitly cleared with a partial merge requ
     merge: true,
     responses: [{ question_id: 'tone', question_version: VERSION, selected: [], text: '' }],
   });
+});
+
+test('a pending profile save locks its fields and an expired session returns to sign-in', async ({ page }) => {
+  let releaseSave!: () => void;
+  const saveGate = new Promise<void>(resolve => { releaseSave = resolve; });
+  await mockConnectedPage(page, populatedAnswers, false, undefined, saveGate, 401);
+  await page.goto('/refined/profile');
+
+  const identity = page.getByRole('heading', { name: 'Identity' }).locator('..').locator('..');
+  await identity.getByRole('button', { name: 'Edit' }).click();
+  const overview = identity.getByLabel('About you');
+  await overview.fill('A save payload that is now in flight.');
+  await identity.getByRole('button', { name: /Save/ }).click();
+
+  await expect(overview).toBeDisabled();
+  releaseSave();
+  await expect(page).toHaveURL(/\/refined\/signin$/);
+});
+
+test('an expired profile read returns to sign-in', async ({ page }) => {
+  await page.context().addCookies([{ name: 'aa_client_token', value: 'synthetic-local-token', url: 'http://localhost:3100', httpOnly: true, sameSite: 'Lax' }]);
+  await page.route('**/api/client/content-items', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[]}' }));
+  await page.route('**/api/client/calendar', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"slots":[]}' }));
+  await page.route('**/api/client/profile', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ identity: { display_name: 'Amina Yusuf', profession: 'Producer', client_name: 'ISTV', timezone: 'Europe/London' }, document_count: 3 }) }));
+  await page.route('**/api/client/onboarding', async route => {
+    await page.context().clearCookies();
+    await route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"Your session has expired."}' });
+  });
+
+  await page.goto('/refined/profile');
+
+  await expect(page).toHaveURL(/\/refined\/signin$/);
 });

@@ -31,6 +31,26 @@ const prefill = {
   trust: 'untrusted',
 };
 
+function completedPrefill() {
+  return {
+    ...prefill,
+    answers: {
+      questionnaire: {
+        version: VERSION,
+        responses: questions.map((question, ordinal) => ({
+          question_id: question.question_id,
+          question_version: VERSION,
+          question: question.prompt,
+          answers: [question.input_type === 'single' && Array.isArray(question.choices) ? String(question.choices[0]) : `Answer ${ordinal + 1}`],
+          submitted_at: '2026-09-20T10:00:00Z',
+          ordinal,
+        })),
+      },
+    },
+    confirmed_at: '2026-09-20T10:00:00Z',
+  };
+}
+
 for (const width of [390, 767, 768, 1179, 1180, 1440]) {
   test(`connected onboarding preserves its frame at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
@@ -95,4 +115,39 @@ test('connected onboarding can retry a transient prefill failure', async ({ page
   await page.getByRole('button', { name: 'Retry' }).click();
   await expect(page.getByText('Question 1 of 9')).toBeVisible();
   expect(reads).toBeGreaterThanOrEqual(2);
+});
+
+test('final onboarding save locks review navigation and an expired session returns to sign-in', async ({ page }) => {
+  await page.context().addCookies([{ name: 'aa_client_token', value: 'synthetic-local-token', url: 'http://localhost:3100', httpOnly: true, sameSite: 'Lax' }]);
+  let releaseSave!: () => void;
+  const saveGate = new Promise<void>(resolve => { releaseSave = resolve; });
+  await page.route('**/api/client/onboarding', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(completedPrefill()) });
+      return;
+    }
+    await saveGate;
+    await route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"Your session has expired."}' });
+  });
+
+  await page.goto('/refined/onboarding');
+  await expect(page.getByRole('heading', { name: 'Does this sound right?' })).toBeVisible();
+  await page.getByRole('button', { name: 'Open my workspace' }).click();
+  await expect(page.getByRole('button', { name: 'Change About you' })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Back' })).toBeDisabled();
+  await page.context().clearCookies();
+  releaseSave();
+  await expect(page).toHaveURL(/\/refined\/signin$/);
+});
+
+test('an expired onboarding prefill returns to sign-in', async ({ page }) => {
+  await page.context().addCookies([{ name: 'aa_client_token', value: 'synthetic-local-token', url: 'http://localhost:3100', httpOnly: true, sameSite: 'Lax' }]);
+  await page.route('**/api/client/onboarding', async route => {
+    await page.context().clearCookies();
+    await route.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"Your session has expired."}' });
+  });
+
+  await page.goto('/refined/onboarding');
+
+  await expect(page).toHaveURL(/\/refined\/signin$/);
 });

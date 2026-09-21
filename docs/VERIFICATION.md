@@ -46,9 +46,9 @@ deployment or live-provider claim.
   their full comparison remains covered by the earlier connected verification.
 - `npm run build` passed with Next.js 16.3.3, producing 23 static pages and all
   listed dynamic BFF routes.
-- Fifteen isolated Playwright checks passed against a loopback-only synthetic
-  `/v1/me` identity service: Business DNA (5 tests), Train Your AI (3 tests),
-  and onboarding (7 tests, including the responsive matrix at 390, 767, 768,
+- Nineteen isolated Playwright checks passed against a loopback-only synthetic
+  `/v1/me` identity service: Business DNA (7 tests), Train Your AI (3 tests),
+  and onboarding (9 tests, including the responsive matrix at 390, 767, 768,
   1,179, 1,180, and 1,440 px). Browser API responses were deterministic
   fixtures; no backend
   data, retained database, Render service, or provider was contacted.

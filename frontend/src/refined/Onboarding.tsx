@@ -101,6 +101,10 @@ export default function Onboarding() {
     setError('');
     void fetch('/api/client/onboarding', { cache: 'no-store' }).then(async response => {
       const body = await response.json().catch(() => ({})) as OnboardingPrefill & { error?: string; detail?: string };
+      if (response.status === 401) {
+        navigate('/refined/signin', { replace: true });
+        return;
+      }
       if (!response.ok) throw new Error(body.error || body.detail || 'Could not load your setup.');
       const nextPackets = connectedPackets(body);
       const nextSetup = setupFromPrefill(body);
@@ -131,6 +135,10 @@ export default function Onboarding() {
         body: JSON.stringify({ responses }),
       });
       const body = await response.json().catch(() => ({})) as { error?: string; detail?: unknown };
+      if (response.status === 401) {
+        navigate('/refined/signin', { replace: true });
+        return;
+      }
       if (!response.ok) {
         throw new Error(body.error || (typeof body.detail === 'string' ? body.detail : 'Your setup was not saved.'));
       }
@@ -171,9 +179,9 @@ export default function Onboarding() {
           {packet.type === 'multi' ? <div role="group" aria-label={packet.headline}>{[...packet.options, { label: OTHER }].map(option => <label className="rf-onboarding-option" key={option.label} data-selected={answer.selected.includes(option.label) || undefined}><Checkbox checked={answer.selected.includes(option.label)} onCheckedChange={() => choose(option.label)} /><span>{option.label === OTHER ? 'Something else, I will type it' : option.label}</span></label>)}</div> : <RadioGroup aria-label={packet.headline} value={answer.selected[0] || ''} onValueChange={value => choose(String(value))}>{[...packet.options, { label: OTHER }].map(option => <label className="rf-onboarding-option" key={option.label} data-selected={answer.selected.includes(option.label) || undefined}><Radio.Root className="rf-radio" value={option.label}><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option.label === OTHER ? 'Something else, I will type it' : option.label}</span></label>)}</RadioGroup>}
           {answer.selected.includes(OTHER) && <Textarea autoFocus key={`${packet.id}-other`} className="rf-onboarding-other" aria-label="Your own answer" placeholder="The real answer, in your own words." value={answer.text} onChange={event => write({ text: event.target.value })} rows={3} />}
         </Card> : packet.type === 'short' ? <Input key={packet.id} className="rf-onboarding-write" aria-label={packet.headline} placeholder={packet.placeholder} value={answer.text} onChange={event => write({ text: event.target.value })} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); next(); } }} /> : <Textarea key={packet.id} className="rf-onboarding-write rf-onboarding-long" aria-label={packet.headline} placeholder={packet.placeholder} value={answer.text} onChange={event => write({ text: event.target.value })} rows={6} />}
-      </> : <><p className="rf-onboarding-reason">A quick check before you start writing.</p><h1 ref={title} tabIndex={-1}>Does this sound right?</h1><div className="rf-onboarding-review">{packets.map((candidate, candidateIndex) => <div key={candidate.id}><span>{candidate.topic}</span><p>{reviewAnswer(candidate, setup.answers[candidate.id])}</p><Button variant="ghost" onClick={() => { setChanging(true); setIndex(candidateIndex); }} aria-label={`Change ${candidate.topic}`}>Change</Button></div>)}</div><p className="rf-entry-note">{d.isDemo ? 'Your answers are saved on this device for the demo.' : 'Your answers are saved together and can be reviewed later in Business DNA.'}</p></>}
+      </> : <><p className="rf-onboarding-reason">A quick check before you start writing.</p><h1 ref={title} tabIndex={-1}>Does this sound right?</h1><div className="rf-onboarding-review">{packets.map((candidate, candidateIndex) => <div key={candidate.id}><span>{candidate.topic}</span><p>{reviewAnswer(candidate, setup.answers[candidate.id])}</p><Button variant="ghost" disabled={busy} onClick={() => { setChanging(true); setIndex(candidateIndex); }} aria-label={`Change ${candidate.topic}`}>Change</Button></div>)}</div><p className="rf-entry-note">{d.isDemo ? 'Your answers are saved on this device for the demo.' : 'Your answers are saved together and can be reviewed later in Business DNA.'}</p></>}
       {ready && error && <p className="rf-auth-error" role="alert">{error}</p>}
     </section></div>
-    {ready && <footer className="rf-onboarding-footer"><div>{(index > 0 || changing) && <Button variant="ghost" onClick={() => { setIndex(changing ? packets.length : index - 1); setChanging(false); }}><ArrowLeft />{changing ? 'Back to review' : 'Back'}</Button>}<Button className="rf-onboarding-next" disabled={!valid || busy} onClick={packet ? next : finish}>{busy ? 'Saving…' : packet ? changing ? 'Save answer' : 'Next' : 'Open my workspace'}{packet ? <ArrowRight /> : <Check />}</Button></div></footer>}
+    {ready && <footer className="rf-onboarding-footer"><div>{(index > 0 || changing) && <Button variant="ghost" disabled={busy} onClick={() => { setIndex(changing ? packets.length : index - 1); setChanging(false); }}><ArrowLeft />{changing ? 'Back to review' : 'Back'}</Button>}<Button className="rf-onboarding-next" disabled={!valid || busy} onClick={packet ? next : finish}>{busy ? 'Saving…' : packet ? changing ? 'Save answer' : 'Next' : 'Open my workspace'}{packet ? <ArrowRight /> : <Check />}</Button></div></footer>}
   </main>;
 }

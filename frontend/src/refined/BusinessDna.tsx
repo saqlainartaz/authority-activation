@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Pencil } from 'lucide-react';
 import { Radio } from '@base-ui/react/radio';
 import { RadioGroup } from '@base-ui/react/radio-group';
@@ -14,6 +14,7 @@ import {
   type BusinessDnaSection,
 } from './business-dna';
 import { useData } from './state';
+import { useNavigate } from './navigation';
 import type { SetupAnswer } from './setup-packets';
 
 function validField(field: BusinessDnaField, answer: SetupAnswer): boolean {
@@ -27,6 +28,9 @@ function validField(field: BusinessDnaField, answer: SetupAnswer): boolean {
 
 export default function BusinessDna() {
   const d = useData();
+  const navigate = useNavigate();
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
   const [prefill, setPrefill] = useState<OnboardingPrefill | null>(null);
   const [ready, setReady] = useState(d.isDemo);
   const [editing, setEditing] = useState<BusinessDnaSection['id'] | null>(null);
@@ -39,6 +43,10 @@ export default function BusinessDna() {
     let active = true;
     void fetch('/api/client/onboarding', { cache: 'no-store' }).then(async response => {
       const body = await response.json().catch(() => ({})) as OnboardingPrefill & { error?: string; detail?: string };
+      if (response.status === 401) {
+        navigateRef.current('/refined/signin', { replace: true });
+        return;
+      }
       if (!response.ok) throw new Error(body.error || body.detail || 'Could not load Business DNA.');
       businessDnaSections(body);
       if (active) { setPrefill(body); setReady(true); }
@@ -50,6 +58,7 @@ export default function BusinessDna() {
 
   const sections = prefill ? businessDnaSections(prefill) : [];
   const begin = (section: BusinessDnaSection) => {
+    if (busy || editing !== null) return;
     setDraft(Object.fromEntries(section.fields.filter(field => field.editable).map(field => [
       field.id,
       field.answer ? { selected: [...field.answer.selected], text: field.answer.text } : { selected: [], text: '' },
@@ -57,7 +66,10 @@ export default function BusinessDna() {
     setEditing(section.id);
     setError('');
   };
-  const write = (id: string, answer: SetupAnswer) => setDraft(current => ({ ...current, [id]: answer }));
+  const write = (id: string, answer: SetupAnswer) => {
+    if (busy) return;
+    setDraft(current => ({ ...current, [id]: answer }));
+  };
 
   async function save(section: BusinessDnaSection) {
     if (!prefill || busy) return;
@@ -81,6 +93,10 @@ export default function BusinessDna() {
         body: JSON.stringify({ merge: true, responses: edits }),
       });
       const body = await response.json().catch(() => ({})) as { answers?: Record<string, unknown>; confirmed_at?: string | null; error?: string; detail?: unknown };
+      if (response.status === 401) {
+        navigateRef.current('/refined/signin', { replace: true });
+        return;
+      }
       if (!response.ok || !body.answers) {
         throw new Error(body.error || (typeof body.detail === 'string' ? body.detail : 'Business DNA was not saved.'));
       }
@@ -113,7 +129,7 @@ export default function BusinessDna() {
         return <Card className="rf-dna-card" key={section.id}><CardContent>
           <div className="rf-dna-section-heading"><h3>{section.title}</h3>{!active && <Button variant="ghost" disabled={editing !== null || busy} onClick={() => begin(section)}><Pencil /> Edit</Button>}</div>
           <dl className="rf-dna-fields">{section.fields.map(field => <div key={field.id}><dt>{field.label}</dt><dd>
-            {!active || !field.editable ? field.value : field.question?.input_type === 'single' ? <div className="rf-dna-editor"><RadioGroup aria-label={field.label} value={draft[field.id]?.selected[0] || ''} onValueChange={value => write(field.id, { selected: [String(value)], text: String(value) === OTHER_VALUE ? draft[field.id]?.text ?? '' : '' })}>{[...(field.question.choices ?? []), OTHER_VALUE].map(option => <label className="rf-dna-option" key={option}><Radio.Root className="rf-radio" value={option}><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option === OTHER_VALUE ? 'Something else' : option}</span></label>)}</RadioGroup>{field.required === false && <Button variant="ghost" onClick={() => write(field.id, { selected: [], text: '' })}>Clear answer</Button>}{draft[field.id]?.selected[0] === OTHER_VALUE && <Textarea aria-label={`${field.label} custom answer`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [OTHER_VALUE], text: event.target.value })} rows={3} />}</div> : <Textarea aria-label={field.label} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [], text: event.target.value })} rows={4} />}
+            {!active || !field.editable ? field.value : field.question?.input_type === 'single' ? <div className="rf-dna-editor"><RadioGroup disabled={busy} aria-label={field.label} value={draft[field.id]?.selected[0] || ''} onValueChange={value => write(field.id, { selected: [String(value)], text: String(value) === OTHER_VALUE ? draft[field.id]?.text ?? '' : '' })}>{[...(field.question.choices ?? []), OTHER_VALUE].map(option => <label className="rf-dna-option" key={option}><Radio.Root className="rf-radio" value={option}><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option === OTHER_VALUE ? 'Something else' : option}</span></label>)}</RadioGroup>{field.required === false && <Button variant="ghost" disabled={busy} onClick={() => write(field.id, { selected: [], text: '' })}>Clear answer</Button>}{draft[field.id]?.selected[0] === OTHER_VALUE && <Textarea disabled={busy} aria-label={`${field.label} custom answer`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [OTHER_VALUE], text: event.target.value })} rows={3} />}</div> : <Textarea disabled={busy} aria-label={field.label} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [], text: event.target.value })} rows={4} />}
           </dd></div>)}</dl>
           {active && <div className="rf-dna-actions"><Button variant="ghost" disabled={busy} onClick={() => { setEditing(null); setError(''); }}>Cancel</Button><Button disabled={!canSave || busy} onClick={() => void save(section)}>{busy ? 'Saving…' : <>Save <Check /></>}</Button></div>}
         </CardContent></Card>;
