@@ -294,6 +294,7 @@ describe("the instructions carry what no skill can", () => {
     expect(INSTRUCTIONS_FLAT).toContain("Do not repeat the same query");
     expect(INSTRUCTIONS).toContain("put that choice in `subject`");
     expect(INSTRUCTIONS).not.toContain("with an explicit subject request such as");
+    expect(INSTRUCTIONS).not.toContain("ISTV");
   });
 });
 

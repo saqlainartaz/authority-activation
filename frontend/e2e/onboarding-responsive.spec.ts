@@ -67,3 +67,32 @@ for (const width of [390, 767, 768, 1179, 1180, 1440]) {
     await page.screenshot({ path: `test-results/e2e/onboarding-connected-${width}.png`, fullPage: true });
   });
 }
+
+test('connected onboarding can retry a transient prefill failure', async ({ page }) => {
+  await page.context().addCookies([{
+    name: 'aa_client_token',
+    value: 'synthetic-local-token',
+    url: 'http://localhost:3100',
+    httpOnly: true,
+    sameSite: 'Lax',
+  }]);
+  let reads = 0;
+  let recover = false;
+  await page.route('**/api/client/onboarding', async route => {
+    reads += 1;
+    if (!recover) {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Setup is temporarily unavailable."}' });
+      return;
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(prefill) });
+  });
+
+  await page.goto('/refined/onboarding');
+  await expect(page.getByRole('alert').filter({ hasText: 'temporarily unavailable' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
+  await expect(page.getByText('Loading your setup…')).toHaveCount(0);
+  recover = true;
+  await page.getByRole('button', { name: 'Retry' }).click();
+  await expect(page.getByText('Question 1 of 9')).toBeVisible();
+  expect(reads).toBeGreaterThanOrEqual(2);
+});

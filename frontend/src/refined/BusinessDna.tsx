@@ -6,11 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { OTHER_VALUE, decodeStoredResponses } from '@/lib/onboarding-profile';
+import { OTHER_VALUE } from '@/lib/onboarding-profile';
 import type { OnboardingPrefill } from '@/lib/product';
 import {
   businessDnaSections,
-  replaceResponses,
   type BusinessDnaField,
   type BusinessDnaSection,
 } from './business-dna';
@@ -76,11 +75,10 @@ export default function BusinessDna() {
           text: answer.selected[0] && answer.selected[0] !== OTHER_VALUE ? '' : answer.text,
         };
       });
-      const responses = replaceResponses(decodeStoredResponses(prefill), edits);
       const response = await fetch('/api/client/onboarding', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ responses }),
+        body: JSON.stringify({ merge: true, responses: edits }),
       });
       const body = await response.json().catch(() => ({})) as { answers?: Record<string, unknown>; confirmed_at?: string | null; error?: string; detail?: unknown };
       if (!response.ok || !body.answers) {
@@ -113,9 +111,9 @@ export default function BusinessDna() {
         const active = editing === section.id;
         const canSave = section.fields.filter(field => field.editable).every(field => validField(field, draft[field.id] ?? { selected: [], text: '' }));
         return <Card className="rf-dna-card" key={section.id}><CardContent>
-          <div className="rf-dna-section-heading"><h3>{section.title}</h3>{!active && <Button variant="ghost" onClick={() => begin(section)}><Pencil /> Edit</Button>}</div>
+          <div className="rf-dna-section-heading"><h3>{section.title}</h3>{!active && <Button variant="ghost" disabled={editing !== null || busy} onClick={() => begin(section)}><Pencil /> Edit</Button>}</div>
           <dl className="rf-dna-fields">{section.fields.map(field => <div key={field.id}><dt>{field.label}</dt><dd>
-            {!active || !field.editable ? field.value : field.question?.input_type === 'single' ? <div className="rf-dna-editor"><RadioGroup aria-label={field.label} value={draft[field.id]?.selected[0] || ''} onValueChange={value => write(field.id, { selected: [String(value)], text: String(value) === OTHER_VALUE ? draft[field.id]?.text ?? '' : '' })}>{[...(field.question.choices ?? []), OTHER_VALUE].map(option => <label className="rf-dna-option" key={option}><Radio.Root className="rf-radio" value={option}><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option === OTHER_VALUE ? 'Something else' : option}</span></label>)}</RadioGroup>{draft[field.id]?.selected[0] === OTHER_VALUE && <Textarea aria-label={`${field.label} custom answer`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [OTHER_VALUE], text: event.target.value })} rows={3} />}</div> : <Textarea aria-label={field.label} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [], text: event.target.value })} rows={4} />}
+            {!active || !field.editable ? field.value : field.question?.input_type === 'single' ? <div className="rf-dna-editor"><RadioGroup aria-label={field.label} value={draft[field.id]?.selected[0] || ''} onValueChange={value => write(field.id, { selected: [String(value)], text: String(value) === OTHER_VALUE ? draft[field.id]?.text ?? '' : '' })}>{[...(field.question.choices ?? []), OTHER_VALUE].map(option => <label className="rf-dna-option" key={option}><Radio.Root className="rf-radio" value={option}><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option === OTHER_VALUE ? 'Something else' : option}</span></label>)}</RadioGroup>{field.required === false && <Button variant="ghost" onClick={() => write(field.id, { selected: [], text: '' })}>Clear answer</Button>}{draft[field.id]?.selected[0] === OTHER_VALUE && <Textarea aria-label={`${field.label} custom answer`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [OTHER_VALUE], text: event.target.value })} rows={3} />}</div> : <Textarea aria-label={field.label} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [], text: event.target.value })} rows={4} />}
           </dd></div>)}</dl>
           {active && <div className="rf-dna-actions"><Button variant="ghost" disabled={busy} onClick={() => { setEditing(null); setError(''); }}>Cancel</Button><Button disabled={!canSave || busy} onClick={() => void save(section)}>{busy ? 'Saving…' : <>Save <Check /></>}</Button></div>}
         </CardContent></Card>;

@@ -16,7 +16,7 @@
 // can attribute their own write to somebody else (T-07A-04-04).
 
 import { clientToken } from "@/lib/client-session";
-import { buildCompatibleConfirm } from "@/lib/onboarding-profile";
+import { buildCompatibleConfirm, mergeOnboardingResponses } from "@/lib/onboarding-profile";
 import type { OnboardingPrefill, OnboardingQuestionResponse } from "@/lib/product";
 import {
   expiredLinkResponse,
@@ -41,7 +41,7 @@ export async function PUT(request: Request) {
   if (!token) return expiredLinkResponse();
   const raw = await readJsonObject(request);
 
-  const allowed = new Set(["responses"]);
+  const allowed = new Set(["responses", "merge"]);
   const unknown = Object.keys(raw).filter((key) => !allowed.has(key));
   if (unknown.length) {
     return Response.json(
@@ -53,6 +53,9 @@ export async function PUT(request: Request) {
   if (!Array.isArray(raw.responses)) {
     return Response.json({ detail: "responses must be a list." }, { status: 422 });
   }
+  if (raw.merge !== undefined && typeof raw.merge !== "boolean") {
+    return Response.json({ detail: "merge must be a boolean." }, { status: 422 });
+  }
 
   let prefill: OnboardingPrefill;
   try {
@@ -63,15 +66,17 @@ export async function PUT(request: Request) {
 
   let forwarded;
   try {
-    // The browser supplies only edited questionnaire answers. The server reads
-    // the authoritative current profile and carries forward every legacy-only
-    // list, so an edit cannot erase guardrails or knowledge the new packets do
-    // not own. The adapter reconstructs exact fields and never spreads browser
-    // data, which keeps actor and tenant identities outside this boundary.
-    forwarded = buildCompatibleConfirm(
-      prefill,
-      raw.responses as OnboardingQuestionResponse[],
-    );
+    // A Business DNA section save sets `merge`; the server then combines only
+    // those validated edits with the authoritative current questionnaire.
+    // Full onboarding confirmation replaces the questionnaire as before. Both
+    // paths carry forward legacy-only lists, so neither can erase guardrails or
+    // knowledge the new packets do not own. The adapter reconstructs exact
+    // fields and never spreads browser data, keeping actor and tenant identity
+    // outside this boundary.
+    const responses = raw.merge === true
+      ? mergeOnboardingResponses(prefill, raw.responses as OnboardingQuestionResponse[])
+      : raw.responses as OnboardingQuestionResponse[];
+    forwarded = buildCompatibleConfirm(prefill, responses);
   } catch (e) {
     return Response.json(
       { detail: e instanceof Error ? e.message : "Invalid onboarding responses." },

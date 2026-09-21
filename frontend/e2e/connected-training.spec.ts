@@ -46,6 +46,7 @@ test('connected Train questions review only real provisional atoms in the existi
   });
 
   await page.goto('/refined/train?tab=questions');
+  await expect(page.getByLabel(/unanswered questions/i)).toHaveCount(0);
   await expect(page.getByText('2 waiting')).toBeVisible();
   await expect(page.getByText('<b>Documentary craft</b> & practical business context.')).toBeVisible();
   await expect(page.locator('.rf-question-atom b')).toHaveCount(0);
@@ -80,6 +81,7 @@ test('failed atom decision keeps the card and reuses its key for an unchanged re
   });
 
   await page.goto('/refined/train?tab=questions');
+  await expect(page.locator('.rf-sidebar .rf-unread')).toHaveCount(0);
   await page.getByRole('button', { name: 'Not accurate' }).click();
   await expect(page.getByRole('alert').filter({ hasText: 'temporarily unavailable' })).toBeVisible();
   await expect(page.getByText('1 waiting')).toBeVisible();
@@ -89,4 +91,19 @@ test('failed atom decision keeps the card and reuses its key for an unchanged re
   expect(bodies).toHaveLength(2);
   expect(bodies[1]).toEqual(bodies[0]);
   await expect(page.getByText('Marked as not accurate')).toHaveCount(0);
+});
+
+test('an atom read failure never renders the all-caught-up success state', async ({ page }) => {
+  await mockShell(page);
+  await page.route('**/api/client/atoms', route => route.fulfill({
+    status: 503,
+    contentType: 'application/json',
+    body: '{"error":"Knowledge review is temporarily unavailable."}',
+  }));
+
+  await page.goto('/refined/train?tab=questions');
+
+  await expect(page.getByRole('alert').filter({ hasText: 'temporarily unavailable' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'You’re all caught up' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Questions unavailable' })).toBeVisible();
 });

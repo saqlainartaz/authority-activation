@@ -1,7 +1,7 @@
 # Business DNA and connected onboarding design
 
-Status: proposed for product-owner review  
-Date: 2026-09-20  
+Status: approved for the isolated stakeholder demo implementation
+Date: 2026-09-20
 Scope: isolated Authority Activation stakeholder application only
 
 ## Purpose

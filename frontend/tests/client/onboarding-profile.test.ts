@@ -4,6 +4,7 @@ import {
   buildCompatibleConfirm,
   decodeQuestions,
   decodeStoredResponses,
+  mergeOnboardingResponses,
 } from "@/lib/onboarding-profile";
 import type {
   OnboardingPrefill,
@@ -128,6 +129,21 @@ describe("onboarding profile adapter", () => {
         questions: [{ ...questions[0], choices: ["hidden choice"] }],
       }),
     ).toThrow(/long/i);
+    expect(() =>
+      decodeQuestions({
+        ...prefill(),
+        questions: questions.map((question) => ({
+          ...question,
+          question_version: "business-dna/2.0.0",
+        })),
+      }),
+    ).toThrow(/unsupported.*version/i);
+    expect(() =>
+      decodeQuestions({
+        ...prefill(),
+        questions: [questions[1], questions[0], ...questions.slice(2)],
+      }),
+    ).toThrow(/catalogue.*order/i);
   });
 
   it("restores canonical ordinary, custom and open answers without hidden stale text", () => {
@@ -263,5 +279,53 @@ describe("onboarding profile adapter", () => {
         },
       ]),
     ).toThrow(/300/);
+  });
+
+  it("merges section edits into current canonical answers and clears an optional answer", () => {
+    const current = prefill({
+      questionnaire: {
+        version: VERSION,
+        responses: [
+          {
+            question_id: "business_overview",
+            question_version: VERSION,
+            question: questions[0].prompt,
+            answers: ["Current summary."],
+            submitted_at: "2026-09-20T10:00:00Z",
+            ordinal: 0,
+          },
+          {
+            question_id: "tone",
+            question_version: VERSION,
+            question: questions[8].prompt,
+            answers: ["Warm and conversational."],
+            submitted_at: "2026-09-20T10:00:00Z",
+            ordinal: 1,
+          },
+        ],
+      },
+    });
+
+    expect(mergeOnboardingResponses(current, [
+      {
+        question_id: "business_overview",
+        question_version: VERSION,
+        selected: [],
+        text: "Updated summary.",
+      },
+      {
+        question_id: "tone",
+        question_version: VERSION,
+        selected: [],
+        text: "",
+      },
+    ])).toEqual([
+      {
+        question_id: "business_overview",
+        question_version: VERSION,
+        selected: [],
+        text: "Updated summary.",
+      },
+    ]);
   });
 });

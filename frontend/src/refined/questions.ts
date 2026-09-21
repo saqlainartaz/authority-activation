@@ -14,6 +14,10 @@ export const QUESTIONS: Question[] = [
   { id: 'changed-approach', kind: 'long', why: 'A real example helps the agent write from your experience.', title: 'Tell me about a time your approach changed.', placeholder: 'What happened, what did you change, and what did you learn?' },
 ];
 
+export function trainingBadgeCount(isDemo: boolean, answers: Record<string, string[]>): number {
+  return isDemo ? QUESTIONS.filter((question) => !answers[question.id]).length : 0;
+}
+
 // Preserve the existing saved-answer format while storing the actual written
 // response, never the internal “Something else” selection marker.
 export function getQuestionAnswer(question: Question, selected: string[], text: string): string[] | null {

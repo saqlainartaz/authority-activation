@@ -63,10 +63,11 @@ function prefill(answers: Record<string, unknown>) {
 }
 
 function canonicalAnswers(responses: Array<{ question_id: string; selected: string[]; text: string }>) {
+  const retained = responses.filter(response => response.selected.length || response.text.trim());
   return {
     questionnaire: {
       version: VERSION,
-      responses: responses.map((response, ordinal) => record(
+      responses: retained.map((response, ordinal) => record(
         response.question_id,
         response.selected[0] === '__other__' ? response.text : response.selected[0] || response.text,
         ordinal,
@@ -75,7 +76,12 @@ function canonicalAnswers(responses: Array<{ question_id: string; selected: stri
   };
 }
 
-async function mockConnectedPage(page: Page, answers: Record<string, unknown>, failSave = false) {
+async function mockConnectedPage(
+  page: Page,
+  answers: Record<string, unknown>,
+  failSave = false,
+  onSave?: (body: { merge?: boolean; responses: Array<{ question_id: string; selected: string[]; text: string }> }) => void,
+) {
   await page.context().addCookies([{
     name: 'aa_client_token',
     value: 'synthetic-local-token',
@@ -95,7 +101,8 @@ async function mockConnectedPage(page: Page, answers: Record<string, unknown>, f
       await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Profile service is temporarily unavailable."}' });
       return;
     }
-    const body = route.request().postDataJSON() as { responses: Array<{ question_id: string; selected: string[]; text: string }> };
+    const body = route.request().postDataJSON() as { merge?: boolean; responses: Array<{ question_id: string; selected: string[]; text: string }> };
+    onSave?.(body);
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ answers: canonicalAnswers(body.responses), confirmed_at: '2026-09-20T10:10:00Z' }) });
   });
 }
@@ -141,4 +148,34 @@ test('a failed section save keeps the editor and unsaved text on desktop', async
   await expect(approach).toHaveValue('A revised approach that must survive the failed save.');
   await expect(credibility.getByRole('button', { name: 'Cancel' })).toBeVisible();
   await page.screenshot({ path: 'test-results/e2e/business-dna-failed-save-light-desktop.png', fullPage: true });
+});
+
+test('editing one section protects its unsaved text from another editor', async ({ page }) => {
+  await mockConnectedPage(page, populatedAnswers);
+  await page.goto('/refined/profile');
+
+  const identity = page.getByRole('heading', { name: 'Identity' }).locator('..').locator('..');
+  await identity.getByRole('button', { name: 'Edit' }).click();
+  await identity.getByLabel('About you').fill('Unsaved text that must remain in this editor.');
+
+  const audience = page.getByRole('heading', { name: 'Who it is for' }).locator('..').locator('..');
+  await expect(audience.getByRole('button', { name: 'Edit' })).toBeDisabled();
+  await expect(identity.getByLabel('About you')).toHaveValue('Unsaved text that must remain in this editor.');
+});
+
+test('an optional saved tone can be explicitly cleared with a partial merge request', async ({ page }) => {
+  let saved: { merge?: boolean; responses: Array<{ question_id: string; selected: string[]; text: string }> } | undefined;
+  await mockConnectedPage(page, populatedAnswers, false, body => { saved = body; });
+  await page.goto('/refined/profile');
+
+  const voice = page.getByRole('heading', { name: 'How it should sound' }).locator('..').locator('..');
+  await voice.getByRole('button', { name: 'Edit' }).click();
+  await voice.getByRole('button', { name: 'Clear answer' }).click();
+  await voice.getByRole('button', { name: /Save/ }).click();
+
+  await expect(voice.getByText('Not added yet')).toBeVisible();
+  expect(saved).toEqual({
+    merge: true,
+    responses: [{ question_id: 'tone', question_version: VERSION, selected: [], text: '' }],
+  });
 });

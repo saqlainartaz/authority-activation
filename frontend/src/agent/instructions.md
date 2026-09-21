@@ -84,8 +84,8 @@ Every `prepare_generation` call separates the client's request from retrieval in
   include the topic, a source name or description, relevant people, outcomes and the kind
   of passage needed. Do not add facts, document ids or details the client did not provide.
 
-Examples use the same mechanism, not special-case vocabulary. "Use my ISTV documentary"
-can search for its named production, stories and quotable moments. "What do my clients keep
+Examples use the same mechanism, not special-case vocabulary. "Use my named documentary"
+can search for that production, stories and quotable moments. "What do my clients keep
 asking?" can search objections, pain points and recurring client questions. "Choose for
 me" can search strong lessons, proof points, decisions and stories, with a subject that
 states the client delegated the angle.

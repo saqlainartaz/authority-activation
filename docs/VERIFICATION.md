@@ -39,17 +39,18 @@ deployment or live-provider claim.
 - The isolated checkout was created from `authority-activation/main` at
   `ef827e32ee452fd6e242bf64df809e7849fa5843`; no `.env*` file was present or
   read. `npm ci` completed with zero reported vulnerabilities.
-- `ALLOW_MISSING_ENGINE_FIXTURES=1 npm run check` passed: 22 design tests, 350
-  Vitest tests across 42 files, TypeScript, and all agent/BFF/static gates.
+- `ALLOW_MISSING_ENGINE_FIXTURES=1 npm run check` passed: 22 design tests, 354
+  Vitest tests across 43 files, TypeScript, and all agent/BFF/static gates.
   The two cross-repository schema comparisons explicitly used their documented
   standalone mode because the clean frontend worktree has no sibling backend;
   their full comparison remains covered by the earlier connected verification.
 - `npm run build` passed with Next.js 16.3.3, producing 23 static pages and all
   listed dynamic BFF routes.
-- Eleven isolated Playwright checks passed against a loopback-only synthetic
-  `/v1/me` identity service: Business DNA and Train Your AI (5 tests), plus the
-  onboarding responsive matrix at 390, 767, 768, 1,179, 1,180, and 1,440 px
-  (6 tests). Browser API responses were deterministic fixtures; no backend
+- Fifteen isolated Playwright checks passed against a loopback-only synthetic
+  `/v1/me` identity service: Business DNA (5 tests), Train Your AI (3 tests),
+  and onboarding (7 tests, including the responsive matrix at 390, 767, 768,
+  1,179, 1,180, and 1,440 px). Browser API responses were deterministic
+  fixtures; no backend
   data, retained database, Render service, or provider was contacted.
 - The first browser attempt correctly failed at sign-in because browser route
   interception cannot satisfy the Next proxy's server-side identity check. The

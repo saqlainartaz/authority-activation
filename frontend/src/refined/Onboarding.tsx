@@ -49,6 +49,7 @@ export default function Onboarding() {
   const [changing, setChanging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const main = useRef<HTMLDivElement>(null);
   const title = useRef<HTMLHeadingElement>(null);
 
@@ -111,7 +112,7 @@ export default function Onboarding() {
       if (active) setError(reason instanceof Error ? reason.message : 'Could not load your setup.');
     });
     return () => { active = false; };
-  }, [d.isDemo]);
+  }, [d.isDemo, loadAttempt]);
 
   async function finish() {
     if (busy || !ready || !setupComplete(setup, packets)) return;
@@ -162,7 +163,7 @@ export default function Onboarding() {
   }}>
     <header className="rf-onboarding-header"><EntryBrand /><span>{packet ? `Question ${index + 1} of ${packets.length}` : ready ? 'Review your answers' : 'Preparing your questions'}</span></header>
     <div className="rf-onboarding-scroll" ref={main}><section className="rf-onboarding-body">
-      {!ready ? <><p className="rf-onboarding-reason">Loading your setup…</p>{error && <p className="rf-auth-error" role="alert">{error}</p>}</> : packet ? <>
+      {!ready ? error ? <><p className="rf-onboarding-reason">We could not load your setup.</p><p className="rf-auth-error" role="alert">{error}</p><Button variant="outline" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Retry</Button></> : <p className="rf-onboarding-reason">Loading your setup…</p> : packet ? <>
         {!d.isDemo && index === 0 && displayName && <p className="rf-onboarding-reason">Welcome, {displayName}. A few answers will help shape your Business DNA.</p>}
         <h1 ref={title} tabIndex={-1}>{packet.headline}</h1>
         {(packet.quote || packet.options?.some(option => option.quote)) ? <Collapsible key={packet.id} className="rf-onboarding-context"><CollapsibleTrigger render={<Button variant="ghost" />}><FileText /> View source context <ChevronDown className="rf-context-chevron" /></CollapsibleTrigger><CollapsibleContent><div className="rf-context-excerpts"><p>{packet.why}</p>{packet.quote && <blockquote>{packet.quote}<cite>{packet.source}</cite></blockquote>}{packet.options?.filter(option => option.quote).map(option => <blockquote key={option.label}><span>{option.label}</span>{option.quote}<cite>{option.source}</cite></blockquote>)}</div></CollapsibleContent></Collapsible> : <p className="rf-onboarding-instruction">{packet.type === 'multi' ? 'Choose all that apply.' : packet.why}</p>}
