@@ -285,6 +285,16 @@ describe("the instructions carry what no skill can", () => {
     expect(INSTRUCTIONS_FLAT).toContain("Do not ask the client to choose again");
     expect(INSTRUCTIONS_FLAT).toContain("Most replies should be two to five sentences");
   });
+
+  it("uses structured semantic retrieval instead of phrase-shaped backend prompts", () => {
+    expect(INSTRUCTIONS).toContain("`subject` is request intent, never evidence");
+    expect(INSTRUCTIONS).toContain("`retrieval_query` is a standalone semantic search query");
+    expect(INSTRUCTIONS_FLAT).toContain("Use the full conversation");
+    expect(INSTRUCTIONS_FLAT).toContain("one meaningfully different re-retrieval");
+    expect(INSTRUCTIONS_FLAT).toContain("Do not repeat the same query");
+    expect(INSTRUCTIONS).toContain("put that choice in `subject`");
+    expect(INSTRUCTIONS).not.toContain("with an explicit subject request such as");
+  });
 });
 
 describe("both prompt files", () => {

@@ -67,39 +67,110 @@ test('connected client and admin journeys use the isolated previous backend', as
   await test.step('one-time access, approved onboarding presentation, and session restoration', async () => {
     await page.goto(`/api/client-login?token=${encodeURIComponent(token)}`);
     if (new URL(page.url()).pathname === '/refined/onboarding') {
-      await page.getByText('Yes', { exact: true }).click();
-      await page.getByText('Three days', { exact: true }).click();
-      await page.getByText('Consulting', { exact: true }).click();
+      await expect(page.getByText('Welcome, Sarah Whitfield. A few answers will help shape your Business DNA.')).toBeVisible();
+      await page.getByLabel('Tell us about what you or your business does—in your own words.').fill('I run a leadership consultancy that helps founders build teams that make decisions without them.');
       await page.getByRole('button', { name: 'Next' }).click();
-      await page.getByLabel('What is “the Engine”?').fill('A structured leadership operating system');
+      await page.getByLabel('Who do you most want your work to reach or help?').fill('Founders whose growing businesses still depend on every decision reaching them.');
       await page.getByRole('button', { name: 'Next' }).click();
-      await page.getByLabel('In a sentence or two, what does the company do?').fill('We help founders build leadership teams that make decisions without them.');
+      await page.getByLabel('What do people usually come to you for, or what do you most want to be known for?').fill('Helping founders delegate decisions without losing standards or control.');
       await page.getByRole('button', { name: 'Next' }).click();
-      await expect(page.getByText(/audience choice remains local/i)).toBeVisible();
+      // Optional differentiator: the ordinary Next control advances blank.
+      await page.getByRole('button', { name: 'Next' }).click();
+      // A custom single choice stays on the packet until its real text is supplied.
+      await page.getByText('Something else, I will type it', { exact: true }).click();
+      await expect(page.getByLabel('Your own answer')).toBeVisible();
+      await page.getByLabel('Your own answer').fill('Turn proven experience into useful public ideas.');
+      await page.getByRole('button', { name: 'Next' }).click();
+      // Optional problem/goal stays empty.
+      await page.getByRole('button', { name: 'Next' }).click();
+      await page.getByLabel('What questions, doubts or misunderstandings come up most often about your work?').fill('How can I delegate without quality dropping?');
+      await page.getByRole('button', { name: 'Next' }).click();
+      await page.getByLabel('What examples, results, experiences or stories best show the value of what you do?').fill('The last cohort saved about eleven hours a week each inside the first month.');
+      await page.getByRole('button', { name: 'Next' }).click();
+      // An ordinary tone choice auto-advances to review.
+      await page.getByText('Warm and conversational.', { exact: true }).click();
+      await expect(page.getByRole('heading', { name: 'Does this sound right?' })).toBeVisible();
+      await expect(page.getByText('Not added yet')).toHaveCount(2);
+      await page.screenshot({ path: '../docs/integration/screenshots/onboarding-business-dna-review-desktop.png', fullPage: true });
       await page.getByRole('button', { name: 'Open my workspace' }).click();
-      await expect(page.locator('.rf-auth-error')).toContainText('does not ask that question');
-      await expect(page.getByText('We help founders build leadership teams that make decisions without them.')).toBeVisible();
-      await expect(page).toHaveURL(/\/refined\/onboarding/);
-      await page.screenshot({ path: '../docs/integration/screenshots/onboarding-unsupported-error-desktop.png', fullPage: true });
-
-      // The approved audience labels and old catalogue are intentionally not
-      // conflated, and the approved questions contain no backend guardrail.
-      // Supply both as explicit synthetic test setup so generation can exercise
-      // the supported stack; neither value is presented as a successful UI save.
-      const compatible = await page.evaluate(async () => {
-        const pre = await fetch('/api/client/onboarding').then(response => response.json());
-        const answer = pre.answers ?? {};
-        const keys = ['never_say', 'voice_constraints', 'tone', 'tldr', 'insight', 'pain_point', 'objection', 'proof_point', 'quote', 'terminology'];
-        const payload = Object.fromEntries(keys.map(key => [key, Array.isArray(answer[key]) ? answer[key] : []]));
-        payload.audience = [pre.audience_options[0].key];
-        payload.never_say = ['Never invent evidence or outcomes.'];
-        return fetch('/api/client/onboarding', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(response => response.status);
-      });
-      expect(compatible).toBe(200);
+      await expect(page).toHaveURL(/\/refined\/workspace/);
     }
     await page.goto('/refined/workspace');
     await expect(page).toHaveURL(/\/refined\/workspace/);
     await expect(page.getByPlaceholder(/Tell it what happened/)).toBeVisible();
+  });
+
+  await test.step('Business DNA is persisted, editable, cancellable, and failure-safe', async () => {
+    await page.goto('/refined/profile');
+    await expect(page.getByText('Sarah Whitfield')).toBeVisible();
+    await expect(page.getByText('I run a leadership consultancy that helps founders build teams that make decisions without them.')).toBeVisible();
+    await page.screenshot({ path: '../docs/integration/screenshots/business-dna-connected-desktop.png', fullPage: true });
+
+    const identity = page.getByRole('heading', { name: 'Identity' }).locator('..').locator('..');
+    await identity.getByRole('button', { name: 'Edit' }).click();
+    const overview = page.getByLabel('About you');
+    await overview.fill('This cancelled edit must never be persisted.');
+    await identity.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByText('This cancelled edit must never be persisted.')).toHaveCount(0);
+
+    const credibility = page.getByRole('heading', { name: 'What makes it credible' }).locator('..').locator('..');
+    await credibility.getByRole('button', { name: 'Edit' }).click();
+    const approach = page.getByLabel('What makes you different');
+    await approach.fill('I combine cohort evidence with practical delegation systems.');
+    let failOnce = true;
+    await page.route('**/api/client/onboarding', async route => {
+      if (route.request().method() === 'PUT' && failOnce) {
+        failOnce = false;
+        await route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Synthetic profile outage."}' });
+        return;
+      }
+      await route.continue();
+    });
+    await credibility.getByRole('button', { name: /Save/ }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Synthetic profile outage' })).toBeVisible();
+    await expect(approach).toHaveValue('I combine cohort evidence with practical delegation systems.');
+    await credibility.getByRole('button', { name: /Save/ }).click();
+    await expect(page.getByText('I combine cohort evidence with practical delegation systems.')).toBeVisible();
+    await page.unroute('**/api/client/onboarding');
+    await page.reload();
+    await expect(page.getByText('I combine cohort evidence with practical delegation systems.')).toBeVisible();
+  });
+
+  await test.step('Train Your AI reviews authoritative provisional atoms', async () => {
+    await page.goto('/refined/train?tab=questions');
+    const waiting = page.getByText(/\d+ waiting/).first();
+    await expect(waiting).toBeVisible();
+    const before = Number((await waiting.textContent())?.match(/\d+/)?.[0]);
+    expect(before).toBeGreaterThan(1);
+    const firstText = await page.locator('.rf-question-atom').textContent();
+    expect(firstText?.trim().length).toBeGreaterThan(0);
+    const atomEnvelope = await page.evaluate(async () => fetch('/api/client/atoms').then(response => response.json()));
+    const firstAtom = atomEnvelope.atoms.filter((atom: { status: string }) => atom.status === 'provisional')[0];
+    await page.getByRole('button', { name: /Confirm/ }).click();
+    await expect(page.getByText(`${before - 1} waiting`)).toBeVisible();
+    const replay = await page.evaluate(async ({ atomId }) => {
+      const response = await fetch(`/api/client/atoms/${encodeURIComponent(atomId)}/decision`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision: 'confirm', idempotency_key: crypto.randomUUID() }),
+      });
+      return { status: response.status, body: await response.json() };
+    }, { atomId: firstAtom.atom_id });
+    expect(replay.status).toBe(200);
+    expect(replay.body.unchanged).toBe(true);
+    await page.reload();
+    await expect(page.getByText(`${before - 1} waiting`)).toBeVisible();
+
+    const retainedText = await page.locator('.rf-question-atom').textContent();
+    await page.route('**/api/client/atoms/*/decision', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Synthetic review outage."}' }), { times: 1 });
+    await page.getByRole('button', { name: /Confirm/ }).click();
+    await expect(page.getByRole('alert').filter({ hasText: 'Synthetic review outage' })).toBeVisible();
+    await expect(page.locator('.rf-question-atom')).toHaveText(retainedText || '');
+    await expect(page.getByText(`${before - 1} waiting`)).toBeVisible();
+    await page.getByRole('button', { name: /Confirm/ }).click();
+    await expect(page.getByText(`${before - 2} waiting`)).toBeVisible();
+    await page.screenshot({ path: '../docs/integration/screenshots/train-connected-atom-review-desktop.png', fullPage: true });
+    await expect(page.getByRole('tab', { name: 'Knowledge' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Guidance' })).toBeVisible();
   });
 
   await test.step('source persistence, async truth, and cross-tenant denial', async () => {
@@ -122,18 +193,29 @@ test('connected client and admin journeys use the isolated previous backend', as
     await page.screenshot({ path: '../docs/integration/screenshots/knowledge-connected-desktop.png', fullPage: true });
   });
 
+  await test.step('the conversational agent receives Business DNA and a client can start a fresh session', async () => {
+    await page.goto('/refined/workspace');
+    await page.getByPlaceholder(/Tell it what happened/).fill('Who am I?');
+    await page.getByRole('button', { name: 'Send' }).click();
+    await expect(page.locator('.rf-agent-message').filter({ hasText: 'Sarah Whitfield' })).toContainText('Leadership consultant', { timeout: 30_000 });
+    await expect(page.locator('.rf-agent-message').filter({ hasText: 'Sarah Whitfield' })).toContainText('leadership consultancy');
+    await page.getByRole('button', { name: 'New post' }).click();
+    await page.getByRole('button', { name: 'End and start new' }).click();
+    await expect(page.getByRole('heading', { name: 'What are you working on today?' })).toBeVisible();
+  });
+
   let contentItemId = '';
   await test.step('grounded streaming, citations, edit versions, and persistence', async () => {
     await page.goto('/refined/workspace');
-    await page.getByPlaceholder(/Tell it what happened/).fill('Write a post.');
-    await page.getByRole('button', { name: 'Send' }).click();
-    await expect(page.getByText('What should this LinkedIn post be about?', { exact: true })).toBeVisible({ timeout: 45_000 });
-    await page.reload();
-    await expect(page.getByText('What should this LinkedIn post be about?', { exact: true })).toBeVisible();
-    await page.getByPlaceholder(/Tell it what happened/).fill('Use the source fact that the last cohort saved about eleven hours a week in the first month.');
+    await page.getByPlaceholder(/Tell it what happened/).fill('Choose the strongest useful post from my knowledge.');
     await page.getByRole('button', { name: 'Send' }).click();
     await expect(page.getByRole('button', { name: 'Keep as draft' })).toBeVisible({ timeout: 45_000 });
     await expect(page.getByRole('complementary')).toContainText('A useful detail from your source');
+    await expect(page.getByRole('button', { name: 'Show evidence' })).toBeEnabled();
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Keep as draft' })).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByRole('complementary')).toContainText('A useful detail from your source');
+    await expect(page.getByRole('button', { name: 'Show evidence' })).toBeEnabled();
     await page.screenshot({ path: '../docs/integration/screenshots/workspace-connected-light-desktop.png', fullPage: true });
     await page.getByRole('button', { name: 'Switch to dark mode' }).click();
     await page.setViewportSize({ width: 390, height: 844 });
@@ -144,6 +226,8 @@ test('connected client and admin journeys use the isolated previous backend', as
     expect(session).toBeTruthy();
     const sessionEvidence = await page.evaluate(async id => fetch(`/api/client/chat/sessions/${id}`).then(response => response.json()), session);
     expect(sessionEvidence.variants.at(-1).sources.length).toBeGreaterThan(0);
+    contentItemId = sessionEvidence.session.content_item_id;
+    expect(contentItemId).toBeTruthy();
 
     const firstParagraph = page.getByLabel('Draft paragraph. Press Enter to edit.').first();
     await firstParagraph.press('Enter');
@@ -153,9 +237,6 @@ test('connected client and admin journeys use the isolated previous backend', as
     await page.getByRole('button', { name: 'Keep as draft' }).click();
     await expect(page.getByPlaceholder(/Tell it what happened/)).toBeVisible();
 
-    const persisted = await page.evaluate(async () => fetch('/api/client/content-items').then(response => response.json()));
-    const latest = persisted.items.at(-1);
-    contentItemId = latest.content_item_id;
     const versions = await page.evaluate(async id => fetch(`/api/client/content-items/${id}/versions`).then(response => response.json()), contentItemId);
     expect(versions.versions.length).toBeGreaterThanOrEqual(2);
     await page.reload();
@@ -183,11 +264,25 @@ test('connected client and admin journeys use the isolated previous backend', as
   });
 
   await test.step('client-side cancellation is truthful about the unsupported server operation', async () => {
+    const agentRoute = '**/api/client/chat/sessions/*/agent';
+    let markRequestStarted!: () => void;
+    let releaseRequest!: () => void;
+    const requestStarted = new Promise<void>(resolve => { markRequestStarted = resolve; });
+    const requestGate = new Promise<void>(resolve => { releaseRequest = resolve; });
+    await page.route(agentRoute, async route => {
+      markRequestStarted();
+      await requestGate;
+      await route.abort('aborted').catch(() => undefined);
+    });
     await page.goto('/refined/workspace');
     await page.getByPlaceholder(/Tell it what happened/).fill('Start another grounded draft, then stop showing it.');
     await page.getByRole('button', { name: 'Send' }).click();
+    await requestStarted;
+    await expect(page.getByRole('button', { name: 'Stop' })).toBeVisible();
     await page.getByRole('button', { name: 'Stop' }).click();
     await expect(page.getByText(/no server-side turn-cancellation endpoint/i)).toBeVisible();
+    releaseRequest();
+    await page.unroute(agentRoute);
   });
 
   await test.step('logout invalidates the browser session', async () => {

@@ -4,6 +4,13 @@ import type { ContextV1 } from "@/agent/contracts/context";
 import { derivedKey, type ToolContext } from "@/agent/lib/backend";
 import { createChatContext } from "@/lib/product";
 
+export type PrepareGenerationArgs = {
+  message: string;
+  operation: "generate" | "revise" | "resume";
+  subject: string;
+  retrieval_query: string;
+};
+
 /**
  * Mint and freeze one snapshot, and return it projected as `context.v1`.
  * Calls `POST /v1/chat/sessions/{id}/context`. Wired in §9 step 4.
@@ -30,13 +37,15 @@ import { createChatContext } from "@/lib/product";
  * why A11 does not forbid this).
  */
 export async function prepareGeneration(
-  args: { message: string; operation: "generate" | "revise" | "resume" },
+  args: PrepareGenerationArgs,
   context: ToolContext,
   attempt = 1,
 ): Promise<ContextV1> {
   return createChatContext(context.token, context.sessionId, {
     message: args.message,
     operation: args.operation,
+    subject: args.subject,
+    retrieval_query: args.retrieval_query,
     clarification: args.operation === "resume" ? args.message : undefined,
     idempotency_key: derivedKey(context.turnId, "prepare_generation", attempt),
   });

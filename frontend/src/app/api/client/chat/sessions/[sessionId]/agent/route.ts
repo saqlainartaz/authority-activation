@@ -5,6 +5,7 @@ import { NoClientSession, requireClientToken } from "@/lib/client-session";
 import {
   expiredLinkResponse,
   forwardProductError,
+  getOnboarding,
   readJsonObject,
   recordAgentTurn,
   recordClientTurn,
@@ -13,6 +14,7 @@ import {
 
 import type { AgentEvent } from "@/agent/events";
 import { derivedKey } from "@/agent/lib/backend";
+import { clientBriefMessage, projectClientBrief } from "@/agent/lib/client-brief";
 import { buildSystemBlocks, buildTurnMessages } from "@/agent/lib/context-assembly";
 import type { Driver, DriverRequest, TurnUsage } from "@/agent/lib/driver";
 import { createExecutor } from "@/agent/lib/executor";
@@ -28,7 +30,7 @@ import {
   workspaceOverviewMessage,
 } from "@/agent/lib/workspace-overview";
 import { PROFILES, resolveProfile } from "@/agent/profile";
-import { assembleTranscript, excludingJustRecordedMessage } from "@/agent/transcript";
+import { assembleTranscript, excludingJustRecordedMessage, type ModelMessage } from "@/agent/transcript";
 
 /**
  * §5.1's lifecycle, §5.2's assembly and §5.3's stream, composed in one place.
@@ -62,7 +64,7 @@ import { assembleTranscript, excludingJustRecordedMessage } from "@/agent/transc
  *
  * RULING R1 (controller, given verbatim). `buildSystemBlocks` and
  * `buildTurnMessages` exist so §4.8's ordering — instructions -> skill ->
- * material -> transcript -> current turn — actually reaches the model.
+ * material -> transcript -> bounded turn context -> current turn — actually reaches the model.
  * `runAgentTurn`'s `system` and `messages` options are what carry it; a route
  * that assembled context and then called `runAgentTurn({ driver, executor })`
  * with neither would make all of that dead code. Both are passed below.
@@ -234,7 +236,7 @@ export async function POST(request: Request, { params }: Params) {
     return forwardProductError(error);
   }
 
-  // §5.2: instructions -> skill -> material -> transcript -> current turn.
+  // §5.2: instructions -> skill -> material -> transcript -> bounded context -> current turn.
   // Material is `[]` here per Ruling R2 — it is not turn input.
   //
   // Item 1 (CRITICAL): `envelope.messages` already ends with the message
@@ -244,19 +246,26 @@ export async function POST(request: Request, { params }: Params) {
   // ONE place this turn's message is rendered.
   const system = buildSystemBlocks(INSTRUCTIONS, skill);
   const transcript = assembleTranscript(excludingJustRecordedMessage(envelope.messages, clientMessage));
-  const { messages: turnMessages } = buildTurnMessages([], transcript, clientMessage);
-  let overview: ReturnType<typeof workspaceOverviewMessage> | null = null;
-  if (needsWorkspaceOverview(clientMessage)) {
+  const turnContext: ModelMessage[] = [];
+  let onboarding: Awaited<ReturnType<typeof getOnboarding>> | null = null;
+  try {
+    onboarding = await getOnboarding(token);
+    turnContext.push(clientBriefMessage(projectClientBrief(onboarding)));
+  } catch {
+    // Profile context is optional conversational context, never identity or
+    // evidence authority. A temporary read failure cannot fabricate it or
+    // prevent the agent from continuing through its ordinary tool boundary.
+  }
+  if (onboarding && needsWorkspaceOverview(clientMessage)) {
     try {
-      overview = workspaceOverviewMessage(await readWorkspaceOverview(token));
+      turnContext.push(workspaceOverviewMessage(await readWorkspaceOverview(token, onboarding)));
     } catch {
       // Account context improves discovery but is not a precondition for a
       // writing turn. The agent can still answer honestly from its transcript
       // and generation snapshot when an overview read is temporarily down.
     }
   }
-  const messages = [...turnMessages];
-  if (overview) messages.splice(messages.length - 1, 0, overview);
+  const { messages } = buildTurnMessages([], transcript, clientMessage, turnContext);
   const tools = buildToolSpecs(profile.tools);
 
   const encoder = new TextEncoder();

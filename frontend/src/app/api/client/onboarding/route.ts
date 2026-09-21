@@ -16,7 +16,8 @@
 // can attribute their own write to somebody else (T-07A-04-04).
 
 import { clientToken } from "@/lib/client-session";
-import type { OnboardingConfirm } from "@/lib/product";
+import { buildCompatibleConfirm } from "@/lib/onboarding-profile";
+import type { OnboardingPrefill, OnboardingQuestionResponse } from "@/lib/product";
 import {
   expiredLinkResponse,
   forwardProductError,
@@ -40,19 +41,7 @@ export async function PUT(request: Request) {
   if (!token) return expiredLinkResponse();
   const raw = await readJsonObject(request);
 
-  const allowed = new Set([
-    "audience",
-    "never_say",
-    "voice_constraints",
-    "tone",
-    "tldr",
-    "insight",
-    "pain_point",
-    "objection",
-    "proof_point",
-    "quote",
-    "terminology",
-  ]);
+  const allowed = new Set(["responses"]);
   const unknown = Object.keys(raw).filter((key) => !allowed.has(key));
   if (unknown.length) {
     return Response.json(
@@ -61,35 +50,37 @@ export async function PUT(request: Request) {
     );
   }
 
-  // THE ALLOWLIST: five keys, built one at a time. `OnboardingConfirmRequest`
-  // sets `extra="forbid"`, so spreading the browser's body would let a caller
-  // name `actor` and take a 422 — or worse, name it correctly and get away with
-  // it if the model ever widened.
-  //
-  // ONLY THE KEYS THE BROWSER ACTUALLY SENT ARE FORWARDED, and the absence is
-  // load-bearing: every list defaults to `[]` on the Python side, so filling a
-  // missing key with `[]` here would silently CLEAR a guardrail the client had
-  // already confirmed. The API's own 422 (03-15 F-V1: a re-confirmation that
-  // omits a previously-answered list is refused, naming the field) is the
-  // enforcement, and it can only fire if the key stays absent. The single cast
-  // below is what lets a partial body through to that refusal.
-  const forwarded: Partial<OnboardingConfirm> = {};
-  if ("audience" in raw) forwarded.audience = raw.audience as string[];
-  if ("never_say" in raw) forwarded.never_say = raw.never_say as string[];
-  if ("voice_constraints" in raw) {
-    forwarded.voice_constraints = raw.voice_constraints as string[];
+  if (!Array.isArray(raw.responses)) {
+    return Response.json({ detail: "responses must be a list." }, { status: 422 });
   }
-  if ("tone" in raw) forwarded.tone = raw.tone as string[];
-  if ("tldr" in raw) forwarded.tldr = raw.tldr as string[];
-  if ("insight" in raw) forwarded.insight = raw.insight as string[];
-  if ("pain_point" in raw) forwarded.pain_point = raw.pain_point as string[];
-  if ("objection" in raw) forwarded.objection = raw.objection as string[];
-  if ("proof_point" in raw) forwarded.proof_point = raw.proof_point as string[];
-  if ("quote" in raw) forwarded.quote = raw.quote as string[];
-  if ("terminology" in raw) forwarded.terminology = raw.terminology as string[];
+
+  let prefill: OnboardingPrefill;
+  try {
+    prefill = await getOnboarding(token);
+  } catch (e) {
+    return forwardProductError(e);
+  }
+
+  let forwarded;
+  try {
+    // The browser supplies only edited questionnaire answers. The server reads
+    // the authoritative current profile and carries forward every legacy-only
+    // list, so an edit cannot erase guardrails or knowledge the new packets do
+    // not own. The adapter reconstructs exact fields and never spreads browser
+    // data, which keeps actor and tenant identities outside this boundary.
+    forwarded = buildCompatibleConfirm(
+      prefill,
+      raw.responses as OnboardingQuestionResponse[],
+    );
+  } catch (e) {
+    return Response.json(
+      { detail: e instanceof Error ? e.message : "Invalid onboarding responses." },
+      { status: 422 },
+    );
+  }
 
   try {
-    return Response.json(await putOnboarding(token, forwarded as OnboardingConfirm));
+    return Response.json(await putOnboarding(token, forwarded));
   } catch (e) {
     return forwardProductError(e);
   }

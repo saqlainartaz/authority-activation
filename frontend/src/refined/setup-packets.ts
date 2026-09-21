@@ -1,4 +1,4 @@
-export type Packet = { id: string; type: 'choice' | 'pick_source' | 'multi' | 'short' | 'long'; why: string; headline: string; topic: string; quote?: string; source?: string; options?: { label: string; quote?: string; source?: string }[]; placeholder?: string };
+export type Packet = { id: string; type: 'choice' | 'pick_source' | 'multi' | 'short' | 'long'; why: string; headline: string; topic: string; required?: boolean; questionVersion?: string; quote?: string; source?: string; options?: { label: string; quote?: string; source?: string }[]; placeholder?: string };
 export type SetupAnswer = { selected: string[]; text: string };
 export type Setup = { answers: Record<string, SetupAnswer>; completed: boolean };
 export const OTHER = '__other__';
@@ -18,7 +18,12 @@ export function packetAnswer(packet: Packet, answer?: SetupAnswer): string[] | n
   const values = selected.flatMap(value => value === OTHER ? [text] : packet.options!.some(o => o.label === value) ? [value] : []);
   return values.length ? values : null;
 }
-export function setupComplete(setup: Setup): boolean { return PACKETS.every(packet => packetAnswer(packet, setup.answers[packet.id])); }
+export function canContinue(packet: Packet, answer?: SetupAnswer): boolean {
+  if (packetAnswer(packet, answer)) return true;
+  const attempted = Boolean(answer && (answer.selected.length || answer.text.trim()));
+  return packet.required === false && !attempted;
+}
+export function setupComplete(setup: Setup, packets: readonly Packet[] = PACKETS): boolean { return packets.every(packet => canContinue(packet, setup.answers[packet.id])); }
 export function advancesOnChoice(packet: Packet, value: string): boolean {
   return (packet.type === 'choice' || packet.type === 'pick_source') && value !== OTHER && !!packet.options?.some(option => option.label === value);
 }

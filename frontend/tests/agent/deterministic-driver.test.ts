@@ -8,6 +8,23 @@ const base = (messages: DriverRequest["messages"]): DriverRequest => ({
 });
 
 describe("deterministic validation driver", () => {
+  it("answers an identity question from the bounded client profile without treating it as generation evidence", async () => {
+    const deltas: string[] = [];
+    const response = await deterministicDriver.runTurn({
+      ...base([
+        { role: "user", content: '<client-profile trust="client-authored-untrusted" citable="false">{"display_name":"Sarah Whitfield","profession":"Leadership consultant","business_overview":"I help founders build leadership teams."}</client-profile>' },
+        { role: "user", content: '<client-message>Who am I?</client-message>' },
+      ]),
+      onText: delta => deltas.push(delta),
+    });
+
+    expect(response.toolCalls).toEqual([]);
+    expect(response.text).toContain("Sarah Whitfield");
+    expect(response.text).toContain("Leadership consultant");
+    expect(response.text).toContain("I help founders build leadership teams.");
+    expect(deltas.join("")).toBe(response.text);
+  });
+
   it("asks the backend-supplied clarification when context is not ready", async () => {
     const deltas: string[] = [];
     const prepared = {
@@ -30,6 +47,8 @@ describe("deterministic validation driver", () => {
     expect(prepare.toolCalls[0].input).toEqual({
       message: "Write a post about founder dependency & delegation.",
       operation: "generate",
+      subject: "Write a post about founder dependency & delegation.",
+      retrieval_query: "Write a post about founder dependency & delegation.",
     });
 
     const prepared = {
@@ -58,6 +77,8 @@ describe("deterministic validation driver", () => {
     expect(prepare.toolCalls[0].input).toEqual({
       message: "Use the cohort result.",
       operation: "resume",
+      subject: "Use the cohort result.",
+      retrieval_query: "Use the cohort result.",
     });
   });
 });

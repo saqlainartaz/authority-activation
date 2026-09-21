@@ -71,7 +71,12 @@ describe("prepareGeneration — sends the client credential, not the service one
     );
 
     const { prepareGeneration } = await import("@/agent/tools/prepare-generation");
-    const result = await prepareGeneration({ message: "write a post", operation: "generate" }, context);
+    const result = await prepareGeneration({
+      message: "write a post",
+      operation: "generate",
+      subject: "a grounded LinkedIn post",
+      retrieval_query: "client lessons stories and proof points",
+    }, context);
 
     const headers = new Headers(capturedHeaders);
     expect(headers.get("X-API-Key")).toBe("test-key");
@@ -104,12 +109,96 @@ describe("prepareGeneration — sends the client credential, not the service one
     );
 
     const { prepareGeneration } = await import("@/agent/tools/prepare-generation");
-    await prepareGeneration({ message: "the cohort result", operation: "resume" }, context);
+    await prepareGeneration({
+      message: "the cohort result",
+      operation: "resume",
+      subject: "the cohort result",
+      retrieval_query: "cohort result outcomes and supporting evidence",
+    }, context);
 
     expect(JSON.parse(capturedBody)).toMatchObject({
       message: "the cohort result",
       operation: "resume",
       clarification: "the cohort result",
+    });
+  });
+
+  it("sends structured intent without rewriting the client's documentary request", async () => {
+    let capturedBody = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        capturedBody = String(init?.body ?? "");
+        return new Response(JSON.stringify({
+          contract_version: "context.v1",
+          snapshot_id: "snap-documentary",
+          platform: "linkedin",
+          status: "ready",
+          question: null,
+          subject: "the strongest grounded story or quotable passage connected to the client's referenced source",
+          task: "write a post",
+          voice: { tone: [], audience: null, do_phrases: [], avoid_phrases: [] },
+          material: [],
+          background: [],
+          banned_phrases: [],
+          gaps: [],
+          conflicts: [],
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }),
+    );
+
+    const { prepareGeneration } = await import("@/agent/tools/prepare-generation");
+    await prepareGeneration({
+      message: "Write me a post based on my documentary. Find a catchy line from it.",
+      operation: "generate",
+      subject: "a strong story or quotable insight from the client's documentary",
+      retrieval_query: "documentary stories, memorable lines, turning points, and lessons",
+    }, context);
+
+    expect(JSON.parse(capturedBody)).toMatchObject({
+      message: "Write me a post based on my documentary. Find a catchy line from it.",
+      operation: "generate",
+      subject: "a strong story or quotable insight from the client's documentary",
+      retrieval_query: "documentary stories, memorable lines, turning points, and lessons",
+    });
+  });
+
+  it("keeps an already explicit subject unchanged", async () => {
+    let capturedBody = "";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: string, init?: RequestInit) => {
+        capturedBody = String(init?.body ?? "");
+        return new Response(JSON.stringify({
+          contract_version: "context.v1",
+          snapshot_id: "snap-explicit",
+          platform: "linkedin",
+          status: "ready",
+          question: null,
+          subject: "our onboarding process",
+          task: "write a post",
+          voice: { tone: [], audience: null, do_phrases: [], avoid_phrases: [] },
+          material: [],
+          background: [],
+          banned_phrases: [],
+          gaps: [],
+          conflicts: [],
+        }), { status: 200, headers: { "Content-Type": "application/json" } });
+      }),
+    );
+
+    const { prepareGeneration } = await import("@/agent/tools/prepare-generation");
+    await prepareGeneration({
+      message: "Write a post about our onboarding process.",
+      operation: "generate",
+      subject: "the client's onboarding process",
+      retrieval_query: "client onboarding process steps lessons and outcomes",
+    }, context);
+
+    expect(JSON.parse(capturedBody)).toMatchObject({
+      message: "Write a post about our onboarding process.",
+      subject: "the client's onboarding process",
+      retrieval_query: "client onboarding process steps lessons and outcomes",
     });
   });
 });

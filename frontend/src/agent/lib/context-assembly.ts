@@ -8,7 +8,7 @@ import { escapeForBody, type ModelMessage } from "@/agent/transcript";
 /**
  * §4.8's context ordering and §5.8's two cache breakpoints.
  *
- *   instructions -> skill -> material -> transcript -> current turn
+ *   instructions -> skill -> material -> transcript -> turn context -> current turn
  *   |___________ stable across turns ___________|   |__ varies __|
  *
  * PURE, AND SEPARATE FROM `loop.ts` ON PURPOSE. Ordering is a correctness
@@ -37,12 +37,14 @@ export function buildTurnMessages(
   material: MaterialV1[],
   transcript: ModelMessage[],
   clientMessage: string,
+  turnContext: ModelMessage[] = [],
 ): { messages: ModelMessage[]; handles: HandleMap } {
   const { text, handles } = renderMaterial(material);
 
   const messages: ModelMessage[] = [
     { role: "user", content: `<material-set>\n${text}\n</material-set>` },
     ...transcript,
+    ...turnContext,
     // See transcript.ts:36-40 for why this escaping matters: client bodies can forge tag boundaries.
     { role: "user", content: `<client-message>${escapeForBody(clientMessage)}</client-message>` },
   ];

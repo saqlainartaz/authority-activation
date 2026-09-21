@@ -526,12 +526,44 @@ export async function logoutSession(token: string): Promise<void> {
 
 // ---- onboarding: GET/PUT /v1/onboarding -----------------------------------
 
+export type OnboardingQuestion = {
+  question_id: string;
+  question_version: string;
+  review_label: string;
+  prompt: string;
+  input_type: "long" | "single";
+  required: boolean;
+  choices: string[];
+};
+
+export type OnboardingQuestionResponse = {
+  question_id: string;
+  question_version: string;
+  selected: string[];
+  text: string;
+};
+
+export type CanonicalOnboardingResponse = {
+  question_id: string;
+  question_version: string;
+  question: string;
+  answers: string[];
+  submitted_at: string;
+  ordinal: number;
+};
+
+export type QuestionnaireEnvelope = {
+  version: string;
+  responses: CanonicalOnboardingResponse[];
+};
+
 export type OnboardingPrefill = {
   user: { display_name: string; email: string; profession: string | null };
   audience_options: Array<{ key: string; label: string }>;
   answers: Record<string, unknown>;
   confirmed_at: string | null;
   guardrail_questions: Array<{ key: string; prompt: string; atom_type: string }>;
+  questions: OnboardingQuestion[];
   trust: "untrusted";
 };
 
@@ -558,6 +590,7 @@ export type OnboardingConfirm = {
   proof_point: string[];
   quote: string[];
   terminology: string[];
+  responses?: OnboardingQuestionResponse[];
   actor?: string;
 };
 
@@ -640,6 +673,9 @@ export type ChatVariant = {
   status: "verified" | "rejected" | string;
   body: string;
   sources?: ChatSource[];
+  /** Browser-only claim receipt for evidence highlighting while the verified
+   * variant is still temporary. Runtime/model envelopes deliberately omit it. */
+  receipt?: ReceiptClaim[];
 };
 
 export type ChatPendingConfirmation = {
@@ -750,13 +786,14 @@ export function readChatSession(token: string, sessionId: string): Promise<ChatS
 // ---- the TS agent's runtime-only chat routes (§9 step 4) -------------------
 //
 // `RuntimeSessionOut`'s sibling of `ChatSessionOut` on the Python side:
-// identical to `ChatSessionEnvelope` except `variants[].sources` is REMOVED —
+// identical to `ChatSessionEnvelope` except browser evidence fields on variants
+// (`sources` and `receipt`) are REMOVED —
 // `.../messages` and `.../agent-turn` are called only by the Next server
 // runtime that hosts the stateless agent, and a tool result is exactly what
 // the model reads next, so `source_locator` (PROV-01 — a receipt field,
 // server-written) must not ride this envelope even in stringified form. The
-// browser-facing routes (`/commands`, session reads) are UNCHANGED and keep
-// using `ChatSessionEnvelope` with full `sources` — the narrowing is
+// browser-facing routes (`/commands`, session reads) keep using
+// `ChatSessionEnvelope` with full evidence — the narrowing is
 // per-caller, not a retraction (`chat.py::RuntimeSessionOut`'s own docstring).
 // (`/turns` was itself deleted at step 6, alongside `sendChatTurn` above.)
 export type RuntimeVariant = {
@@ -788,6 +825,8 @@ export type AgentTurnCreate = { text: string; idempotency_key: string };
 export type ChatContextCreate = {
   message: string;
   operation: "generate" | "revise" | "resume";
+  subject: string;
+  retrieval_query: string;
   clarification?: string;
   idempotency_key: string;
 };

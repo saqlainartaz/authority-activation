@@ -143,7 +143,13 @@ function Composer({ ws, placeholder, channels, onChannels, initialText, selected
   const text = ws.composer;
   const setText = ws.setComposer;
   useEffect(() => { if (initialText) setText(initialText); }, [initialText]);
-  const submit = () => { if (ws.phase === 'empty') ws.send(text, channels ?? selectedChannels ?? ['li', 'x']); else ws.askChange(text); setText(''); };
+  const submit = () => {
+    if (!ws.canSend) return;
+    const accepted = ws.phase === 'empty'
+      ? ws.send(text, channels ?? selectedChannels ?? ['li', 'x'])
+      : ws.askChange(text);
+    if (accepted !== false) setText('');
+  };
   return (
     <div className="w-full">
       <InputGroup className="rounded-xl">
@@ -158,7 +164,7 @@ function Composer({ ws, placeholder, channels, onChannels, initialText, selected
           )}
           {ws.phase === 'streaming' || ws.phase === 'reading'
             ? <InputGroupButton size="icon-sm" variant="default" className="ml-auto rounded-full" onClick={ws.stop} aria-label="Stop"><Square className="size-3 fill-current" /></InputGroupButton>
-            : <InputGroupButton size="icon-sm" variant="default" className="ml-auto rounded-full" onClick={submit} aria-label="Send"><ArrowUp /></InputGroupButton>}
+            : <InputGroupButton size="icon-sm" variant="default" className="ml-auto rounded-full" onClick={submit} aria-label="Send" disabled={!ws.canSend}><ArrowUp /></InputGroupButton>}
         </InputGroupAddon>
       </InputGroup>
     </div>

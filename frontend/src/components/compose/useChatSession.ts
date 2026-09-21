@@ -59,6 +59,20 @@ export function needsSessionRead(snapshotKey: string | null, requestKey: string)
   return snapshotKey !== requestKey;
 }
 
+/**
+ * A null envelope is meaningful only after the active-session read has
+ * settled: it means the server confirmed that this client has no active
+ * conversation. Before then, null merely means "not restored yet" and a
+ * create would race an existing server session into a 409.
+ */
+export function isSessionReadReady(
+  snapshotKey: string | null,
+  requestKey: string,
+  hasFailure: boolean,
+): boolean {
+  return !hasFailure && !needsSessionRead(snapshotKey, requestKey);
+}
+
 function isEnvelope(value: ChatSessionEnvelope | NoActiveChatSession): value is ChatSessionEnvelope {
   return value.session !== null;
 }
@@ -270,6 +284,8 @@ export function useChatSession(sessionId: string | null): {
   error: unknown | null;
   echo: string[];
   activeSessionId: string | null;
+  canSend: boolean;
+  restoring: boolean;
   sendTurn: (message: string) => void;
   cancelTurn: () => void;
   sendCommand: (command: ChatCommandWithoutIdempotency, actionId: string) => Promise<ChatSessionEnvelope | null>;
@@ -292,6 +308,8 @@ export function useChatSession(sessionId: string | null): {
   const session = readKeyed(snapshot, key);
   const failure = readKeyed(transport, key);
   const pendingMutation = readKeyed(pending, key);
+  const canSend = isSessionReadReady(snapshot?.key ?? null, key, failure !== null);
+  const restoring = failure === null && !canSend;
 
   const retryRead = useCallback(async (stateKey: string, exactId: string | null) => {
     try {
@@ -366,9 +384,10 @@ export function useChatSession(sessionId: string | null): {
   // render behind the send it describes.
   const taskCountAtSendRef = useRef(0);
   const sendTurn = useCallback((message: string) => {
+    if (!canSend) return;
     taskCountAtSendRef.current = (session?.messages ?? []).filter((entry) => entry.kind === "task").length;
     send(message);
-  }, [send, session]);
+  }, [canSend, send, session]);
 
   const retryMutation = useCallback(async (
     kind: PendingMutation["kind"],
@@ -458,6 +477,8 @@ export function useChatSession(sessionId: string | null): {
     session,
     error: failure?.error ?? null,
     activeSessionId: resolvedSessionId,
+    canSend,
+    restoring,
     /** Client messages not yet in the envelope. `ChatPath` renders these as
      *  user turns so a queued message is visible the instant it is sent. */
     echo,

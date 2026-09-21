@@ -44,6 +44,26 @@ describe("the model-facing tool schemas", () => {
     expect(JSON.stringify(buildToolSpecs(TOOL_NAMES))).not.toContain("idempotency");
   });
 
+  it("requires explicit subject and retrieval intent for every preparation", () => {
+    const schema = TOOL_INPUT_SCHEMAS.prepare_generation;
+
+    expect(schema.safeParse({ message: "Write the strongest post you can.", operation: "generate" }).success).toBe(false);
+    expect(schema.safeParse({
+      message: "Write the strongest post you can.",
+      operation: "generate",
+      subject: "the strongest grounded lesson in the client's available knowledge",
+      retrieval_query: "strong client lessons, proof points, objections, and quotable stories",
+    }).success).toBe(true);
+
+    const tool = buildToolSpecs(TOOL_NAMES).find((candidate) => candidate.name === "prepare_generation");
+    expect((tool?.inputSchema.required as string[]).sort()).toEqual([
+      "message",
+      "operation",
+      "retrieval_query",
+      "subject",
+    ]);
+  });
+
   it("makes submit_draft cite by handle, never by uuid", () => {
     // §4.7 mechanism 1. If the schema asked for atom_id the model would
     // transcribe uuids, which is the silent-corruption failure the handles

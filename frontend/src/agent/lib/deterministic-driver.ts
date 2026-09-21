@@ -41,6 +41,29 @@ function latestClientMessage(request: DriverRequest): string {
   return match ? decodeBody(match[1]).trim() : "Create a grounded LinkedIn post from the supplied context.";
 }
 
+function clientProfile(request: DriverRequest): Record<string, string> | null {
+  const message = [...request.messages].reverse().find((entry) => entry.content.includes('<client-profile '));
+  if (!message) return null;
+  const match = message.content.match(/<client-profile[^>]*>([\s\S]*?)<\/client-profile>/);
+  if (!match) return null;
+  try {
+    const value = JSON.parse(decodeBody(match[1])) as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === 'string'));
+  } catch {
+    return null;
+  }
+}
+
+function identityAnswer(request: DriverRequest): string | null {
+  if (!/\bwho am i\b/i.test(latestClientMessage(request))) return null;
+  const profile = clientProfile(request);
+  if (!profile?.display_name) return null;
+  const identity = profile.profession
+    ? `You’re ${profile.display_name}, ${profile.profession}.`
+    : `You’re ${profile.display_name}.`;
+  return profile.business_overview ? `${identity} ${profile.business_overview}` : identity;
+}
+
 function isClarificationReply(request: DriverRequest): boolean {
   return request.messages.some((entry) => entry.content.includes("<server-question>"));
 }
@@ -67,14 +90,22 @@ export const deterministicDriver: Driver = {
     await validationPause();
     const prepared = decodedToolResult(request, "prepare_generation");
     if (!prepared) {
+      const identity = identityAnswer(request);
+      if (identity) {
+        request.onText(identity);
+        return result({ text: identity });
+      }
+      const message = latestClientMessage(request);
       return result({
         stopReason: "tool_use",
         toolCalls: [{
           id: "deterministic-prepare",
           name: "prepare_generation",
           input: {
-            message: latestClientMessage(request),
+            message,
             operation: isClarificationReply(request) ? "resume" : "generate",
+            subject: message,
+            retrieval_query: message,
           },
         }],
       });

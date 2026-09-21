@@ -13,6 +13,6 @@ function AssistantMessage() {
 }
 export default function AgentThread({ ws, inlineDraft = false, draft }: { ws: Workspace; inlineDraft?: boolean; draft?: ReactNode }) {
   const messages = useMemo(() => buildConversationMessages(ws, inlineDraft), [ws.thread, ws.phase, ws.visible, ws.fmt, ws.title, ws.xPosts, inlineDraft]);
-  const runtime = useExternalStoreRuntime({ messages, convertMessage: message => message, isRunning: ws.phase === 'streaming' || ws.phase === 'reading' || ws.typing, onNew: async message => ws.askChange(message.content.filter(p => p.type === 'text').map(p => p.text).join('\n')), onCancel: async () => ws.stop() });
+  const runtime = useExternalStoreRuntime({ messages, convertMessage: message => message, isRunning: ws.phase === 'streaming' || ws.phase === 'reading' || ws.typing, onNew: async message => { ws.askChange(message.content.filter(p => p.type === 'text').map(p => p.text).join('\n')); }, onCancel: async () => ws.stop() });
   return <DraftResult.Provider value={draft}><AssistantRuntimeProvider runtime={runtime}><ThreadPrimitive.Root className="rf-native-thread"><ThreadPrimitive.Viewport><ThreadPrimitive.Messages components={{ UserMessage, AssistantMessage }} /></ThreadPrimitive.Viewport></ThreadPrimitive.Root></AssistantRuntimeProvider></DraftResult.Provider>;
 }
