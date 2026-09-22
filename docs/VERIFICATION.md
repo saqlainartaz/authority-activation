@@ -5,7 +5,8 @@ deployment or live-provider claim.
 
 ## Promo Partner connected recheck — 2026-09-22
 
-- Starting frontend state: `main` at `d2ad713ddfb2c31e696367e76ddfb8b5e7af4944`; backend state: `feat/rehaul-c1c-document-lane` at `e419058` with pre-existing work preserved. No commit, push, PR, merge or deployment was made.
+- Starting frontend state: `main` at `d2ad713ddfb2c31e696367e76ddfb8b5e7af4944`; backend state: `feat/rehaul-c1c-document-lane` at `e419058` with pre-existing work preserved.
+- After verification, the implementation was submitted as [frontend PR #3](https://github.com/saqlainartaz/authority-activation/pull/3), depending on [backend PR #34](https://github.com/Inside-Success/ai-marketing-tool-backend/pull/34). Neither PR is merged or deployed.
 - `ALLOW_MISSING_ENGINE_FIXTURES=1 npm run check` passed after the approved Workspace selector refinement: 22 design tests and 360 Vitest tests across 45 files, TypeScript, and all BFF/agent/static policy gates. The selector defaults new sessions to LinkedIn, uses the approved compact expanding treatment, and no longer contains the temporary A/B/C/D review harness. Standalone schema gates explicitly used their documented no-sibling mode.
 - `npm run build` passed with Next.js 16.3.3, including the new post-media upload/download routes.
 - `e2e/promo-partner-connected.spec.ts` passed again after the preview refinement (1 test in 1.4 minutes) against the local Next development server, local Python service, deterministic TypeScript driver and isolated PostgreSQL database. It covered distinct LinkedIn/Instagram/X/Facebook drafts and multi-channel reload, media attach/preview/replace/remove/download, presentation-only preview controls, exact history, approval invalidation, schedule/Home/Library projection, Settings removals, and Home overflow/screenshots at 390, 767, 768, 1,179, 1,180 and 1,440 px in light and dark.
