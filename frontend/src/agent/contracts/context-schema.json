@@ -224,7 +224,12 @@
       "type": "array"
     },
     "platform": {
-      "const": "linkedin",
+      "enum": [
+        "linkedin",
+        "instagram",
+        "x",
+        "facebook"
+      ],
       "default": "linkedin",
       "title": "Platform",
       "type": "string"

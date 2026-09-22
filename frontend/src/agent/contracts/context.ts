@@ -62,7 +62,7 @@ export type ContextV1 = {
    *  `snapshot_id`, and the first implementation of `/drafts` queried the wrong
    *  one. Settled 2026-08-24; see spec §4.2. */
   snapshot_id: string;
-  platform: "linkedin";
+  platform: "linkedin" | "instagram" | "x" | "facebook";
   status: "ready" | "answer_needed";
   question: QuestionV1 | null;
   subject: string | null;

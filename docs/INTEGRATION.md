@@ -2,6 +2,14 @@
 
 > Historical design-export guide. The operator-approved Next.js migration and previous-stack integration have now been implemented. For authoritative current status use [ARCHITECTURE.md](ARCHITECTURE.md), [CAPABILITY-MAP.md](CAPABILITY-MAP.md), [FEATURE-GAPS.md](FEATURE-GAPS.md), and [DEPLOYMENT-HANDOFF.md](DEPLOYMENT-HANDOFF.md). Statements below that the app is Vite-only, unconnected, or still requires future integration describe the initial `ec2f05f` input, not the delivered local application.
 
+## Current Promo Partner integration — 2026-09-22
+
+The runnable application is the Next.js app in `frontend/`, invoked from this repository's `frontend/` directory (`frontend/frontend/` from the parent backend workspace). The current connected path uses a closed LinkedIn/Instagram/X/Facebook registry from browser toggles through BFF validation, channel-bound Python chat/session persistence and dedicated TypeScript-agent skills. Multi-channel requests coordinate separate sessions/content items sequentially.
+
+Post media uses `POST /api/client/post-media` for multipart upload and `GET /api/client/post-media/{media_id}` for authorized preview/download. Browser-supplied tenant identity or storage paths are never trusted. An edit may bind `media_id` plus optional alt text, replace that binding or explicitly remove it; version history returns the exact immutable binding for every content version. Static JPEG, PNG and WebP images are limited to 4 MB and 8,192 × 8,192. Editing an approved/scheduled post invalidates approval and moves its active slot to `needs_reapproval`.
+
+Home owns the shared calendar projection and selected-day agenda. Library consumes the same content/calendar reads for Table/Board and has no Calendar view. Appearance is controlled only in Settings. These current facts supersede conflicting Vite-era mappings below; the older sections remain as historical extraction guidance.
+
 ## 1. What is being handed over
 
 Authority Activation is a React and TypeScript frontend for writing source-informed social posts. The selected implementation uses shadcn/ui components built on Base UI, assistant-ui for the conversation, and React DayPicker for calendars. It includes Home, Workspace, Library, Train your AI, Settings, sign-in, invitation setup and onboarding.
@@ -148,7 +156,7 @@ Links, websites and calls are represented in the fixture list but cannot current
 
 ## 8. Library and scheduling
 
-The Library reads the provider's posts and applies client-side query, channel, status and date filtering. Table, Board and Calendar share that data. The phone board uses status tabs and one vertical lane. The Compact rows control affects table density; it is not another stored post view.
+The Library reads the provider's posts and applies client-side query, channel, status and date filtering. Table and Board share that data; Home owns the calendar and selected-day agenda over the same authoritative post/schedule projection. The phone board uses status tabs and one vertical lane. The Compact rows control affects table density; it is not another stored post view.
 
 Date labels and the calendar are based on a fixed March 2026 fixture. Replace fixed dates in `Home.tsx`, `Library.tsx` and `Schedule.tsx` with a timezone-aware clock. Quick actions such as Tomorrow and Next Monday currently point at fixed fixture days.
 

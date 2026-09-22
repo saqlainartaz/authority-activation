@@ -9,6 +9,7 @@ import type {
   ChatSessionEnvelope,
   NoActiveChatSession,
 } from "@/lib/product";
+import type { SocialPlatform } from "@/shared/channels";
 import { useAgentTurn, type AgentTurnState } from "./useAgentTurn";
 
 type Keyed<T> = { key: string; value: T };
@@ -77,11 +78,11 @@ function isEnvelope(value: ChatSessionEnvelope | NoActiveChatSession): value is 
   return value.session !== null;
 }
 
-async function fetchEnvelope(exactId: string | null): Promise<ChatSessionEnvelope | null> {
+async function fetchEnvelope(exactId: string | null, platform: SocialPlatform): Promise<ChatSessionEnvelope | null> {
   try {
     const response = await getJson<ChatSessionEnvelope | NoActiveChatSession>(
       exactId === null
-        ? "/api/client/chat/sessions"
+        ? `/api/client/chat/sessions?platform=${encodeURIComponent(platform)}`
         : `/api/client/chat/sessions/${encodeURIComponent(exactId)}`,
     );
     return isEnvelope(response) ? response : null;
@@ -278,7 +279,7 @@ function mutationFailure(error: unknown): RequestFailure {
  * Restore an opaque server session and keep rendering tied to its latest full
  * envelope. Browser state owns neither identity, expiry, readiness, nor stage.
  */
-export function useChatSession(sessionId: string | null): {
+export function useChatSession(sessionId: string | null, platform: SocialPlatform = "linkedin"): {
   phase: ChatUiPhase;
   session: ChatSessionEnvelope | null;
   error: unknown | null;
@@ -313,7 +314,7 @@ export function useChatSession(sessionId: string | null): {
 
   const retryRead = useCallback(async (stateKey: string, exactId: string | null) => {
     try {
-      const response = await fetchEnvelope(exactId);
+      const response = await fetchEnvelope(exactId, platform);
       const authoritativeKey = response?.session.id ?? stateKey;
       setSnapshot({ key: authoritativeKey, value: response });
       // FIX (whole-branch review, Important 2). NEVER DOWNGRADE TO NULL. This
@@ -331,11 +332,11 @@ export function useChatSession(sessionId: string | null): {
     } catch (error) {
       setTransport({ key: stateKey, value: readFailure(error, exactId) });
     }
-  }, []);
+  }, [platform]);
 
   const readSession = useCallback(async (stateKey: string, exactId: string | null) => {
     try {
-      const response = await fetchEnvelope(exactId);
+      const response = await fetchEnvelope(exactId, platform);
       const authoritativeKey = response?.session.id ?? stateKey;
       setSnapshot({ key: authoritativeKey, value: response });
       // FIX (whole-branch review, Important 2). See `retryRead`'s identical
@@ -346,7 +347,7 @@ export function useChatSession(sessionId: string | null): {
       setTransport({ key: stateKey, value: readFailure(error, exactId) });
       if (!(error instanceof HttpError)) retryRef.current = () => retryRead(stateKey, exactId);
     }
-  }, [retryRead]);
+  }, [platform, retryRead]);
 
   useEffect(() => {
     // The active-session endpoint already returns the complete envelope. Once
@@ -370,6 +371,7 @@ export function useChatSession(sessionId: string | null): {
 
   const { turn, send, cancel } = useAgentTurn({
     sessionId: resolvedSessionId,
+    platform,
     onSessionCreated: setResolvedSessionId,
     refresh,
   });

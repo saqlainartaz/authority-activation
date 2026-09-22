@@ -5,11 +5,13 @@
 import { clientToken } from "@/lib/client-session";
 import { activeChatSession, createChatSession, expiredLinkResponse, forwardProductError, readJsonObject } from "@/lib/product";
 import type { ChatSessionCreate } from "@/lib/product";
+import { CHANNEL_KEYS, CHANNELS, type SocialPlatform } from "@/shared/channels";
 
 const MESSAGE_MAX = 4_000;
 const IDEMPOTENCY_MIN = 8;
 const IDEMPOTENCY_MAX = 200;
-const CREATE_KEYS = new Set(["message", "idempotency_key"]);
+const CREATE_KEYS = new Set(["message", "platform", "idempotency_key"]);
+const PLATFORMS = new Set<SocialPlatform>(CHANNEL_KEYS.map((key) => CHANNELS[key].canonical));
 
 function invalidRequest(message: string): Response {
   return Response.json({ error: message }, { status: 422 });
@@ -32,12 +34,16 @@ export async function POST(request: Request) {
   if (typeof raw.idempotency_key !== "string") {
     return invalidRequest("message and idempotency_key must be text.");
   }
+  if (typeof raw.platform !== "string" || !PLATFORMS.has(raw.platform as SocialPlatform)) {
+    return invalidRequest("platform must be linkedin, instagram, x, or facebook.");
+  }
   const message = raw.message === undefined ? undefined : raw.message.trim();
   const idempotency_key = raw.idempotency_key.trim();
   if (message !== undefined && (message.length === 0 || message.length > MESSAGE_MAX))
     return invalidRequest("message must be between 1 and 4000 characters.");
   if (idempotency_key.length < IDEMPOTENCY_MIN || idempotency_key.length > IDEMPOTENCY_MAX) return invalidRequest("idempotency_key must be between 8 and 200 characters.");
-  const body: ChatSessionCreate = message === undefined ? { idempotency_key } : { message, idempotency_key };
+  const platform = raw.platform as SocialPlatform;
+  const body: ChatSessionCreate = message === undefined ? { platform, idempotency_key } : { message, platform, idempotency_key };
   try {
     return Response.json(await createChatSession(token, body), { status: 201 });
   } catch (error) {
@@ -45,11 +51,15 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const token = await clientToken();
   if (!token) return expiredLinkResponse();
+  const platform = new URL(request.url).searchParams.get("platform");
+  if (!platform || !PLATFORMS.has(platform as SocialPlatform)) {
+    return invalidRequest("platform must be linkedin, instagram, x, or facebook.");
+  }
   try {
-    return Response.json(await activeChatSession(token));
+    return Response.json(await activeChatSession(token, platform as SocialPlatform));
   } catch (error) {
     return forwardProductError(error);
   }

@@ -1,5 +1,6 @@
 // Shared mock data for every system in the bake-off. Same copy, same posts, same claims.
-export type Channel = 'li' | 'x';
+import { CHANNELS, type Channel } from './channels';
+export type { Channel } from './channels';
 export type Seg = { t: string; claim?: { n: string; bad?: boolean } };
 export type Para = { g: '' | 'c' | 'm'; segs: Seg[]; miss?: boolean };
 export type Source = { n: string; t: string; loc: string; quote?: string; mark?: string; bad?: boolean };
@@ -57,10 +58,10 @@ export const REPLY_SHORT = { text: 'Cut the unsourced line and tightened the ope
 export const REPLY_OTHER = { text: 'Not in this prototype, but this is where the change would land: the sheet rewrites in place and the conversation keeps going.', text2: '', strong: '' };
 
 export const TEMPLATES = [
-  { id: 'how', name: 'How you do it', line: 'One part of your process, and why it works.', starter: 'What process do I explain most clearly in my material? Choose one and write a LinkedIn post about how I do it.' },
-  { id: 'win', name: 'A client win', line: 'A result you got for a client, named or not.', starter: 'What is my strongest client win? Find one in my material and write a LinkedIn post about it.' },
-  { id: 'mistake', name: 'A mistake', line: 'What went wrong and what you changed.', starter: 'What is a mistake I have talked about? Choose one from my material and write a LinkedIn post about what changed.' },
-  { id: 'question', name: 'A customer question', line: 'Something clients keep asking you, answered straight.', starter: 'What is a question clients keep asking me? Find one in my material and write a LinkedIn post answering it.' },
+  { id: 'how', name: 'How you do it', line: 'One part of your process, and why it works.', starter: 'What process do I explain most clearly in my material? Choose one and write a post about how I do it.' },
+  { id: 'win', name: 'A client win', line: 'A result you got for a client, named or not.', starter: 'What is my strongest client win? Find one in my material and write a post about it.' },
+  { id: 'mistake', name: 'A mistake', line: 'What went wrong and what you changed.', starter: 'What is a mistake I have talked about? Choose one from my material and write a post about what changed.' },
+  { id: 'question', name: 'A customer question', line: 'Something clients keep asking you, answered straight.', starter: 'What is a question clients keep asking me? Find one in my material and write a post answering it.' },
 ];
 
 export type Status = 'draft' | 'approved' | 'scheduled';
@@ -73,11 +74,15 @@ export const POSTS: Post[] = [
   { id: 4, ch: 'li', name: 'Three things I got wrong', snip: 'I hired too early, priced too low.', status: 'scheduled', created: '27 Feb', when: 'Thu 5 Mar, 09:00', day: 5 },
   { id: 5, ch: 'x', name: 'Hiring: senior engineer', snip: 'Not because we are scaling. Because we are shipping.', status: 'scheduled', created: '1 Mar', when: 'Wed 4 Mar, 17:00', day: 4 },
   { id: 6, ch: 'li', name: 'Why we stopped charging setup fees', snip: 'Then a client asked what it was for.', status: 'draft', created: 'Today' },
+  { id: 8, ch: 'ig', name: 'Behind the launch', snip: 'The bit nobody saw: three discarded prototypes.', status: 'draft', created: 'Today' },
+  { id: 9, ch: 'fb', name: 'A note to our clients', snip: 'Thank you for asking the difficult questions.', status: 'approved', created: '1 Mar' },
 ];
 export const FILTER_LABEL: Record<string, string> = { all: 'All', draft: 'Drafts', approved: 'Approved', scheduled: 'Scheduled' };
 export const VIEW_LABEL: Record<string, string> = { table: 'Table', board: 'Board', calendar: 'Calendar' };
 export const STATUS_LABEL: Record<Status, string> = { draft: 'Draft', approved: 'Approved', scheduled: 'Scheduled' };
-export const CHANNEL_LABEL: Record<Channel, string> = { li: 'LinkedIn', x: 'X' };
+export const CHANNEL_LABEL: Record<Channel, string> = Object.fromEntries(
+  Object.entries(CHANNELS).map(([key, channel]) => [key, channel.label]),
+) as Record<Channel, string>;
 export const PERSON = { name: 'Saqlain Artaz', headline: 'Founder at InsideSuccess', initials: 'SA' };
 export const COPY = {
   fresh: 'What are you working on today?',

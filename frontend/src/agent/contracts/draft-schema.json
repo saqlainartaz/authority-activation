@@ -27,7 +27,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "A LinkedIn post, plus one citation for each claim it makes.",
+  "description": "A channel-specific social post, plus one citation for each claim it makes.",
   "properties": {
     "body": {
       "title": "Body",

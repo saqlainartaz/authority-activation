@@ -59,11 +59,11 @@ describe("the event union", () => {
 });
 
 describe("the capability-profile registry", () => {
-  it("has exactly one entry this cycle", () => {
-    // A4: the seam, not the general agent. Additional platforms become further
-    // entries rather than rewrites, which is the whole point of a registry with
-    // one row in it.
-    expect(Object.keys(PROFILES)).toEqual(["linkedin"]);
+  it("has exactly the four supported social platforms", () => {
+    expect(Object.keys(PROFILES)).toEqual(["linkedin", "instagram", "x", "facebook"]);
+    expect(Object.values(PROFILES).map(profile => profile.skill)).toEqual([
+      "linkedin-post", "instagram-post", "x-post", "facebook-post",
+    ]);
   });
 
   it("resolves the platform deterministically, never by asking the model", () => {
@@ -89,7 +89,7 @@ describe("the capability-profile registry", () => {
     }
   });
 
-  it("refuses to let a second platform be added at runtime — PROFILES is frozen", () => {
+  it("refuses to let an unreviewed platform be added at runtime — PROFILES is frozen", () => {
     // E3, 2026-08-24. `Record<string, CapabilityProfile>`'s index signature
     // makes `PROFILES.threads = {...}` TYPE-LEGAL, and it would have silently
     // broken the "exactly one entry this cycle" invariant above. Proved with
@@ -100,7 +100,7 @@ describe("the capability-profile registry", () => {
       // problem: the compiler does not see this as a mistake.
       PROFILES.threads = { platform: "threads", skill: "threads-post", tools: [] };
     }).toThrow(TypeError);
-    expect(Object.keys(PROFILES)).toEqual(["linkedin"]);
+    expect(Object.keys(PROFILES)).toEqual(["linkedin", "instagram", "x", "facebook"]);
   });
 });
 

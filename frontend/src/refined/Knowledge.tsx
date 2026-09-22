@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogTrigger, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { ChannelMark } from './Home';
+import ChannelMark from './ChannelMark';
 import { ACCEPT, fileIssue, fileKey, fileSize, readDocuments, saveDocument, removeDocument as removeLocalDocument, type LocalDocument } from './documents';
 import { useData } from './state';
 import './knowledge.css';

@@ -1,6 +1,6 @@
 # Capability and integration map
 
-Evidence baseline: stakeholder frontend at initial revision `ec2f05f...`, previous BFF/admin/agent at `8c790eb...`, connected previous-stack backend at `6a7429f...`, and the deployment-compatible backend merged as `66a7ab6...` through backend PR #32. “Verified” means local synthetic checks against the isolated backend, not a live provider.
+Evidence baseline: stakeholder frontend at initial revision `ec2f05f...`, previous BFF/admin/agent at `8c790eb...`, connected previous-stack backend at `6a7429f...`, and the deployment-compatible backend merged as `66a7ab6...` through backend PR #32. The 2026-09-22 Promo Partner implementation is locally verified against this workspace's Python backend and isolated PostgreSQL service. “Verified” means local synthetic checks, not a live provider or deployment.
 
 | Surface / workflow | Implemented path and authoritative backend evidence | Persistence / async behavior | Status and verification |
 | --- | --- | --- | --- |
@@ -12,7 +12,7 @@ Evidence baseline: stakeholder frontend at initial revision `ec2f05f...`, previo
 | Business DNA profile | `/refined/profile` projects authenticated identity and canonical onboarding responses; section PUTs use the compatibility adapter | Backend onboarding response envelope; identity remains read-only | Integrated; populated/empty/edit/cancel/failure retention/reload and responsive matrix verified |
 | Training questions | `/api/client/atoms` and `/api/client/atoms/[atomId]/decision` feed the existing Questions card | Backend provisional atoms and append-only decision/idempotency behavior | Integrated for confirm and eligible deprecate; failure retention and replay verified |
 | Guidance rules | Approved add/edit/enable UI | Browser local storage only | Demo/local; documented |
-| Writing preferences | Approved Settings controls | Browser local storage only | Demo/local; documented |
+| Appearance preference | Settings Light/Dark/System control | Browser local storage | Integrated; sidebar duplicate removed and responsive matrix exercised |
 | Source listing/upload | `/api/client/documents` → client document endpoints | Backend document row + background pipeline job | Integrated; accepted/processing/atomised/failed are rendered truthfully |
 | Source inspect/reprocess/remove | `/api/client/documents/[documentId]` → client-scoped read/reprocess/delete endpoints | Backend state and idempotent operations | Integrated; cross-tenant/absent ids share 404 |
 | Original source download/name | No previous backend response or route exposes the immutable raw object or original filename to this caller | Raw bytes exist in backend storage but no client contract | Unsupported; local IndexedDB files retain local download |
@@ -21,14 +21,14 @@ Evidence baseline: stakeholder frontend at initial revision `ec2f05f...`, previo
 | End conversation / New post | `start_new_post` chat command from the pre-draft or drafted Workspace | Backend atomically finishes the old session and returns the authoritative replacement | Integrated; pre-draft confirmation and single-command replacement browser-tested |
 | Deterministic keyless validation | `AUTHORITY_AGENT_DRIVER=deterministic` selects a server-only model-decision substitute; it still uses the real loop, Python context, material handles, draft submission and verification | No external model call; real backend state | Test-only and clearly separated from production Anthropic path |
 | Stop/cancel | Browser aborts the open SSE display | Backend has no cancellation signal/endpoint; a turn may finish server-side | Client-side only; UI says so explicitly; deterministic browser coverage holds the request open so the state is exercised without a race |
-| LinkedIn draft create/edit/version | Agent submit, `/content-items/[id]/edit`, version reads | Immutable backend content versions and claims | Integrated; multi-version persistence and reload exercised |
-| X generation | No previous backend channel contract or generation profile | Existing approved fixture/local behavior only | Unsupported; never labelled integrated |
+| Four-channel draft create/revise/version | Closed LinkedIn/Instagram/X/Facebook registry; channel-bound chat sessions; dedicated agent skills; agent submit, edit and version reads | One immutable backend content item/version lineage per channel; sequential multi-channel coordination preserves completed drafts | Integrated with deterministic keyless driver; distinct output, persistence, reload and partial-failure behavior covered. Live writing quality is unverified |
+| Post image attachment | `/api/client/post-media` BFF and Python media routes; exact version binding in edit/history reads | Tenant-owned content-addressed bytes, immutable media rows and append-only version links; approved/scheduled edits require reapproval | Integrated for JPEG/PNG/WebP upload, preview, alt text, replace/remove, reopen/download, old-version retention and neutral cross-tenant denial |
 | Keep draft / Library | Content-item read/create/edit endpoints | Backend ids, versions, transition state | Integrated; direct post link and reload exercised |
 | Approve | `POST /content-items/[id]/approve` | Backend transition ledger | Integrated; remains distinct from scheduling |
 | Schedule/reschedule | schedule endpoint and `/schedule-slots/[slotId]/reschedule`; zone resolved from the authoritative client | Backend slot instant + `slot_zone` | Integrated; reload plus Europe/London normal/DST unit coverage |
 | Unschedule but remain approved | No compatible previous-backend operation | — | Unsupported; no success simulation |
 | Publish/social outcome | No publishing provider integration in the compatible stack | — | Unsupported; no invented posted result |
-| Home and Library statistics | Content/library/calendar/profile reads | Derived from backend results where present | Integrated; absent usage/provider totals render neutral values |
+| Calendar-led Home and Library statistics | Shared content/library/calendar/profile reads; Home selected-day agenda; Library Table/Board | Derived from backend results where present; `needs_reapproval` slots are audit history rather than active schedules | Integrated; no second calendar store or Library Calendar tab; absent usage/provider totals render neutral values |
 | Data export / password recovery email | No compatible operation/provider | — | Unsupported presentation retained |
 | Admin login gate | `INTERNAL_PASSCODE` checked server-side on every internal BFF request | No browser-readable server secret | Retained previous supported gate |
 | Admin People | clients, users, client summary endpoints | Backend client/user rows | Retained; list, create client + first person, inspect |
@@ -46,5 +46,6 @@ Evidence baseline: stakeholder frontend at initial revision `ec2f05f...`, previo
 - `e2e/connected-responsive-matrix.spec.ts` covers the connected Business DNA
   state at 390, 767, 768, 1,179, 1,180 and 1,440 px in light/dark themes.
 - `e2e/admin-design.spec.ts` uses intercepted synthetic responses to pin the redesigned production admin shell at 1,440, 1,000, and 390 px without touching a backend or provider.
+- `e2e/promo-partner-connected.spec.ts` covers four distinct channel drafts, image version history, scheduling/reapproval, Home/Library projection, Settings removals, and Home at 390, 767, 768, 1,179, 1,180 and 1,440 px in both themes.
 - The compatible backend's own complete suite is the authority for RLS, cross-tenant denial, provenance, append-only ledgers, job claims, auth, scheduling, and API wire behavior.
 - Live Anthropic/Voyage, real email, external publishing, and hosted infrastructure were deliberately not exercised.

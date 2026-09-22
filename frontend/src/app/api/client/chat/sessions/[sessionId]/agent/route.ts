@@ -211,19 +211,6 @@ export async function POST(request: Request, { params }: Params) {
   // does not — a malformed one is a 422 at Python's wire, not a local bug.
   if (!UUID.test(turnId)) return refuse("turnId must be a UUID.");
 
-  // §5.1 step 2: resolve the capability profile before the model sees
-  // anything. One entry exists (A4/E3) — "linkedin" is not read from the
-  // request, matching A6: the platform is already known upstream of this
-  // route, so asking the model (or the browser) to name it again would turn
-  // a certainty into a probability for nothing.
-  const profile = resolveProfile("linkedin");
-  const skill = SKILLS[profile.skill];
-  // Task 12: server state, resolved off the SAME profile the model never
-  // chooses (A6) — never off anything the request carries.
-  const skillVersions: SkillVersion[] = [INSTRUCTIONS_VERSION, SKILL_VERSIONS[profile.skill]].filter(
-    (entry): entry is SkillVersion => entry !== null,
-  );
-
   // §5.1 step 3: record the client's turn. Its own response IS the envelope
   // §5.1 step 4 reads — no separate GET is needed, and none is made.
   let envelope: RuntimeSessionEnvelope;
@@ -235,6 +222,15 @@ export async function POST(request: Request, { params }: Params) {
   } catch (error) {
     return forwardProductError(error);
   }
+
+  // The platform is trusted stored session state. The browser chose it only
+  // through the closed create contract; it cannot choose a skill path or
+  // change the platform of an existing session.
+  const profile = resolveProfile(envelope.session.platform);
+  const skill = SKILLS[profile.skill];
+  const skillVersions: SkillVersion[] = [INSTRUCTIONS_VERSION, SKILL_VERSIONS[profile.skill]].filter(
+    (entry): entry is SkillVersion => entry !== null,
+  );
 
   // §5.2: instructions -> skill -> material -> transcript -> bounded context -> current turn.
   // Material is `[]` here per Ruling R2 — it is not turn input.
@@ -300,6 +296,7 @@ export async function POST(request: Request, { params }: Params) {
       const { executor, state } = createExecutor({
         sessionId,
         turnId,
+        selectedVariantId: envelope.selected_variant_id,
         token,
         getUsage: () => runningUsage,
         skillVersions,

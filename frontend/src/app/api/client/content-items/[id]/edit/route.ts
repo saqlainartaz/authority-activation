@@ -36,6 +36,8 @@ export async function POST(request: Request, { params }: Params) {
     idempotency_key: raw.idempotency_key,
     parent_version_id: raw.parent_version_id,
     body: raw.body,
+    media_id: raw.media_id,
+    media_alt_text: raw.media_alt_text,
   } as EditIn;
 
   try {

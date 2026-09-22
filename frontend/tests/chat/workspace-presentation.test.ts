@@ -30,7 +30,7 @@ describe('workspace presentation states', () => {
     expect(TEMPLATES).toHaveLength(4);
     for (const template of TEMPLATES) {
       expect(template.starter.trim()).toMatch(/\.$/);
-      expect(template.starter).toMatch(/write a LinkedIn post/i);
+      expect(template.starter).toMatch(/write a post/i);
       expect(template.starter).toMatch(/choose|strongest|find/i);
     }
   });

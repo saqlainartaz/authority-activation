@@ -18,7 +18,7 @@ export function LogoMark({ size = 34 }: { size?: number }) {
       className="inline-flex shrink-0 items-center justify-center rounded-[9px] bg-accent text-[9px] font-semibold tracking-[-0.03em] text-accent-ink"
       style={{ width: size, height: size }}
     >
-      AA
+      PP
     </span>
   );
 }

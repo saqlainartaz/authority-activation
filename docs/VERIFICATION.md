@@ -1,7 +1,19 @@
 # Verification record
 
-Verified locally on 2026-09-14 and rechecked through 2026-09-21 (Europe/Warsaw). Nothing in this record is a
+Verified locally on 2026-09-14 and rechecked through 2026-09-22 (Europe/Warsaw). Nothing in this record is a
 deployment or live-provider claim.
+
+## Promo Partner connected recheck — 2026-09-22
+
+- Starting frontend state: `main` at `d2ad713ddfb2c31e696367e76ddfb8b5e7af4944`; backend state: `feat/rehaul-c1c-document-lane` at `e419058` with pre-existing work preserved. No commit, push, PR, merge or deployment was made.
+- `ALLOW_MISSING_ENGINE_FIXTURES=1 npm run check` passed after the approved Workspace selector refinement: 22 design tests and 360 Vitest tests across 45 files, TypeScript, and all BFF/agent/static policy gates. The selector defaults new sessions to LinkedIn, uses the approved compact expanding treatment, and no longer contains the temporary A/B/C/D review harness. Standalone schema gates explicitly used their documented no-sibling mode.
+- `npm run build` passed with Next.js 16.3.3, including the new post-media upload/download routes.
+- `e2e/promo-partner-connected.spec.ts` passed again after the preview refinement (1 test in 1.4 minutes) against the local Next development server, local Python service, deterministic TypeScript driver and isolated PostgreSQL database. It covered distinct LinkedIn/Instagram/X/Facebook drafts and multi-channel reload, media attach/preview/replace/remove/download, presentation-only preview controls, exact history, approval invalidation, schedule/Home/Library projection, Settings removals, and Home overflow/screenshots at 390, 767, 768, 1,179, 1,180 and 1,440 px in light and dark.
+- The affected Python gate passed Ruff and 92 tests. Migration 0111's upgrade/downgrade/re-upgrade neutrality proof passed with 38 schema records at head and retained-data downgrade protection separately covered by tests.
+- Test data was synthetic. Anthropic and Voyage were explicitly blank, dotenv loading was disabled, and no live/paid provider, external publishing or private client source was used.
+- The labelled loopback PostgreSQL container `insidesuccess-promo-partner-pg-20260922`, volume `insidesuccess-promo-partner-pgdata-20260922`, port `55443`, and browser database `promo_partner_browser_20260922` are deliberately preserved for handoff as authorized.
+- The browser account was pre-completed through the backend's retained onboarding write contract because this backend checkout's onboarding read does not expose the newer frontend questionnaire catalogue. That compatibility gap predates and is outside the Promo Partner scope; the connected journey from authenticated Home onward used real BFF/Python/database operations.
+- Deterministic drafts validate closed-channel routing, skills, state and provenance only. Live writing quality remains unverified and requires separate provider/budget authorization.
 
 ## Pinned inputs
 

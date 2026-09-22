@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { versionFromReceipt, versionFromVariant } from '@/refined/evidence';
+import { versionFromReceipt, versionFromVariant, versionWithEditedBody } from '@/refined/evidence';
 import { paraText } from '@/shared/data';
 
 describe('connected draft evidence', () => {
@@ -70,5 +70,25 @@ describe('connected draft evidence', () => {
 
     expect(version.sources[0]).toMatchObject({ loc: '' });
     expect(version.sources[0].quote).toBeUndefined();
+  });
+
+  it('edits the full post in one body while retaining only unchanged paragraph evidence', () => {
+    const version = versionFromReceipt('Supported paragraph.\n\nSecond paragraph.', [{
+      ordinal: 1,
+      claim_text: 'Supported paragraph.',
+      quoted_span: 'Supported paragraph.',
+      body_start: 0,
+      body_end: 20,
+      source_label: 'Source document',
+      line: 1,
+      timecode: null,
+      speaker: null,
+    }]);
+    const edited = versionWithEditedBody(version, 'Supported paragraph.\n\n**Edited** second paragraph.');
+
+    expect(edited.paras.map(paraText)).toEqual(['Supported paragraph.', '**Edited** second paragraph.']);
+    expect(edited.paras[0]).toBe(version.paras[0]);
+    expect(edited.paras[1].segs.some(segment => segment.claim)).toBe(false);
+    expect(edited.count).toBe('50 / 3,000');
   });
 });

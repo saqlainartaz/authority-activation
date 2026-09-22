@@ -55,6 +55,9 @@ import type { HandleMap } from "@/agent/render";
 export type ToolContext = {
   sessionId: string;
   turnId: string;
+  /** The server-selected draft at turn start. Required by Python for a
+   * revision and never accepted from the model's tool arguments. */
+  selectedVariantId: string | null;
   handles: HandleMap;
   /**
    * The client's onboarding/session token (final whole-branch review, C1).

@@ -44,8 +44,9 @@ export async function prepareGeneration(
   return createChatContext(context.token, context.sessionId, {
     message: args.message,
     operation: args.operation,
-    subject: args.subject,
-    retrieval_query: args.retrieval_query,
+    ...(args.operation === "revise" && context.selectedVariantId
+      ? { selected_variant_id: context.selectedVariantId }
+      : {}),
     clarification: args.operation === "resume" ? args.message : undefined,
     idempotency_key: derivedKey(context.turnId, "prepare_generation", attempt),
   });

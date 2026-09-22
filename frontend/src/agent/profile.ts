@@ -1,7 +1,7 @@
 import "server-only";
 
 /**
- * A4 — the capability-profile registry. ONE ENTRY THIS CYCLE.
+ * Capability profiles are closed over the four supported social platforms.
  *
  * The route resolves a platform; the platform resolves one bundle of
  * instructions, one skill and one tool allowlist. Additional platforms, and the
@@ -49,6 +49,21 @@ export const PROFILES: Record<string, CapabilityProfile> = Object.freeze({
   linkedin: {
     platform: "linkedin",
     skill: "linkedin-post",
+    tools: TOOL_NAMES,
+  },
+  instagram: {
+    platform: "instagram",
+    skill: "instagram-post",
+    tools: TOOL_NAMES,
+  },
+  x: {
+    platform: "x",
+    skill: "x-post",
+    tools: TOOL_NAMES,
+  },
+  facebook: {
+    platform: "facebook",
+    skill: "facebook-post",
     tools: TOOL_NAMES,
   },
 });

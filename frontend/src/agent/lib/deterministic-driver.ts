@@ -41,6 +41,14 @@ function latestClientMessage(request: DriverRequest): string {
   return match ? decodeBody(match[1]).trim() : "Create a grounded LinkedIn post from the supplied context.";
 }
 
+function platformStyle(request: DriverRequest): { lead: string; label: string } {
+  const system = request.system.map(block => block.text).join("\n");
+  if (system.includes("# Instagram caption")) return { lead: "One detail worth pausing on.", label: "Instagram" };
+  if (system.includes("# X post")) return { lead: "One useful detail:", label: "X" };
+  if (system.includes("# Facebook post")) return { lead: "Here is a detail from behind the work.", label: "Facebook" };
+  return { lead: "A useful detail from your source:", label: "LinkedIn" };
+}
+
 function clientProfile(request: DriverRequest): Record<string, string> | null {
   const message = [...request.messages].reverse().find((entry) => entry.content.includes('<client-profile '));
   if (!message) return null;
@@ -114,14 +122,14 @@ export const deterministicDriver: Driver = {
       const question = prepared.question;
       const prompt = question && typeof question === "object" && typeof (question as { prompt?: unknown }).prompt === "string"
         ? (question as { prompt: string }).prompt
-        : "What should this LinkedIn post be about?";
+        : `What should this ${platformStyle(request).label} post be about?`;
       request.onText(prompt);
       return result({ text: prompt });
     }
     if (!decodedToolResult(request, "submit_draft")) {
       const material = firstMaterial(request);
       const claim = material.text.slice(0, 160).trim();
-      const body = `A useful detail from your source:\n\n${claim}`;
+      const body = `${platformStyle(request).lead}\n\n${claim}`;
       return result({
         stopReason: "tool_use",
         toolCalls: [{

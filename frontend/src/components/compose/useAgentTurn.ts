@@ -6,6 +6,7 @@ import type { AgentEvent } from "@/lib/agent-events";
 import { parseEventFrames } from "@/lib/agent-stream";
 import { postJson } from "@/lib/api";
 import type { ChatSessionEnvelope } from "@/lib/product";
+import type { SocialPlatform } from "@/shared/channels";
 
 /**
  * §5.1's lifecycle, from the browser's side.
@@ -135,10 +136,12 @@ const AGENT_TURN_MAX_CHARS = 4_000;
 
 export function useAgentTurn({
   sessionId,
+  platform,
   onSessionCreated,
   refresh,
 }: {
   sessionId: string | null;
+  platform: SocialPlatform;
   onSessionCreated: (sessionId: string) => void;
   refresh: () => Promise<void>;
 }): { turn: AgentTurnState; send: (message: string) => void; cancel: () => void } {
@@ -226,7 +229,7 @@ export function useAgentTurn({
         // agent route at §5.1 step 3, exactly once.
         const created = await postJson<ChatSessionEnvelope>(
           "/api/client/chat/sessions",
-          { idempotency_key: crypto.randomUUID() },
+          { platform, idempotency_key: crypto.randomUUID() },
         );
         // FIX (coordinator ruling, round 5, second finding). `postJson`
         // (`src/lib/retry-fetch.ts`) takes no `AbortSignal`, so the abort a

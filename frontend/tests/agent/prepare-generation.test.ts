@@ -26,6 +26,7 @@ describe("prepareGeneration — sends the client credential, not the service one
   const context: ToolContext = {
     sessionId: "session-1",
     turnId: "turn-1",
+    selectedVariantId: null,
     handles: new Map(),
     token: "onboarding-token-xyz",
     // Unread by this tool — only submit-draft.ts reads skillVersions.
@@ -123,7 +124,7 @@ describe("prepareGeneration — sends the client credential, not the service one
     });
   });
 
-  it("sends structured intent without rewriting the client's documentary request", async () => {
+  it("sends only fields accepted by Python without rewriting the client's request", async () => {
     let capturedBody = "";
     vi.stubGlobal(
       "fetch",
@@ -158,12 +159,12 @@ describe("prepareGeneration — sends the client credential, not the service one
     expect(JSON.parse(capturedBody)).toMatchObject({
       message: "Write me a post based on my documentary. Find a catchy line from it.",
       operation: "generate",
-      subject: "a strong story or quotable insight from the client's documentary",
-      retrieval_query: "documentary stories, memorable lines, turning points, and lessons",
     });
+    expect(JSON.parse(capturedBody)).not.toHaveProperty("subject");
+    expect(JSON.parse(capturedBody)).not.toHaveProperty("retrieval_query");
   });
 
-  it("keeps an already explicit subject unchanged", async () => {
+  it("derives revision identity from stored runtime state, not model input", async () => {
     let capturedBody = "";
     vi.stubGlobal(
       "fetch",
@@ -190,15 +191,15 @@ describe("prepareGeneration — sends the client credential, not the service one
     const { prepareGeneration } = await import("@/agent/tools/prepare-generation");
     await prepareGeneration({
       message: "Write a post about our onboarding process.",
-      operation: "generate",
+      operation: "revise",
       subject: "the client's onboarding process",
       retrieval_query: "client onboarding process steps lessons and outcomes",
-    }, context);
+    }, { ...context, selectedVariantId: "11111111-1111-1111-1111-111111111111" });
 
     expect(JSON.parse(capturedBody)).toMatchObject({
       message: "Write a post about our onboarding process.",
-      subject: "the client's onboarding process",
-      retrieval_query: "client onboarding process steps lessons and outcomes",
+      operation: "revise",
+      selected_variant_id: "11111111-1111-1111-1111-111111111111",
     });
   });
 });

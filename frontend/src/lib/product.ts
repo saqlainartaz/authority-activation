@@ -23,6 +23,7 @@
 import "server-only";
 
 import type { ContextV1 } from "@/agent/contracts/context";
+import type { SocialPlatform } from "@/shared/channels";
 
 const BASE = process.env.ENGINE_URL;
 const KEY = process.env.ENGINE_SERVICE_KEY;
@@ -699,7 +700,7 @@ export type ChatTerminalState = {
 export type ChatSession = {
   id: string;
   status: "active" | "finished" | "expired";
-  platform: "linkedin";
+  platform: SocialPlatform;
   artifact: "social_post";
   selected_variant_id: string | null;
   /** The session's own hidden content item, published by the engine so a finished
@@ -742,6 +743,7 @@ export type NoActiveChatSession = {
  *  stays tolerant of one being sent. */
 export type ChatSessionCreate = {
   message?: string;
+  platform: SocialPlatform;
   idempotency_key: string;
 };
 
@@ -768,8 +770,8 @@ export type ChatCommandCreate =
   | (ChatConfirmationCommand & { kind: "confirm_durable_fact" | "confirm_constraint" })
   | (ChatCommandBase & { kind: "start_new_post" });
 
-export function activeChatSession(token: string): Promise<ChatSessionEnvelope | NoActiveChatSession> {
-  return clientJson("/v1/chat/sessions/active", token);
+export function activeChatSession(token: string, platform: SocialPlatform): Promise<ChatSessionEnvelope | NoActiveChatSession> {
+  return clientJson(`/v1/chat/sessions/active?platform=${encodeURIComponent(platform)}`, token);
 }
 
 export function createChatSession(token: string, body: ChatSessionCreate): Promise<ChatSessionEnvelope> {
@@ -826,8 +828,7 @@ export type AgentTurnCreate = { text: string; idempotency_key: string };
 export type ChatContextCreate = {
   message: string;
   operation: "generate" | "revise" | "resume";
-  subject: string;
-  retrieval_query: string;
+  selected_variant_id?: string;
   clarification?: string;
   idempotency_key: string;
 };
@@ -1022,6 +1023,18 @@ export type ContentVersionEntry = {
   receipt: ReceiptClaim[];
   untrusted_fields: string[];
   trust: "untrusted";
+  media?: PostMedia | null;
+};
+
+export type PostMedia = {
+  media_id: string;
+  media_type: "image/jpeg" | "image/png" | "image/webp";
+  byte_size: number;
+  width: number;
+  height: number;
+  original_name: string;
+  alt_text: string | null;
+  download_url: string;
 };
 
 export type ContentVersionHistory = {
@@ -1104,6 +1117,8 @@ export type EditIn = {
   idempotency_key: string;
   parent_version_id: string;
   body: string;
+  media_id?: string | null;
+  media_alt_text?: string | null;
 };
 
 export type Edited = {
@@ -1160,6 +1175,21 @@ export function editDraft(token: string, contentItemId: string, body: EditIn): P
     headers: JSON_HEADERS,
     body: JSON.stringify(body),
   });
+}
+
+export async function uploadPostMedia(
+  token: string,
+  file: File,
+  idempotencyKey: string,
+): Promise<PostMedia> {
+  const form = new FormData();
+  form.set("file", file, file.name);
+  form.set("idempotency_key", idempotencyKey);
+  return (await clientFetch("/v1/post-media", token, { method: "POST", body: form })).json() as Promise<PostMedia>;
+}
+
+export function downloadPostMedia(token: string, mediaId: string): Promise<Response> {
+  return clientFetch(`/v1/post-media/${encodeURIComponent(mediaId)}/download`, token);
 }
 
 export function markPosted(token: string, contentItemId: string, body: KeyedIn): Promise<Posted> {

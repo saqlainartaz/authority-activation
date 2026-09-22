@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Authority Activation',
+  title: 'Promo Partner',
   description: 'Source-informed marketing workspace',
   icons: { icon: '/favicon.svg' },
 };
