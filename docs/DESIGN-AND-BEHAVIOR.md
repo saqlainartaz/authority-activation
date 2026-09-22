@@ -2,9 +2,21 @@
 
 This describes the exported implementation after the latest decisions. It replaces the need to carry the earlier design experiments or historical decisions file into the integration repository.
 
+## Promo Partner update — 2026-09-22
+
+The client and operator-facing product is now displayed as **Promo Partner**. Home is calendar-led: the shared authoritative post/schedule projection supplies the month and selected-day agenda, while Library retains Table and Board only. Navigation has one writing destination, **Write a Post**, at the compatible `/refined/workspace` route.
+
+Workspace supports the closed LinkedIn, Instagram, X and Facebook registry. Multi-selection runs one authoritative session/content item per channel and preserves completed channels if another turn fails. Each channel uses its own server-side skill/profile and produces a labelled draft. Post-generation Shorter, Longer and Punchier actions are compact revision chips that use the same revision path as typed instructions.
+
+Each post version may bind one validated static JPEG, PNG or WebP image. Attach, preview, replace, remove, download, save/reopen and exact-version history are connected. Editing text or media creates an immutable version, invalidates approval and moves an existing slot to `needs_reapproval`; old media remains readable. Images are post media, never knowledge sources or model inputs.
+
+Appearance remains in Settings with Light/Dark/System behavior. The sidebar theme control, “Only use my sources,” and the Learning section are absent. The established 768 px navigation and 1,180 px writing-layout boundaries remain.
+
 ## Visual system
 
-The interface uses shadcn/ui on Base UI, with Lucide icons. The assistant conversation uses assistant-ui; calendars use React DayPicker. These are the selected libraries. No alternate component library is needed to run this folder.
+The interface uses shadcn/ui on Base UI, with Lucide icons for product controls and shared Simple Icons brand marks for LinkedIn, Instagram, X and Facebook. Every social-channel surface routes through the same unboxed `ChannelMark` component rather than improvised letters or nested icon tiles. Workspace channel choices extend that mark into one horizontal pill: inactive channels are muted, while the selected pill uses its platform color and a quiet tinted background instead of a separate checkmark. The assistant conversation uses assistant-ui; calendars use React DayPicker. These are the selected libraries.
+
+Workspace channel choices use compact, borderless brand icons without a redundant “Channels” label. LinkedIn is selected by default. A selected channel expands to show its name in a quiet branded pill; on phone layouts, two or more selected channels remain compact tinted icons so the composer does not crowd or overflow.
 
 Interface text uses the operating-system sans-serif stack. Draft prose, source quotations and selected numerical statistics use Iowan Old Style/Georgia/Times New Roman fallbacks. There are no custom font downloads, photography or external image dependencies. Preserve the deliberate distinction between UI text and writing content.
 
@@ -23,7 +35,7 @@ Dark mode uses charcoal surfaces rather than color inversion. Representative tok
 
 The full token definitions are in `refined.css`, `dark.css` and `styles/shadcn.css`. Component-specific styles remain in their existing CSS files; those files, not this abbreviated table, are the source of truth for exact values.
 
-`ThemeProvider` stores Light/Dark/System under `authority-refined-appearance`. Light is the default when no preference exists. System follows media-query changes. A desktop sidebar control switches modes; Settings → Preferences exposes all three choices on desktop and mobile. Toasts and portalled controls use the selected theme.
+`ThemeProvider` stores Light/Dark/System under `authority-refined-appearance`. Light is the default when no preference exists. System follows media-query changes. Settings exposes all three choices on desktop and mobile; there is no sidebar appearance control. Toasts and portalled controls use the selected theme.
 
 Theme scope is attached to `<html data-refined>` with a `.dark` class so dialogs and menus rendered outside the page subtree receive the same tokens. Tailwind preflight and base styles still affect the document. When merging with a host frontend, reconcile those global styles and the host's theme ownership; avoid having two providers fight over the same root class.
 
@@ -40,11 +52,11 @@ The export removes the comparison harness's `?m=1`, `?frame=1` and art-direction
 
 | Route | Behavior |
 | --- | --- |
-| `/refined/home` | Home dashboard |
+| `/refined/home` | Calendar-led Home dashboard |
 | `/refined/workspace` | Fresh writing session |
 | `/refined/workspace?post=<id>` | Load an existing local post |
 | `/refined/workspace?welcome=1` | Post-onboarding welcome when setup is complete |
-| `/refined/library` | Table/board/calendar post library |
+| `/refined/library` | Table/board post library |
 | `/refined/train?tab=questions` | Pending training questions |
 | `/refined/train?tab=knowledge` | Your data and Add files |
 | `/refined/train?tab=guidance` | Guidance rules |
@@ -57,7 +69,7 @@ Settings is a modal/drawer opened from navigation, not a separate route. The sta
 
 ## Home and navigation
 
-Preserve the Home composition: greeting, dark writing call-to-action, today's scheduled posts and the monthly/agent summary. Mobile headers were deliberately restored after removal made the product feel empty. Keep them compact rather than deleting them again. The active bottom-navigation destination has a subtle icon background and stronger label.
+Preserve the approved Home composition: greeting, dominant month calendar with selected-day agenda, and monthly/agent summary. Do not restore the removed duplicate writing hero. Mobile headers remain compact, and the active bottom-navigation destination has a subtle icon background and stronger label.
 
 ## Workspace
 
@@ -73,9 +85,11 @@ The agent is a conversational guide, not a questionnaire gate. Ordinary clarific
 
 Desktop has a conversation and document pane, Write/Preview switching, evidence, editable draft text and a persistent footer beneath the document. That footer exposes **Keep as draft** and **Approve** directly, aligned right. There is no desktop Post actions dropdown.
 
+Preview is presentation-only: it shows the author/channel treatment, image and publishable post body without attachment, text-editing or media-editing controls. Outside Preview, **Replace Image** and a compact delete icon form a right-aligned group in the existing view-control row. Compact Draft mode places a right-aligned, pen-labelled **Edit text** action after a quiet dotted divider and immediately before the post copy. It opens one full-post editor rather than separate paragraph fields; its toolbar supports bold, italic and bullet-list text formatting. The writing surface does not show the image filename, dimensions, download action or image-description field.
+
 Compact layouts keep the full draft inside the conversation stream. Preview post changes that result in place. Evidence expands within the result. Keep as draft and Approve sit above the composer, outside the conversation scroller. The draft must remain visible on small screens, not disappear behind a canvas-only mode.
 
-Shorter/Longer/Punchier suggestion chips were removed. The user types requested changes. Streaming exposes Stop. Stop ends the browser display, while New post replaces the persisted conversation; the compatible backend still cannot cancel a model turn already executing. A failed real operation should preserve the user's input and draft when the backend is connected.
+Shorter/Longer/Punchier are compact post-generation revision chips. They submit through the same current-draft revision path as typed changes and are disabled while conflicting work runs. Streaming exposes Stop. Stop ends the browser display, while New post replaces the persisted conversation; the compatible backend still cannot cancel a model turn already executing. A failed real operation should preserve the user's input and draft when the backend is connected.
 
 The evidence lens distinguishes supported claims and unsupported material. Preview omits paragraphs marked as missing support. Manual paragraph edits clear their previous segment-level evidence metadata; the backend should recompute evidence for changed content rather than retaining stale citations.
 
@@ -87,7 +101,7 @@ Approve opens scheduling. The user may approve without a date or pick a date and
 
 ## Library
 
-Desktop supports Table, Board and Calendar. Mobile puts the view picker in the refined header; search and Filters share a row, and table density is a separate Compact rows switch. Filters open a drawer on mobile rather than a horizontally overflowing toolbar.
+Library supports Table and Board; Calendar now belongs to Home and is not offered as a desktop tab or mobile choice. Mobile puts the remaining view picker in the refined header; search and Filters share a row, and table density is a separate Compact rows switch. Filters open a drawer on mobile rather than a horizontally overflowing toolbar.
 
 The phone Board has status tabs and one vertical lane. Do not restore horizontally scrolling columns on the phone. The table keeps readable titles and status, with secondary columns hidden at narrow widths.
 
@@ -107,7 +121,7 @@ File details expose download and removal. Local unprocessed files are not presen
 
 ## Settings
 
-Keep the sections Account, Preferences, Usage and Data. On mobile the initial section navigation leads to one section at a time, with a Back action. Preferences contains appearance, writing/learning preferences and scheduling timezone. The desktop form uses the same information structure.
+Keep the established Settings modal/drawer and its responsive section navigation. Appearance remains under Preferences with Light/Dark/System. “Only use my sources” and the Learning section were deliberately removed; grounding and provenance remain enforced independently of those removed controls.
 
 ## Sign-in and invitation
 

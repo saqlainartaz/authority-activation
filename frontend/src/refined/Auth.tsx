@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
-export function EntryBrand() { return <div className="rf-entry-brand"><span aria-hidden="true">AA</span><b>Authority<br />Activation</b></div>; }
+export function EntryBrand() { return <div className="rf-entry-brand"><span aria-hidden="true">PP</span><b>Promo<br />Partner</b></div>; }
 export default function Auth({ invite = false }: { invite?: boolean }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();

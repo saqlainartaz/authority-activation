@@ -99,7 +99,7 @@ function PasscodeGate({ onUnlock }: { onUnlock: (passcode: string) => void }) {
     <section className="grid min-h-screen place-items-center bg-surface-3 px-5 py-12">
       <Card className="w-full max-w-[430px] overflow-hidden p-0 shadow-[0_30px_80px_rgba(0,0,0,0.18)]">
         <div className="border-b border-line bg-surface px-7 py-6">
-          <div className="flex items-center gap-3"><LogoMark size={36} /><div><p className="text-[17px] font-bold">Authority</p><p className="text-xs text-muted">Operator workspace</p></div></div>
+          <div className="flex items-center gap-3"><LogoMark size={36} /><div><p className="text-[17px] font-bold">Promo Partner</p><p className="text-xs text-muted">Operator workspace</p></div></div>
         </div>
         <form className="p-7" onSubmit={submit}>
           <Eyebrow>TEAM ONLY</Eyebrow>
@@ -206,7 +206,7 @@ export default function InternalPage() {
       <aside className="internal-sidebar border-b border-line bg-surface">
         <div className="internal-sidebar-inner flex h-full flex-col">
           <div className="internal-brand flex items-center justify-between border-b border-line px-5 py-5">
-            <div className="flex items-center gap-3"><LogoMark size={34} /><div><p className="text-[16px] font-bold">Authority</p><p className="text-[11px] font-medium tracking-[0.12em] text-muted uppercase">Operator</p></div></div>
+            <div className="flex items-center gap-3"><LogoMark size={34} /><div><p className="text-[16px] font-bold">Promo Partner</p><p className="text-[11px] font-medium tracking-[0.12em] text-muted uppercase">Operator</p></div></div>
             <span title="Shared-passcode workspace"><LockKeyhole size={16} className="text-muted" /></span>
           </div>
 

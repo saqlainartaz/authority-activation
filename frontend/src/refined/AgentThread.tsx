@@ -9,7 +9,7 @@ function AssistantMessage() {
   const draft = useContext(DraftResult);
   const isDraft = useAuiState(s => s.message.id === 'current-draft');
   if (isDraft && draft) return <MessagePrimitive.Root className="rf-result-message">{draft}</MessagePrimitive.Root>;
-  return <MessagePrimitive.Root className="rf-agent-message"><span className="rf-agent-mark" aria-hidden="true">AA</span><div><MessagePrimitive.Parts /></div></MessagePrimitive.Root>;
+  return <MessagePrimitive.Root className="rf-agent-message"><span className="rf-agent-mark" aria-hidden="true">PP</span><div><MessagePrimitive.Parts /></div></MessagePrimitive.Root>;
 }
 export default function AgentThread({ ws, inlineDraft = false, draft }: { ws: Workspace; inlineDraft?: boolean; draft?: ReactNode }) {
   const messages = useMemo(() => buildConversationMessages(ws, inlineDraft), [ws.thread, ws.phase, ws.visible, ws.fmt, ws.title, ws.xPosts, inlineDraft]);

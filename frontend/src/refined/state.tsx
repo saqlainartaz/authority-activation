@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { POSTS, FULL, paraText, type Post, type Version } from '@/shared/data';
+import { channelFromAssetKind } from '@/shared/channels';
 import { restoreSetup, setupComplete, type Setup, type SetupAnswer } from './setup-packets';
 
 export type SavedPost = Post & {
@@ -11,15 +12,17 @@ export type SavedPost = Post & {
   backendState?: string | null;
   versionId?: string | null;
   slotId?: string | null;
+  media?: SavedPostMedia | null;
 };
+export type SavedPostMedia = { media_id: string; media_type: 'image/jpeg' | 'image/png' | 'image/webp'; byte_size: number; width: number; height: number; original_name: string; alt_text: string | null; download_url: string };
 export type Rule = { id: string; text: string; enabled: boolean };
 type Profile = { name: string; headline: string };
 type Connection = 'demo' | 'loading' | 'connected' | 'error';
 type Data = { posts: SavedPost[]; answers: Record<string, string[]>; onboarding: Setup; rules: Rule[]; preferences: boolean[]; timeZone: string; profile: Profile; sourceCount: number };
 type LibraryItem = { content_item_id: string; asset_kind: string; state: string | null; latest_version_id: string | null; created_at: string };
-type VersionEntry = { content_version_id: string; body: string; created_at: string };
+type VersionEntry = { content_version_id: string; body: string; created_at: string; media?: SavedPostMedia | null };
 type VersionHistory = { versions: VersionEntry[] };
-type CalendarEnvelope = { slots: Array<{ slot_id: string; slot_at: string; slot_zone: string; content_item_id: string; objective: string }> };
+type CalendarEnvelope = { slots: Array<{ slot_id: string; slot_at: string; slot_zone: string; status: string; content_item_id: string; objective: string }> };
 type ProfileEnvelope = { identity: { display_name: string; profession: string | null; client_name: string; timezone: string }; document_count: number };
 
 const DEMO = process.env.NEXT_PUBLIC_AUTHORITY_DEMO === '1';
@@ -64,16 +67,20 @@ async function loadPosts(): Promise<{ posts: SavedPost[]; profile: ProfileEnvelo
   const posts = library.items.flatMap((item, index): SavedPost[] => {
     const latest = histories[index].versions.find(version => version.content_version_id === item.latest_version_id) ?? histories[index].versions.at(-1);
     if (!latest) return [];
-    const slot = calendar.slots.find(candidate => candidate.content_item_id === item.content_item_id);
+    // A content edit invalidates its approval and moves the prior slot to
+    // `needs_reapproval`.  That slot remains useful audit history, but it is no
+    // longer an active schedule and must not make the edited draft look live.
+    const slot = calendar.slots.find(candidate => candidate.content_item_id === item.content_item_id && candidate.status === 'scheduled');
     const instant = slot ? new Date(slot.slot_at) : null;
     const body = latest.body;
     return [{
-      id: item.content_item_id, ch: 'li', name: slot?.objective?.trim() || body.split(/\r?\n/)[0]?.slice(0, 72) || 'Untitled post', snip: body.split(/\r?\n/)[0] || '', body,
+      id: item.content_item_id, ch: channelFromAssetKind(item.asset_kind) ?? 'li', name: slot?.objective?.trim() || body.split(/\r?\n/)[0]?.slice(0, 72) || 'Untitled post', snip: body.split(/\r?\n/)[0] || '', body,
       status: statusFor(item.state, Boolean(slot)), backendState: item.state, created: displayDate(item.created_at),
       when: instant ? `${new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: slot!.slot_zone }).format(instant)}, ${new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: slot!.slot_zone }).format(instant)}` : undefined,
       date: instant ? new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: slot!.slot_zone }).format(instant) : undefined,
       day: instant ? Number(new Intl.DateTimeFormat('en', { day: 'numeric', timeZone: slot!.slot_zone }).format(instant)) : undefined,
       versionId: latest.content_version_id, slotId: slot?.slot_id ?? null,
+      media: latest.media ?? null,
       version: { paras: body.split(/\r?\n\r?\n/).map(text => ({ g: '', segs: [{ t: text }] })), sources: [], count: `${body.length} / 3,000` },
     }];
   });

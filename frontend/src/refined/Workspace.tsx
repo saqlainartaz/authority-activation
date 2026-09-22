@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ArrowUp, Square, Plus, Pencil, ChevronDown, ChevronLeft, ChevronRight, ListChecks, Star, RotateCcw, MessageSquare, Check, Eye } from 'lucide-react';
+import { ArrowUp, ArrowRight, Square, Plus, Pencil, ChevronDown, ChevronLeft, ChevronRight, ListChecks, Star, RotateCcw, MessageSquare, Eye, ImagePlus, Trash2, Bold, Italic, List } from 'lucide-react';
 import { cn } from 'cn';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,12 +22,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useData } from './state';
 import { useMobile, useTwoPane } from '@/shared/frame';
-import { CITES, COPY, PERSON, TEMPLATES, type Channel, type Para, type Source } from '@/shared/data';
+import { CITES, COPY, PERSON, TEMPLATES, paraText, type Channel, type Para, type Source } from '@/shared/data';
 import { newPostConfirmationKind, showsConversation } from './workspace-presentation';
+import { CHANNELS, CHANNEL_KEYS, DEFAULT_CHANNEL } from '@/shared/channels';
+import FormattedText from './FormattedText';
+import ChannelMark from './ChannelMark';
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = { how: ListChecks, win: Star, mistake: RotateCcw, question: MessageSquare };
 const Mark = ({ ch, className }: { ch: Channel; className?: string }) => (
-  <span className={cn('inline-flex size-4 items-center justify-center rounded-[4px] text-[8px] font-bold text-white', ch === 'li' ? 'bg-[#0A66C2]' : 'bg-black', className)}>{ch === 'li' ? 'in' : 'X'}</span>
+  <ChannelMark channel={ch} className={cn('size-4 rounded-[4px]', className)} />
 );
 
 function Cite({ n, sources }: { n: string; sources: Source[] }) {
@@ -55,9 +58,9 @@ function ParaView({ p, lens, sources, onEdit }: { p: Para; lens: boolean; source
       {p.segs.map((s, i) =>
         s.claim ? (
           <span key={i} className={cn('underline decoration-2 underline-offset-4', s.claim.bad ? 'text-[var(--miss)] decoration-[var(--miss-line)]' : 'decoration-[var(--cite-line)]', lens && 'text-foreground')}>
-            {s.t}<Cite n={s.claim.n} sources={sources} />
+            <FormattedText text={s.t} /><Cite n={s.claim.n} sources={sources} />
           </span>
-        ) : (<span key={i}>{s.t}</span>),
+        ) : (<span key={i}><FormattedText text={s.t} /></span>),
       )}
     </p>
   );
@@ -69,22 +72,15 @@ function Sheet({ ws }: { ws: WS }) {
   if (ws.view === 'preview') {
     return (
       <Card className="sheet mx-auto w-full max-w-[520px]"><CardContent className="pt-6">
-        <div className="mb-4 flex items-center gap-3"><Avatar className="size-10"><AvatarFallback>{PERSON.initials}</AvatarFallback></Avatar><div><p className="text-sm font-semibold leading-tight">{profile.name}</p><p className="text-xs text-muted-foreground">{profile.headline} · {ws.fmt === 'li' ? 'LinkedIn' : 'X'}</p></div></div>
-        {ws.fmt === 'li' ? v.paras.filter((p) => !p.miss).map((p, i) => <p key={i} className="mb-3 font-serif text-[15.5px] leading-[1.72]">{p.segs.map((s) => s.t).join('')}</p>) : ws.xPosts.map((u, i) => <p key={i} className="mb-3 font-serif text-[15px] leading-[1.7]">{u.t}</p>)}
-      </CardContent></Card>
-    );
-  }
-  if (ws.fmt === 'x' && ws.phase === 'record') {
-    return (
-      <Card className="sheet mx-auto w-full max-w-[520px] rounded-b-none"><CardContent className="pt-6">
-        {ws.xPosts.map((u, i) => (
-          <div key={i} className="mb-2 grid grid-cols-[18px_1fr] gap-x-3"><span className="pt-1 text-right font-mono text-[11px] text-muted-foreground">{i + 1}/</span><div className="border-l-2 border-border pb-3 pl-3.5"><p className="m-0 font-serif text-[15px] leading-[1.7]">{u.t}</p><p className="mt-1.5 font-mono text-[11px] text-muted-foreground">{u.n}</p></div></div>
-        ))}
+        <div className="mb-4 flex items-center gap-3"><Avatar className="size-10"><AvatarFallback>{PERSON.initials}</AvatarFallback></Avatar><div><p className="text-sm font-semibold leading-tight">{profile.name}</p><p className="text-xs text-muted-foreground">{profile.headline} · {CHANNELS[ws.fmt].label}</p></div></div>
+        {ws.media && <PostImage ws={ws} editable={false} />}
+        {v.paras.filter((p) => !p.miss).map((p, i) => <p key={i} className="mb-3 font-serif text-[15.5px] leading-[1.72]"><FormattedText text={paraText(p)} /></p>)}
       </CardContent></Card>
     );
   }
   return (
     <Card className={cn('sheet mx-auto w-full max-w-[520px] rounded-b-none', ws.phase === 'streaming' ? 'min-h-[60vh]' : 'min-h-[calc(100%-2.25rem)]')}><CardContent className="pt-6 pb-24">
+      {ws.phase === 'record' && <PostImage ws={ws} />}
       <div className="grid grid-cols-[18px_1fr] gap-x-3 gap-y-3.5">
         {ws.visible.done.map((p, i) => (
           <div key={i} className="contents">
@@ -125,14 +121,76 @@ function Evidence({ ws, iconLens, className }: { ws: WS; iconLens?: boolean; cla
   );
 }
 
+function PostImage({ ws, editable = true }: { ws: WS; editable?: boolean }) {
+  const input = useRef<HTMLInputElement>(null);
+  if (!editable && !ws.media) return null;
+  return <div className="rf-post-media">
+    {ws.media ? <img src={`/api/client/post-media/${encodeURIComponent(ws.media.media_id)}?preview=1`} alt={ws.media.alt_text || ''} /> : <Button variant="outline" size="sm" disabled={ws.mediaUploading} onClick={() => input.current?.click()}><ImagePlus />{ws.mediaUploading ? 'Uploading…' : 'Attach image'}</Button>}
+    {editable && !ws.media && <input ref={input} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={event => { const file = event.target.files?.[0]; if (file) void ws.attachImage(file); event.currentTarget.value = ''; }} />}
+  </div>;
+}
+
+function ImageActions({ ws }: { ws: WS }) {
+  const input = useRef<HTMLInputElement>(null);
+  if (!ws.media) return null;
+  return <div className="rf-image-actions" role="group" aria-label="Image actions">
+    <Button variant="ghost" disabled={ws.mediaUploading} onClick={() => input.current?.click()}><ImagePlus />Replace Image</Button>
+    <Button variant="ghost" size="icon" aria-label="Remove image" title="Remove image" disabled={ws.mediaUploading} onClick={ws.removeImage}><Trash2 /></Button>
+    <input ref={input} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={event => { const file = event.target.files?.[0]; if (file) void ws.attachImage(file); event.currentTarget.value = ''; }} />
+  </div>;
+}
+
+function UnifiedTextEditor({ ws }: { ws: WS }) {
+  const editor = useRef<HTMLTextAreaElement>(null);
+  const body = ws.version.paras.map(paraText).join('\n\n');
+  const restoreSelection = (start: number, end: number) => requestAnimationFrame(() => {
+    editor.current?.focus();
+    editor.current?.setSelectionRange(start, end);
+  });
+  const wrapSelection = (marker: '**' | '_', placeholder: string) => {
+    const field = editor.current;
+    if (!field) return;
+    const start = field.selectionStart;
+    const end = field.selectionEnd;
+    const selected = body.slice(start, end) || placeholder;
+    ws.editBody(`${body.slice(0, start)}${marker}${selected}${marker}${body.slice(end)}`);
+    restoreSelection(start + marker.length, start + marker.length + selected.length);
+  };
+  const toggleList = () => {
+    const field = editor.current;
+    if (!field) return;
+    const start = body.lastIndexOf('\n', Math.max(0, field.selectionStart - 1)) + 1;
+    const nextBreak = body.indexOf('\n', field.selectionEnd);
+    const end = nextBreak === -1 ? body.length : nextBreak;
+    const selected = body.slice(start, end);
+    const lines = selected.split('\n');
+    const remove = lines.every(line => !line.trim() || line.startsWith('• '));
+    const replacement = lines.map(line => remove ? line.replace(/^• /, '') : line ? `• ${line}` : line).join('\n');
+    ws.editBody(`${body.slice(0, start)}${replacement}${body.slice(end)}`);
+    restoreSelection(start, start + replacement.length);
+  };
+  return <div className="rf-unified-editor-shell">
+    <div className="rf-unified-editor-toolbar" role="toolbar" aria-label="Text formatting">
+      <Button variant="ghost" size="icon-sm" aria-label="Bold" title="Bold" onMouseDown={event => event.preventDefault()} onClick={() => wrapSelection('**', 'bold text')}><Bold /></Button>
+      <Button variant="ghost" size="icon-sm" aria-label="Italic" title="Italic" onMouseDown={event => event.preventDefault()} onClick={() => wrapSelection('_', 'italic text')}><Italic /></Button>
+      <Button variant="ghost" size="icon-sm" aria-label="Bulleted list" title="Bulleted list" onMouseDown={event => event.preventDefault()} onClick={toggleList}><List /></Button>
+      <span>{body.length.toLocaleString()} / 3,000</span>
+    </div>
+    <Textarea ref={editor} autoFocus aria-label="Edit post text" className="rf-unified-editor" value={body} maxLength={3000} onChange={event => ws.editBody(event.target.value)} onKeyDown={event => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      if (event.key.toLowerCase() === 'b') { event.preventDefault(); wrapSelection('**', 'bold text'); }
+      if (event.key.toLowerCase() === 'i') { event.preventDefault(); wrapSelection('_', 'italic text'); }
+    }} />
+  </div>;
+}
+
 function FormatTabs({ ws }: { ws: WS }) {
   return (
     <div className="mx-auto mb-2 flex w-full max-w-[520px] items-center">
-      <ToggleGroup value={[ws.fmt]} onValueChange={(v) => { const k = v[v.length - 1]; if (k) ws.setFmt(k as Channel); }} variant="outline" size="sm">
-        {ws.formats.includes('li') && <ToggleGroupItem value="li" className="gap-1.5 px-3"><Mark ch="li" /> LinkedIn</ToggleGroupItem>}
-        {ws.formats.includes('x') && <ToggleGroupItem value="x" className="gap-1.5 px-3"><Mark ch="x" /> X post</ToggleGroupItem>}
-      </ToggleGroup>
-      <span className="locator ml-auto font-mono text-[11px] text-muted-foreground">{ws.phase === 'streaming' ? `${Math.min(ws.pos, ws.total).toLocaleString()} / 3,000` : ws.fmt === 'li' ? ws.version.count : '4 posts'}</span>
+      <div role="tablist" aria-label="Channel drafts" className="rf-channel-choice-list flex items-center gap-1">
+        {ws.formats.map(channel => <Button key={channel} role="tab" aria-selected={ws.fmt === channel} variant="outline" size="sm" data-channel={channel} aria-label={`Show ${CHANNELS[channel].label} draft`} onClick={() => ws.setFmt(channel)} className="rf-channel-choice gap-1.5 px-3"><Mark ch={channel} /><span className="rf-channel-choice-label">{CHANNELS[channel].label}</span></Button>)}
+      </div>
+      <span className="locator ml-auto font-mono text-[11px] text-muted-foreground">{ws.phase === 'streaming' ? `${Math.min(ws.pos, ws.total).toLocaleString()} / 3,000` : ws.version.count}</span>
     </div>
   );
 }
@@ -146,7 +204,7 @@ function Composer({ ws, placeholder, channels, onChannels, initialText, selected
   const submit = () => {
     if (!ws.canSend) return;
     const accepted = ws.phase === 'empty'
-      ? ws.send(text, channels ?? selectedChannels ?? ['li', 'x'])
+      ? ws.send(text, channels ?? selectedChannels ?? [DEFAULT_CHANNEL])
       : ws.askChange(text);
     if (accepted !== false) setText('');
   };
@@ -157,9 +215,8 @@ function Composer({ ws, placeholder, channels, onChannels, initialText, selected
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }} />
         <InputGroupAddon align="block-end">
           {channels && onChannels && (
-            <ToggleGroup multiple value={channels} onValueChange={(v) => onChannels(v as Channel[])} variant="outline" size="sm">
-              <ToggleGroupItem value="li" className="gap-1.5"><Mark ch="li" /> LinkedIn {channels.includes('li') && <Check className="size-3" />}</ToggleGroupItem>
-              <ToggleGroupItem value="x" className="gap-1.5"><Mark ch="x" /> X {channels.includes('x') && <Check className="size-3" />}</ToggleGroupItem>
+            <ToggleGroup multiple value={channels} onValueChange={(v) => onChannels(v as Channel[])} variant="outline" size="sm" className="rf-channel-choice-list" data-selection-count={channels.length}>
+              {CHANNEL_KEYS.map(channel => <ToggleGroupItem key={channel} value={channel} data-channel={channel} aria-label={CHANNELS[channel].label} aria-pressed={channels.includes(channel)} className="rf-channel-choice gap-1.5"><Mark ch={channel} /><span className="rf-channel-choice-label">{CHANNELS[channel].label}</span></ToggleGroupItem>)}
             </ToggleGroup>
           )}
           {ws.phase === 'streaming' || ws.phase === 'reading'
@@ -197,10 +254,12 @@ function InlineDraft({ ws, onRename }: { ws: WS; onRename: () => void }) {
   useEffect(() => { if (streaming) setEditing(false); }, [streaming]);
   return <Card className="rf-inline-draft" role="article" aria-label="Draft result">
     <div className="rf-inline-draft-heading"><span>{streaming ? 'Writing your draft' : ws.status === 'draft' ? 'Draft' : ws.status === 'approved' ? 'Approved' : 'Scheduled'}</span>{!streaming && <Button variant="ghost" size="icon" aria-label="Rename draft" onClick={onRename}><Pencil /></Button>}<h2>{streaming ? 'Your post is taking shape…' : ws.title}</h2></div>
-    <div className="rf-inline-draft-controls"><FormatTabs ws={ws} />{!streaming && <div className="rf-inline-view-controls"><Button variant={preview ? 'secondary' : 'ghost'} aria-pressed={preview} onClick={() => { setEditing(false); ws.setView(preview ? 'write' : 'preview'); }}><Eye />{preview ? 'Back to draft' : 'Preview post'}</Button><Button variant={editing ? 'secondary' : 'ghost'} aria-pressed={editing} onClick={() => { ws.setView('write'); setEditing(value => !value); }} disabled={ws.fmt === 'x'}><Pencil />{editing ? 'Done editing' : 'Edit text'}</Button></div>}</div>
+    <div className="rf-inline-draft-controls"><FormatTabs ws={ws} />{!streaming && <div className="rf-inline-view-controls"><Button variant={preview ? 'secondary' : 'ghost'} aria-pressed={preview} onClick={() => { setEditing(false); ws.setView(preview ? 'write' : 'preview'); }}><Eye />{preview ? 'Back to draft' : 'Preview post'}</Button>{!preview && <ImageActions ws={ws} />}</div>}</div>
     <div className={`rf-inline-draft-text ${preview ? 'rf-inline-feed-preview' : ''}`}>
-      {preview && <div className="rf-inline-author"><Avatar className="size-9"><AvatarFallback>{PERSON.initials}</AvatarFallback></Avatar><span><b>{profile.name}</b><small>{profile.headline} · {ws.fmt === 'li' ? 'LinkedIn' : 'X'}</small></span></div>}
-      {ws.fmt === 'x' && !streaming ? ws.xPosts.map((post, i) => <p className="post-p" key={i}>{post.t}</p>) : ws.visible.done.map((p, i) => preview ? !p.miss && <p className="post-p" key={i}>{p.segs.map(s => s.t).join('')}</p> : editing ? <Textarea key={i} aria-label={`Edit paragraph ${i + 1}`} className="rf-paragraph-editor" value={p.segs.map(s => s.t).join('')} onChange={event => ws.editPara(i, event.target.value)} /> : <div key={i}><ParaView p={p} lens={ws.lens} sources={ws.version.sources} />{p.miss && <span className="rf-inline-needs-source">Needs a source · excluded from the feed preview</span>}</div>)}
+      {preview && <div className="rf-inline-author"><Avatar className="size-9"><AvatarFallback>{PERSON.initials}</AvatarFallback></Avatar><span><b>{profile.name}</b><small>{profile.headline} · {CHANNELS[ws.fmt].label}</small></span></div>}
+      {!streaming && <PostImage ws={ws} editable={!preview} />}
+      {!streaming && !preview && <div className="rf-inline-text-edit"><Button variant={editing ? 'secondary' : 'ghost'} size="sm" aria-pressed={editing} onClick={() => setEditing(value => !value)}><Pencil />{editing ? 'Done editing' : 'Edit text'}</Button></div>}
+      {editing ? <UnifiedTextEditor ws={ws} /> : ws.visible.done.map((p, i) => preview ? !p.miss && <p className="post-p" key={i}><FormattedText text={paraText(p)} /></p> : <div key={i}><ParaView p={p} lens={ws.lens} sources={ws.version.sources} />{p.miss && <span className="rf-inline-needs-source">Needs a source · excluded from the feed preview</span>}</div>)}
       {streaming && <p className="post-p">{ws.visible.partial}<span className="rf-inline-caret" aria-hidden="true" /></p>}
     </div>
     {!streaming && !preview && <Collapsible className="rf-inline-evidence"><CollapsibleTrigger render={<Button variant="ghost" />} className="rf-inline-evidence-trigger"><span>{ws.evidenceShort}</span><ChevronDown /></CollapsibleTrigger><CollapsibleContent><Evidence ws={ws} />{ws.version.sources.length ? <ul>{ws.version.sources.map(source => <li key={source.n}><span>{source.n}. {source.t}</span>{source.loc && <small>{source.loc}</small>}</li>)}</ul> : <p>No source citations in this draft.</p>}</CollapsibleContent></Collapsible>}
@@ -225,7 +284,7 @@ function TemplateCarousel({ onSelect }: { onSelect: (starter: string) => void })
 }
 
 function Fresh({ ws, mobile }: { ws: WS; mobile: boolean }) {
-  const [channels, setChannels] = useState<Channel[]>(['li', 'x']);
+  const [channels, setChannels] = useState<Channel[]>([DEFAULT_CHANNEL]);
   const [starter, setStarter] = useState('');
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', mobile ? '' : 'items-center justify-center overflow-auto')}>
@@ -233,10 +292,9 @@ function Fresh({ ws, mobile }: { ws: WS; mobile: boolean }) {
         {ws.thread.length > 0 && <div className="rf-setup-welcome"><AgentThread ws={ws} /></div>}
         <h2 className={cn('font-semibold tracking-tight', mobile ? 'mt-auto text-[27px] leading-tight' : 'text-2xl')}>{COPY.fresh}</h2>
         {mobile ? <p className="mt-2 mb-6 flex-none text-sm text-muted-foreground">{COPY.freshSub}</p> : (
-          <div className="my-4 flex items-center gap-2 text-xs text-muted-foreground">{COPY.channels}
-            <ToggleGroup multiple value={channels} onValueChange={(v) => setChannels(v as Channel[])} variant="outline" size="sm">
-              <ToggleGroupItem value="li" className="gap-1.5"><Mark ch="li" /> LinkedIn {channels.includes('li') && <Check className="size-3" />}</ToggleGroupItem>
-              <ToggleGroupItem value="x" className="gap-1.5"><Mark ch="x" /> X {channels.includes('x') && <Check className="size-3" />}</ToggleGroupItem>
+          <div className="rf-fresh-channel-row my-4 flex items-center">
+            <ToggleGroup multiple value={channels} onValueChange={(v) => setChannels(v as Channel[])} variant="outline" size="sm" className="rf-channel-choice-list" data-selection-count={channels.length}>
+              {CHANNEL_KEYS.map(channel => <ToggleGroupItem key={channel} value={channel} data-channel={channel} aria-label={CHANNELS[channel].label} aria-pressed={channels.includes(channel)} className="rf-channel-choice gap-1.5"><Mark ch={channel} /><span className="rf-channel-choice-label">{CHANNELS[channel].label}</span></ToggleGroupItem>)}
             </ToggleGroup>
           </div>
         )}
@@ -315,6 +373,7 @@ export default function Workspace() {
             <Badge variant={ws.status === 'approved' ? 'default' : 'secondary'}>{ws.status === 'draft' ? 'Draft' : ws.status === 'approved' ? 'Approved' : 'Scheduled'}</Badge>
             {ws.view === 'write' && <Evidence ws={ws} iconLens={mobile} className="min-w-0" />}
             <Tabs className="ml-auto shrink-0" value={ws.view} onValueChange={(v) => ws.setView(v as 'write' | 'preview')}><TabsList><TabsTrigger value="write">Write</TabsTrigger><TabsTrigger value="preview">Preview</TabsTrigger></TabsList></Tabs>
+            {ws.view === 'write' && <ImageActions ws={ws} />}
           </div>
         )}
       </div>
@@ -322,7 +381,7 @@ export default function Workspace() {
         <FormatTabs ws={ws} />
         <Sheet ws={ws} />
       </div>
-      {ws.phase === 'record' && <footer className="flex flex-none items-center justify-end gap-2 border-t bg-background px-3 py-2.5" aria-label="Draft actions"><Button variant="outline" size="sm" disabled={ws.typing} onClick={ws.keep}>{COPY.keep}</Button><Button size="sm" disabled={ws.typing} onClick={() => setSched(true)}>{COPY.approve}</Button></footer>}
+      {ws.phase === 'record' && <footer className="flex flex-none items-center justify-end gap-2 border-t bg-background px-3 py-2.5" aria-label="Draft actions"><Button variant="outline" size="sm" disabled={ws.typing || ws.mediaUploading} onClick={ws.keep}>{COPY.keep}</Button><Button size="sm" disabled={ws.typing || ws.mediaUploading} onClick={() => setSched(true)}>{COPY.approve}</Button></footer>}
     </div>
   );
 
@@ -332,7 +391,8 @@ export default function Workspace() {
         <>
           <div ref={conversationScroll} onScroll={e => { const panel = e.currentTarget; followConversation.current = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 80; }} className="rf-conversation-scroll flex min-h-0 flex-1 flex-col overflow-auto px-6 py-5"><div className="mx-auto w-full max-w-[680px]"><Thread ws={ws} inlineDraft={!twoPane} draft={!twoPane ? <InlineDraft ws={ws} onRename={() => { setTitle(ws.title); setRename(true); }} /> : undefined} /></div></div>
           <div className="rf-workspace-composer flex-none px-6 pb-5"><div className="mx-auto max-w-[680px]">
-            {!twoPane && ws.phase === 'record' && <div className="rf-composer-post-actions" role="group" aria-label="Post actions"><Button variant="outline" disabled={ws.typing} onClick={ws.keep}>{COPY.keep}</Button><Button disabled={ws.typing} onClick={() => setSched(true)}>{COPY.approve}</Button></div>}
+            {!twoPane && ws.phase === 'record' && <div className="rf-composer-post-actions" role="group" aria-label="Post actions"><Button variant="outline" disabled={ws.typing || ws.mediaUploading} onClick={ws.keep}>{COPY.keep}</Button><Button disabled={ws.typing || ws.mediaUploading} onClick={() => setSched(true)}>{COPY.approve}</Button></div>}
+            {ws.phase === 'record' && <div className="rf-revision-chips" role="group" aria-label="Suggested revisions">{COPY.changes.map(change => <Button key={change} variant="outline" size="sm" disabled={!ws.canSend || ws.typing} onClick={() => ws.askChange(`Make it ${change.toLowerCase()}.`)}>{change}<ArrowRight /></Button>)}</div>}
             <Composer ws={ws} placeholder={COPY.changePlaceholder} />
           </div></div>
         </>
@@ -344,7 +404,7 @@ export default function Workspace() {
   return (
     <div className="relative flex min-h-0 flex-1 flex-col bg-background text-foreground">
       <header className="rf-workspace-header rf-refined-header flex h-13 flex-none items-center gap-2 border-b px-4">
-        <PageHeading title="Workspace" />
+        <PageHeading title="Write a Post" />
         <span className="flex-1" />
         {newPostKind && <Button variant="ghost" size="sm" className="rf-header-new-post" onClick={tryNew}><Plus /> {COPY.newPost}</Button>}
       </header>

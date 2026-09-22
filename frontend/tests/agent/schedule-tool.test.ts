@@ -35,7 +35,7 @@ import type { ToolContext } from "@/agent/lib/backend";
 import { schedule } from "@/agent/tools/schedule";
 
 // Unread by this tool — only submit-draft.ts reads skillVersions.
-const context: ToolContext = { sessionId: "session-1", turnId: "turn-1", handles: new Map(), token: "token-abc", skillVersions: [] };
+const context: ToolContext = { sessionId: "session-1", turnId: "turn-1", selectedVariantId: null, handles: new Map(), token: "token-abc", skillVersions: [] };
 
 describe("schedule — resolves the client's timezone server-side", () => {
   beforeEach(() => {

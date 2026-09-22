@@ -46,6 +46,7 @@ function build() {
   return createExecutor({
     sessionId: "session-1",
     turnId: "11111111-1111-1111-1111-111111111111",
+    selectedVariantId: null,
     token: "token-abc",
     getUsage: () => NO_USAGE,
     skillVersions: SKILL_VERSIONS,
@@ -383,6 +384,7 @@ describe("item 3, through the real executor — a local pre-flight hold spends n
     const { executor } = createExecutor({
       sessionId: "session-1",
       turnId: "11111111-1111-1111-1111-111111111111",
+      selectedVariantId: null,
       token: "token-abc",
       getUsage: () => NO_USAGE_2,
       skillVersions: SKILL_VERSIONS,

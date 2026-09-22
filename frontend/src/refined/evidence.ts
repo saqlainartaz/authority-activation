@@ -1,4 +1,4 @@
-import type { Para, Source, Version } from '@/shared/data';
+import { paraText, type Para, type Source, type Version } from '@/shared/data';
 
 export type ReceiptClaim = {
   ordinal: number;
@@ -58,6 +58,18 @@ export function versionFromVariant(variant: {
   return variant.receipt?.length
     ? versionFromReceipt(variant.body, variant.receipt)
     : versionFromBody(variant.body, variant.sources ?? []);
+}
+
+export function versionWithEditedBody(version: Version, body: string): Version {
+  const paragraphs = body.split(/\r?\n\r?\n/);
+  return {
+    ...version,
+    paras: paragraphs.map((text, index) => {
+      const current = version.paras[index];
+      return current && paraText(current) === text ? current : { g: '', segs: [{ t: text }] };
+    }),
+    count: count(body),
+  };
 }
 
 export function versionFromReceipt(body: string, receipt: ReceiptClaim[]): Version {

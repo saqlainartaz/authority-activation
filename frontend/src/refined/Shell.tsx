@@ -1,13 +1,12 @@
 import { type CSSProperties, type ReactNode } from 'react';
 import { NavLink } from './navigation';
-import { BookOpen, Brain, ChevronLeft, ChevronRight, Fingerprint, Home, MessageSquare, Settings, Moon, Sun } from 'lucide-react';
-import { useTheme } from './Theme';
+import { BookOpen, Brain, ChevronLeft, ChevronRight, Fingerprint, Home, MessageSquare, Settings } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, useSidebar } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 
 const destinations = [
   { id: 'home', title: 'Home', icon: Home },
-  { id: 'workspace', title: 'Workspace', icon: MessageSquare },
+  { id: 'workspace', title: 'Write a Post', icon: MessageSquare },
   { id: 'library', title: 'Library', icon: BookOpen },
   { id: 'train', title: 'Train your AI', icon: Brain },
   { id: 'profile', title: 'Business DNA', icon: Fingerprint },
@@ -21,16 +20,15 @@ function Collapse() {
 }
 
 export default function Shell({ active, children, onSettings, questions }: { active: string; children: ReactNode; onSettings: () => void; questions: number }) {
-  const { dark, setAppearance } = useTheme();
   return <SidebarProvider className="rf-shell" style={{ '--sidebar-width': '190px', '--sidebar-width-icon': '56px' } as CSSProperties}>
     <Sidebar collapsible="icon" className="rf-sidebar">
-      <SidebarHeader className="rf-brand-header"><NavLink to="/refined/home" className="rf-brand" aria-label="Authority Activation home"><span className="rf-logo">AA</span><span className="rf-brand-name">Authority Activation</span></NavLink></SidebarHeader>
+      <SidebarHeader className="rf-brand-header"><NavLink to="/refined/home" className="rf-brand" aria-label="Promo Partner home"><span className="rf-logo">PP</span><span className="rf-brand-name">Promo Partner</span></NavLink></SidebarHeader>
       <SidebarContent><SidebarGroup><SidebarGroupContent><SidebarMenu>
         {destinations.map(({ id, title, icon: Icon }) => <SidebarMenuItem key={id}>
           <SidebarMenuButton render={<NavLink to={`/refined/${id}`} />} aria-label={title} isActive={active === id} tooltip={title} className="rf-nav"><Icon /><span>{title}</span>{id === 'train' && questions > 0 && <i className="rf-unread" aria-label={`${questions} unanswered questions`} />}</SidebarMenuButton>
         </SidebarMenuItem>)}
       </SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent>
-      <SidebarFooter><SidebarMenu><SidebarMenuItem><SidebarMenuButton className="rf-nav" aria-label="Settings" tooltip="Settings" onClick={onSettings}><Settings /><span>Settings</span></SidebarMenuButton></SidebarMenuItem><SidebarMenuItem><SidebarMenuButton className="rf-nav" aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} tooltip={dark ? 'Light mode' : 'Dark mode'} onClick={() => setAppearance(dark ? 'light' : 'dark')}>{dark ? <Sun /> : <Moon />}<span>{dark ? 'Light mode' : 'Dark mode'}</span></SidebarMenuButton></SidebarMenuItem><SidebarMenuItem><Collapse /></SidebarMenuItem></SidebarMenu></SidebarFooter>
+      <SidebarFooter><SidebarMenu><SidebarMenuItem><SidebarMenuButton className="rf-nav" aria-label="Settings" tooltip="Settings" onClick={onSettings}><Settings /><span>Settings</span></SidebarMenuButton></SidebarMenuItem><SidebarMenuItem><Collapse /></SidebarMenuItem></SidebarMenu></SidebarFooter>
     </Sidebar>
     <SidebarInset className="rf-main"><div className="rf-page">{children}</div>
       <nav className="rf-mobile-nav" aria-label="Main navigation">{destinations.map(({ id, title, icon: Icon }) => <NavLink key={id} to={`/refined/${id}`}><Icon /><span>{id === 'train' ? 'Train' : id === 'profile' ? 'DNA' : title}</span>{id === 'train' && questions > 0 && <i className="rf-unread" />}</NavLink>)}<Button variant="ghost" onClick={onSettings}><Settings /><span>Settings</span></Button></nav>

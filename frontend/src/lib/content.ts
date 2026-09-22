@@ -4,8 +4,8 @@
  */
 
 export const brand = {
-  product: "Authority Activation",
-  short: "Authority",
+  product: "Promo Partner",
+  short: "Promo Partner",
   by: "Inside Success",
 };
 

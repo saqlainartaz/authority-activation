@@ -59,6 +59,7 @@ export type ExecutorState = {
 export type CreateExecutorOptions = {
   sessionId: string;
   turnId: string;
+  selectedVariantId: string | null;
   /** The client's onboarding/session token for this turn (final whole-branch
    *  review, C1) — read once by `route.ts` via `requireClientToken()` and
    *  threaded through every `ToolContext` this executor builds, rather than
@@ -159,6 +160,7 @@ export function createExecutor(options: CreateExecutorOptions): { executor: Tool
     const context: ToolContext = {
       sessionId: options.sessionId,
       turnId: options.turnId,
+      selectedVariantId: options.selectedVariantId,
       handles: state.handles,
       token: options.token,
       skillVersions: options.skillVersions,

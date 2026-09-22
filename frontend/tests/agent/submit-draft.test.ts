@@ -41,6 +41,7 @@ describe("submitDraft — unwrapping Python's nested payload", () => {
   const context: ToolContext = {
     sessionId: "session-1",
     turnId: "turn-1",
+    selectedVariantId: null,
     handles,
     token: "onboarding-token-xyz",
     skillVersions: [

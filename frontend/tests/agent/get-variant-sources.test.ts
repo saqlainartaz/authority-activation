@@ -28,6 +28,7 @@ describe("getVariantSources — calls the real route and never stubs", () => {
   const context: ToolContext = {
     sessionId: "session-1",
     turnId: "turn-1",
+    selectedVariantId: null,
     handles: new Map(),
     token: "onboarding-token-xyz",
     skillVersions: [],

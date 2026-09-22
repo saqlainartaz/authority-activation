@@ -26,7 +26,7 @@ function RefinedApp() {
   const questions = trainingBadgeCount(d.isDemo, d.answers);
   const location = useLocation();
   const [settings, setSettings] = useState(false);
-  useEffect(() => { document.documentElement.dataset.refined = 'true'; document.title = 'Authority Activation'; return () => { delete document.documentElement.dataset.refined; }; }, []);
+  useEffect(() => { document.documentElement.dataset.refined = 'true'; document.title = 'Promo Partner'; return () => { delete document.documentElement.dataset.refined; }; }, []);
   const entry = location.pathname.split('/')[2];
   if (['signin', 'invite', 'onboarding'].includes(entry)) return <TooltipProvider delay={350}>{entry === 'onboarding' ? <Onboarding /> : <Auth key={entry} invite={entry === 'invite'} />}<Toaster theme={dark ? 'dark' : 'light'} position="bottom-right" richColors /></TooltipProvider>;
   const screen = entry === 'workspace' ? <Workspace /> : entry === 'library' ? <Library /> : entry === 'train' ? <Training /> : entry === 'profile' ? <BusinessDna /> : <Home questions={questions} />;
