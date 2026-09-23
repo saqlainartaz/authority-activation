@@ -40,6 +40,6 @@ export default defineConfig({
     // the Library additions exercise pure sort/page helpers with no DOM.
     environment: "node",
     include: ["tests/**/*.test.ts"],
-    exclude: ["tests/chat/chat-path.test.ts"],
+    exclude: ["tests/chat/chat-path.test.ts", "tests/render/**/*.test.ts"],
   },
 });

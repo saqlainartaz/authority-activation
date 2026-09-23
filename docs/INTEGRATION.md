@@ -4,6 +4,31 @@
 
 ## Current Promo Partner integration — 2026-09-22
 
+### Assistant response formatting — 2026-09-23
+
+Assistant conversation text now renders CommonMark paragraphs, bold/italic,
+lists, headings, quotes and code through `AssistantMarkdown`. The assistant-ui
+Text component override does not change user-message rendering, the separate
+draft result, stored bodies or citation spans. Response text uses the existing
+foreground token rather than muted text; bold is weight 700 in both themes.
+
+Dependency review: pinned `react-markdown@10.1.0`, MIT license inspected in the
+installed package; upstream [documentation](https://github.com/remarkjs/react-markdown)
+reviewed. No raw HTML plugin is enabled. Raw HTML and images are excluded, and
+only explicit HTTP/HTTPS/mailto links are clickable, with noopener/noreferrer.
+The install audit reported zero vulnerabilities at this checkpoint.
+
+Verification: typecheck and production build passed; 22 design, 367 existing
+Vitest and 5 new rendering tests passed. Client-render tests use a separate
+normal-React configuration without changing the agent tests' react-server
+conditions. `node scripts/check-assistant-markdown.mjs` renders the actual
+component with production CSS in an isolated browser using synthetic text.
+With `PLAYWRIGHT_CHANNEL=chrome`, light/dark checks at widths 390 and 1280 passed:
+real bold/list elements, correct foreground colors and no horizontal overflow.
+Screenshots were inspected. This is not an authenticated production chat test.
+The browser-use skill was attempted but its installed CLI differs from the skill;
+the isolated Playwright check was used instead. No live AI or production writes.
+
 ### Concise social writing defaults — 2026-09-23
 
 LinkedIn skill 1.2.2 aims for 100-150 words, below 180 unless a longer post is
