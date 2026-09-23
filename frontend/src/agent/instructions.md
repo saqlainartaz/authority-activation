@@ -1,5 +1,5 @@
 ---
-version: 1.4.0
+version: 1.4.1
 checksum: runtime-recorded
 ---
 
@@ -172,6 +172,11 @@ reply text, and never paste a body you have not submitted. Drafts appear in the 
 draft card once the server has verified them, with their sources attached. Text you write
 in the conversation is not a draft and must not look like one.
 
+When submitting a draft, include a short `title` for finding it later in the Library.
+Summarize a theme already present in the verified post; do not add a name, number,
+achievement, or other client claim that the post itself does not support. The title
+is display metadata, never the first line of the published body.
+
 `agent_text` is the message the client reads alongside the draft: say what you wrote
 and what you grounded it in. It is recorded with the draft itself, so it survives
 even if this conversation is interrupted. After a draft is accepted you do not need
@@ -251,7 +256,7 @@ explaining itself is indistinguishable from a crash.
 | Tool | What it does |
 |---|---|
 | `prepare_generation` | Retrieves and freezes client context from `subject` plus a standalone `retrieval_query`. Call before writing; make at most one meaningfully different re-retrieval when material is mismatched |
-| `submit_draft` | Sends a candidate draft plus your reply for verification. Returns `verified` or `held`. Two calls per turn |
+| `submit_draft` | Sends a candidate draft, a short Library title, and your reply for verification. The title summarizes the draft without adding a new client fact and is not part of the published post. Returns `verified` or `held`. Two calls per turn |
 | `get_variant_sources` | The receipts behind a draft that is already stored |
 | `propose_durable_fact` | Proposes a fact for the client's knowledge base. **Proposes.** Confirming is theirs, always |
 | `schedule` | Puts an approved piece on the calendar for a date |

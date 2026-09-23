@@ -3,6 +3,20 @@
 Verified locally on 2026-09-14 and rechecked through 2026-09-22 (Europe/Warsaw). Nothing in this record is a
 deployment or live-provider claim.
 
+## Local Library lifecycle follow-up — 2026-09-23
+
+- The Library preview has no “Open in workspace” control. It now offers Return to Draft for scheduled items and Delete for draft, approved, scheduled, or posted items. Delete confirms that ordinary Library removal retains text/image/history and does not remove an already-published LinkedIn post.
+- The backend stores a display title independently of the generation objective. A verified agent variant can propose a short title; Workspace renames persist, and old posts fall back to their first line instead of showing “Chat generation.”
+- Local disposable-PostgreSQL tests covered tenant-scoped title writes, planned schedule withdrawal, queued-job cancellation, refusal of a claimed job, archive visibility and retained history. The affected backend suite passed 162 tests and migration 0115 passed the upgrade/downgrade/re-upgrade neutrality check; frontend typecheck, 22 design tests, 344 Vitest tests, production build and two 390/1440 px synthetic-media browser checks passed. No live LinkedIn publishing or production data was touched.
+- Agent/static gates passed with `ALLOW_MISSING_ENGINE_FIXTURES=1`; the standalone frontend checkout did not compare its vendored draft/context schemas to a sibling `backend/` fixture. Backend API tests and the local TypeScript mirror were checked separately.
+
+## Library image preview correction — 2026-09-23
+
+- A production Library card with an attached PNG showed a queued LinkedIn publication for 05:27 Europe/London. At observation time (about 03:31 UTC), that instant was still in the future; no provider failure was established. The production publish worker health endpoint reported idle/healthy. The corresponding 05:27 Warsaw time would be one hour earlier. No live schedule, account, or publication was changed.
+- Locally, the Library preview now constrains wide images and long filenames inside its dialog, limits dialog height with scrolling, and removes the redundant **Open** footer action. The Workspace image wrapper also constrains image width. These changes are not deployed by this record.
+- `npm run typecheck`, `npm test` (22 design and 344 Vitest tests, including 8 focused Library tests), `npm run build`, and the new synthetic-media Playwright layout check at 390 px and 1440 px (2 tests) passed. The browser layout check validates containment and footer reachability with an oversized image; it is not a live-provider or authenticated production journey.
+- Initial `npm ci` was blocked by locked Windows native package files. `npm install --no-audit --no-fund` completed with warnings about locked cleanup copies and enabled the checks. No dependency manifest or lockfile change was made.
+
 ## Promo Partner connected recheck — 2026-09-22
 
 - Starting frontend state: `main` at `d2ad713ddfb2c31e696367e76ddfb8b5e7af4944`; backend state: `feat/rehaul-c1c-document-lane` at `e419058` with pre-existing work preserved.
@@ -371,3 +385,52 @@ raw fixtures and two locally extracted Playwright trace directories remain only
 as ignored task-owned files because the environment safety layer refused their
 recursive deletion after exact-path validation. They contain no client material
 and are not services or databases.
+
+## Library detail layout — 2026-09-23 local check
+
+- The Library detail dialog now uses a rounded, two-column desktop layout:
+  content and contained media on the left; title, status, channel, schedule,
+  delivery information, and existing actions on the right. At phone width it
+  stacks those sections and keeps actions reachable.
+- The dedicated layout test passed at 390px and 1440px, including a large image,
+  long filename, and scroll-to-action checks. Frontend typecheck and production
+  build passed. A synthetic local screenshot was captured from the compiled CSS;
+  it is a layout fixture, not an authenticated application screenshot.
+- The existing localhost:3000 development server stopped responding during
+  this check. A separate production preview started but required sign-in, so
+  the authenticated Library dialog was not visually verified in a live session.
+- Follow-up visual refinement keeps the same two-column layout but replaces
+  the equal-weight stack of outlined actions with a primary scheduling action,
+  secondary lifecycle action, quiet copy/image utilities, and a separate delete
+  action using the shared Button variants. The social preview uses the
+  application's sans-serif UI font and the current profile name/headline rather
+  than hard-coded author text. Typecheck, production build, and the 390px/1440px
+  layout tests pass. The restarted local development server responds on port
+  3000; an authenticated account view still requires the operator to sign in.
+- For password-free visual review, a separate Vite harness on loopback port
+  3106 mounts the actual Library component and shared CSS/Button components
+  with synthetic, browser-local demo posts, including a contained image. Its
+  task-owned files live under ignored `frontend/node_modules/.cache/library-review/`.
+  The dialog and image were visually checked in Chrome. This is not an
+  authenticated client session and cannot verify backend-connected actions.
+- The next owner-requested detail refinement removes the image's enclosing
+  letterbox/frame, filename caption and download action. Copy text has no
+  icon and pairs directly with the relabelled Delete post action. The
+  production component was visually checked in the loopback review page with
+  synthetic media; typecheck, the two-width layout test and production build
+  passed. No deletion or social publishing operation was exercised.
+- The Library display controls were moved from the row above the status
+  filters into Settings → Preferences → Appearance. New browser sessions use
+  Table with Compact rows off; choices persist in browser local storage and
+  apply when returning to Library. The status, channel, and date filters were
+  left in place. The local synthetic review page showed the defaults and a
+  live switch to Board/compact and back. The display parser's three focused
+  tests, frontend typecheck, and production build passed. This was not an
+  authenticated backend session.
+- Final pre-PR review corrected two follow-ups: saving a post no longer
+  overwrites a manually renamed title, and a calendar-scheduled item always
+  shows **Scheduled** as its primary Library status. Delivery readiness stays
+  in the detail view. The browser-use skill's CLI was unavailable in this
+  environment, so the existing local Chrome review tab was used to verify
+  the status/detail split and Appearance defaults with synthetic posts. This
+  does not verify authenticated backend actions or live LinkedIn delivery.

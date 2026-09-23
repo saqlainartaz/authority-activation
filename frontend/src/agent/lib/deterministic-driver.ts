@@ -137,6 +137,7 @@ export const deterministicDriver: Driver = {
           name: "submit_draft",
           input: {
             body,
+            title: claim.slice(0, 72),
             cited_atom_ids: [{ handle: material.handle, quoted_span: claim, claim_text: claim }],
             agent_text: "I drafted this from a verified source in your knowledge base.",
           },

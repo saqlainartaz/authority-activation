@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from './navigation';
 import { format } from 'date-fns';
-import { Check, Copy, Download, Search, List, Columns3, SlidersHorizontal } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import { Radio } from '@base-ui/react/radio';
 import { RadioGroup } from '@base-ui/react/radio-group';
 import { toast } from 'sonner';
@@ -14,8 +13,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Drawer, DrawerTrigger, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from '@/components/ui/drawer';
 import { useData, type SavedPost } from './state';
@@ -35,34 +32,30 @@ function backendLabel(value?: string | null) {
   if (!value) return null;
   return value.replaceAll('_', ' ').replace(/^./, letter => letter.toUpperCase());
 }
-function scheduleLabel(post: SavedPost): string {
-  if (post.status !== 'scheduled') return backendLabel(post.backendState) || labels[post.status];
-  if (post.ch !== 'li' || post.publication?.status === 'planned') return 'Planned';
-  if (post.publication?.status === 'connection_required') return 'Connection required';
-  return labels.scheduled;
-}
 function Status({ value, backendState, post }: { value: keyof typeof labels; backendState?: string | null; post?: SavedPost }) {
-  const label = post ? scheduleLabel(post) : value === 'scheduled' ? labels.scheduled : backendLabel(backendState) || labels[value];
+  const label = value === 'scheduled' || post?.status === 'scheduled' ? labels.scheduled : backendLabel(backendState) || labels[value];
   return <Badge variant="outline" className={`rf-status rf-status-${value}`}><i />{label}</Badge>;
 }
 export default function Library() {
   const d = useData();
   const today = d.isDemo ? new Date(2026, 2, 4) : new Date();
-  const navigate = useNavigate();
   const mobile = useMobile();
   const [boardStatus, setBoardStatus] = useState('draft');
-  const [view, setView] = useState('table');
+  const view = d.libraryView;
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('all');
   const [channels, setChannels] = useState<string[]>([]);
   const [date, setDate] = useState<Date>();
   const [peekId, setPeekId] = useState<number | string | null>(null);
   const [schedule, setSchedule] = useState(false);
-  const [compact, setCompact] = useState(false);
+  const compact = d.compactRows;
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [publishingEnabled, setPublishingEnabled] = useState(false);
   const [linkedInConnected, setLinkedInConnected] = useState(false);
   const [postingId, setPostingId] = useState<string | null>(null);
+  const [withdrawingId, setWithdrawingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<SavedPost['id'] | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [pendingPublicationId, setPendingPublicationId] = useState<string | null>(null);
   useEffect(() => {
     if (d.isDemo) return;
@@ -102,13 +95,13 @@ export default function Library() {
     return () => { active = false; window.clearInterval(timer); };
   }, [pendingPublicationId, d.refreshPosts]);
   const peek = d.posts.find(p => p.id === peekId);
+  const deleteTarget = d.posts.find(p => p.id === deleteId);
   const selectedScheduleZone = scheduleZone(peek ?? null, d.timeZone);
   const filtered = d.posts.filter(p => (status === 'all' || p.status === status) && (!channels.length || channels.includes(p.ch)) && (!query || `${p.name} ${p.body}`.toLowerCase().includes(query.toLowerCase())) && (!date || p.date === format(date, 'yyyy-MM-dd')));
   const hasFilters = status !== 'all' || channels.length > 0 || !!query || !!date;
   const filterCount = Number(status !== 'all') + Number(channels.length > 0) + Number(!!date);
   const filterSummary = [status !== 'all' && labels[status as keyof typeof labels], channels.length > 0 && channels.map(c => CHANNELS[c as Channel].label).join(' + '), date && format(date, 'd MMM')].filter(Boolean).join(' · ');
   const statusCount = (value: string) => d.posts.filter(p => (value === 'all' || p.status === value) && (!channels.length || channels.includes(p.ch)) && (!query || `${p.name} ${p.body}`.toLowerCase().includes(query.toLowerCase())) && (!date || p.date === format(date, 'yyyy-MM-dd'))).length;
-  const densityControl = <label className="rf-density-control">Compact rows<Switch checked={compact} onCheckedChange={setCompact} /></label>;
   const searchControl = <div className="rf-library-search"><Search /><Input placeholder="Search posts" aria-label="Search posts" value={query} onChange={e => setQuery(e.target.value)} /></div>;
   const boardLane = status === 'all' ? boardStatus : status;
   const boardPosts = (value: string) => filtered.filter(p => p.status === value).map(post => <button key={post.id} className="rf-board-post" onClick={() => setPeekId(post.id)}><Card><CardContent><ChannelMark channel={post.ch} /><h3>{post.name}</h3><p>{post.body.split('\n')[0]}</p><small>{post.when || post.created}</small></CardContent></Card></button>);
@@ -124,6 +117,34 @@ export default function Library() {
       await d.refreshPosts();
     } catch (reason) { toast.error(reason instanceof Error ? reason.message : 'Could not queue the post.'); }
     finally { setPostingId(null); }
+  };
+  const returnToDraft = async (post: SavedPost) => {
+    if (d.isDemo || typeof post.id === 'number') {
+      d.savePostLocal({ ...post, status: 'draft', when: undefined, date: undefined, day: undefined, slotId: null, slotZone: null, publication: null });
+      toast.success('Returned to Draft');
+      return;
+    }
+    setWithdrawingId(post.id);
+    try {
+      await postJson(`/api/client/content-items/${encodeURIComponent(post.id)}/return-to-draft`, undefined, { idempotencyKey: crypto.randomUUID() });
+      await d.refreshPosts();
+      toast.success('Schedule cancelled. Post returned to Draft.');
+      setPeekId(null);
+    } catch (reason) { toast.error(reason instanceof Error ? reason.message : 'Could not withdraw the schedule.'); }
+    finally { setWithdrawingId(null); }
+  };
+  const deletePost = async (post: SavedPost) => {
+    setDeleting(true);
+    try {
+      if (d.isDemo || typeof post.id === 'number') d.removePostLocal(post.id);
+      else {
+        await postJson(`/api/client/content-items/${encodeURIComponent(post.id)}/delete`, undefined, { idempotencyKey: crypto.randomUUID() });
+        await d.refreshPosts();
+      }
+      setDeleteId(null);
+      toast.success('Post removed from Library');
+    } catch (reason) { toast.error(reason instanceof Error ? reason.message : 'Could not remove this post.'); }
+    finally { setDeleting(false); }
   };
   const applySchedule = async (when: string, date?: string, time?: string) => {
     if (!peek) return;
@@ -151,9 +172,8 @@ export default function Library() {
     } catch (reason) { toast.error(reason instanceof Error ? reason.message : 'The schedule was not changed.'); }
   };
   return <>
-    <header className="rf-topbar rf-refined-header rf-library-header"><PageHeading title="Library" />{mobile ? <Select value={view} onValueChange={value => value && setView(String(value))}><SelectTrigger aria-label="Library view" className="rf-library-view-picker"><SelectValue>{view === 'table' ? 'Table' : 'Board'}</SelectValue></SelectTrigger><SelectContent align="end" alignItemWithTrigger={false}><SelectItem value="table"><List />Table</SelectItem><SelectItem value="board"><Columns3 />Board</SelectItem></SelectContent></Select> : searchControl}</header>
-    <Tabs value={view} onValueChange={value => setView(String(value))} className="rf-library-tabs">
-      <div className="rf-library-toolbar"><TabsList aria-label="Library view"><TabsTrigger value="table"><List /> Table</TabsTrigger><TabsTrigger value="board"><Columns3 /> Board</TabsTrigger></TabsList>{view === 'table' && <div className="rf-desktop-density">{densityControl}</div>}</div>
+    <header className="rf-topbar rf-refined-header rf-library-header"><PageHeading title="Library" />{!mobile && searchControl}</header>
+    <Tabs value={view} className="rf-library-tabs">
       <div className="rf-library-mobile-filters">
         {mobile && searchControl}
         <Drawer open={filtersOpen} onOpenChange={setFiltersOpen} showSwipeHandle><DrawerTrigger render={<Button variant="outline" className="rf-mobile-filter-trigger" />}><SlidersHorizontal />Filters{filterCount > 0 && <span className="rf-count">{filterCount}</span>}</DrawerTrigger>
@@ -163,7 +183,7 @@ export default function Library() {
             <label className="rf-filter-date">Scheduled date<Input type="date" value={date ? format(date, 'yyyy-MM-dd') : ''} onChange={event => setDate(event.target.value ? new Date(`${event.target.value}T12:00:00`) : undefined)} /></label>
           </div><DrawerFooter><Button variant="ghost" disabled={!hasFilters} onClick={clear}>Clear filters</Button><Button onClick={() => setFiltersOpen(false)}>Show {filtered.length} {filtered.length === 1 ? 'post' : 'posts'}</Button></DrawerFooter></DrawerContent>
         </Drawer>
-        {view === 'table' && <div className="rf-library-list-summary"><span>{filtered.length} {filtered.length === 1 ? 'post' : 'posts'}</span>{densityControl}</div>}
+        {view === 'table' && <div className="rf-library-list-summary"><span>{filtered.length} {filtered.length === 1 ? 'post' : 'posts'}</span></div>}
         {filterSummary && <p className="rf-applied-filters">{filterSummary}<button onClick={() => { setStatus('all'); setChannels([]); setDate(undefined); }}>Clear</button></p>}
       </div>
       <div className="rf-library-filters"><Tabs value={status} onValueChange={value => setStatus(String(value))}><TabsList variant="line" aria-label="Post status">{['all', ...lanes].map(value => <TabsTrigger key={value} value={value}>{value === 'all' ? 'All' : value === 'draft' ? 'Drafts' : labels[value as keyof typeof labels]}<span className="rf-count">{statusCount(value)}</span></TabsTrigger>)}</TabsList></Tabs>
@@ -173,13 +193,47 @@ export default function Library() {
       <TabsContent value="table" className="rf-library-content"><Table className={compact ? 'rf-library-table rf-compact' : 'rf-library-table'}><colgroup><col className="rf-library-channel-column" /><col /><col className="rf-library-status-column" /><col className="rf-library-created-column" /></colgroup><TableHeader><TableRow><TableHead><span className="sr-only">Channel</span></TableHead><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead>Created</TableHead></TableRow></TableHeader><TableBody>{filtered.map(post => <TableRow key={post.id} data-content-id={post.id}><TableCell><ChannelMark channel={post.ch} /></TableCell><TableCell><button className="rf-post-open" onClick={() => setPeekId(post.id)}><b>{post.name}</b>{!compact && <span>{post.body.split('\n')[0]}</span>}</button></TableCell><TableCell><Status value={post.status} backendState={post.backendState} post={post} /></TableCell><TableCell>{post.created}</TableCell></TableRow>)}</TableBody></Table>{!filtered.length && <div className="rf-empty"><h2>No posts found</h2><p>Try a different search or clear your filters.</p><Button variant="outline" onClick={clear}>Clear filters</Button></div>}</TabsContent>
       <TabsContent value="board" className={mobile ? 'rf-mobile-board' : 'rf-board'}>{mobile ? <Tabs value={boardLane} onValueChange={value => { setBoardStatus(String(value)); if (status !== 'all') setStatus(String(value)); }} className="rf-board-status-tabs"><TabsList variant="line" aria-label="Board status">{lanes.map(value => <TabsTrigger key={value} value={value}>{value === 'draft' ? 'Drafts' : labels[value]}<span className="rf-count">{statusCount(value)}</span></TabsTrigger>)}</TabsList>{lanes.map(value => <TabsContent key={value} value={value} className="rf-board-lane">{boardPosts(value)}{!filtered.some(p => p.status === value) && <div className="rf-empty"><h2>No {value === 'draft' ? 'drafts' : `${value} posts`}</h2><p>{hasFilters ? 'Try clearing your filters to see more posts.' : 'Posts will appear here when you save or approve them.'}</p>{hasFilters && <Button variant="outline" onClick={clear}>Clear filters</Button>}</div>}</TabsContent>)}</Tabs> : lanes.map(value => <section key={value}><h2><Status value={value} /><span>{filtered.filter(p => p.status === value).length}</span></h2>{boardPosts(value)}</section>)}</TabsContent>
     </Tabs>
-    <Dialog open={!!peek && !schedule} onOpenChange={open => !open && !schedule && setPeekId(null)}><DialogContent className="rf-peek"><DialogHeader><DialogTitle>{peek?.name}</DialogTitle><DialogDescription>{peek ? `${CHANNELS[peek.ch].label} post` : 'Post'}</DialogDescription></DialogHeader>
-      {peek && (peek.status !== 'draft' || peek.backendState) && <div className="rf-schedule-receipt" role="status"><Check /><div><b>{scheduleLabel(peek)}</b><p>{peek.when ? `${peek.when}${peek.slotZone ? ` (${peek.slotZone})` : ''}` : peek.backendState === 'posted' ? 'Recorded by the backend as posted.' : 'Approved without a date. Schedule it whenever you’re ready.'}</p></div></div>}
-      {peek?.publication && <p role="status" className="rf-local-note">LinkedIn: {peek.publication.status.replaceAll('_', ' ')}{peek.publication.error_message ? ` · ${peek.publication.error_message}` : ''}{peek.publication.provider_post_id ? ` · ${peek.publication.provider_post_id}` : ''}</p>}
-      {peek?.status === 'scheduled' && peek.ch !== 'li' && <p role="status" className="rf-local-note">Calendar plan only. This channel does not have automatic publishing yet.</p>}
-      {peek?.status === 'scheduled' && peek.ch === 'li' && peek.publication?.status === 'planned' && <p role="status" className="rf-local-note">Calendar plan only. Turn on auto-publish in Settings to queue future LinkedIn posts.</p>}
-      {peek?.status === 'scheduled' && peek.ch === 'li' && peek.publication?.status === 'connection_required' && <p role="status" className="rf-local-note">Not queued. Connect or reconnect LinkedIn in Settings before the scheduled time.</p>}
-      <div className="rf-post-person"><span>SA</span><div><b>Saqlain Artaz</b><p>Founder at InsideSuccess · {peek ? CHANNELS[peek.ch].label : ''}</p></div></div>{peek?.media && <figure className="rf-library-media"><img src={`/api/client/post-media/${encodeURIComponent(peek.media.media_id)}?preview=1`} alt={peek.media.alt_text || ''} /><figcaption>{peek.media.original_name}</figcaption></figure>}<div className="rf-peek-body">{peek?.body.split('\n\n').map((p, i) => <p key={i}><FormattedText text={p} /></p>)}</div><DialogFooter>{peek?.media && <Button variant="outline" render={<a href={`/api/client/post-media/${encodeURIComponent(peek.media.media_id)}`} download />}><Download /> Download image</Button>}<Button variant="outline" onClick={() => peek && copy(peek)}><Copy /> Copy text</Button>{peek?.status !== 'posted' && <Button variant="outline" onClick={() => setSchedule(true)}>{peek?.status === 'scheduled' ? 'Change schedule' : 'Schedule'}</Button>}{peek?.ch === 'li' && peek.status === 'approved' && (!peek.publication || peek.publication.status === 'connection_required') && !d.isDemo && <Button disabled={!publishingEnabled || !linkedInConnected || postingId === peek.id} title={!publishingEnabled ? 'LinkedIn publishing is disabled in this environment.' : !linkedInConnected ? 'Connect LinkedIn in Settings first.' : undefined} onClick={() => void publishNow(peek)}>{postingId === peek.id ? 'Queueing…' : 'Post now'}</Button>}<Button onClick={() => peek && navigate(`/refined/workspace?post=${peek.id}`)}>Open</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={!!peek && !schedule} onOpenChange={open => !open && !schedule && setPeekId(null)}>
+      <DialogContent className="rf-peek">
+        <div className="rf-peek-preview" aria-label="Post preview">
+          <p className="rf-peek-section-label">Post preview</p>
+          <article className="rf-peek-post">
+            <div className="rf-post-person"><span>{d.profile.name.trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'PP'}</span><div><b>{d.profile.name}</b><p>{d.profile.headline ? `${d.profile.headline} · ` : ''}{peek ? CHANNELS[peek.ch].label : ''}</p></div></div>
+            <div className="rf-peek-body">{peek?.body.split('\n\n').map((p, i) => <p key={i}><FormattedText text={p} /></p>)}</div>
+            {peek?.media && <figure className="rf-library-media"><img src={`/api/client/post-media/${encodeURIComponent(peek.media.media_id)}?preview=1`} alt={peek.media.alt_text || ''} /></figure>}
+          </article>
+        </div>
+        <div className="rf-peek-info">
+          <DialogHeader className="rf-peek-heading">
+            <DialogDescription>{peek ? `${CHANNELS[peek.ch].label} post` : 'Post'}</DialogDescription>
+            <DialogTitle>{peek?.name}</DialogTitle>
+          </DialogHeader>
+          {peek && <div className="rf-peek-properties">
+            <div className="rf-peek-property"><span>Status</span><Status value={peek.status} backendState={peek.backendState} post={peek} /></div>
+            <div className="rf-peek-property"><span>Channel</span><div className="rf-peek-property-value"><ChannelMark channel={peek.ch} />{CHANNELS[peek.ch].label}</div></div>
+            {peek.when && <div className="rf-peek-property"><span>Scheduled for</span><div className="rf-peek-property-value rf-peek-date">{peek.when}{peek.slotZone ? <small>{peek.slotZone}</small> : null}</div></div>}
+            {!peek.when && peek.status === 'approved' && <p className="rf-peek-note">Approved without a date. Schedule it whenever you’re ready.</p>}
+            {peek.backendState === 'posted' && <p className="rf-peek-note">Recorded by the backend as posted.</p>}
+            {peek.publication && <div className="rf-peek-property"><span>LinkedIn delivery</span><p className="rf-peek-property-value" role="status">{backendLabel(peek.publication.status)}{peek.publication.error_message ? ` · ${peek.publication.error_message}` : ''}{peek.publication.provider_post_id ? ` · ${peek.publication.provider_post_id}` : ''}</p></div>}
+            {peek.status === 'scheduled' && peek.ch !== 'li' && <p role="status" className="rf-peek-note">Calendar plan only. This channel does not have automatic publishing yet.</p>}
+            {peek.status === 'scheduled' && peek.ch === 'li' && peek.publication?.status === 'planned' && <p role="status" className="rf-peek-note">Calendar plan only. Turn on auto-publish in Settings to queue future LinkedIn posts.</p>}
+            {peek.status === 'scheduled' && peek.ch === 'li' && peek.publication?.status === 'connection_required' && <p role="status" className="rf-peek-note">Not queued. Connect or reconnect LinkedIn in Settings before the scheduled time.</p>}
+          </div>}
+        </div>
+        <DialogFooter className="rf-peek-actions">
+          <div className="rf-peek-main-actions">
+            {peek?.status !== 'posted' && <Button onClick={() => setSchedule(true)}>{peek?.status === 'scheduled' ? 'Change schedule' : 'Schedule'}</Button>}
+            {peek?.ch === 'li' && peek.status === 'approved' && (!peek.publication || peek.publication.status === 'connection_required') && !d.isDemo && <Button variant="outline" disabled={!publishingEnabled || !linkedInConnected || postingId === peek.id} title={!publishingEnabled ? 'LinkedIn publishing is disabled in this environment.' : !linkedInConnected ? 'Connect LinkedIn in Settings first.' : undefined} onClick={() => void publishNow(peek)}>{postingId === peek.id ? 'Queueing…' : 'Post now'}</Button>}
+            {peek?.status === 'scheduled' && <Button variant="outline" disabled={withdrawingId === peek.id} onClick={() => void returnToDraft(peek)}>{withdrawingId === peek.id ? 'Withdrawing…' : 'Return to Draft'}</Button>}
+          </div>
+          <div className="rf-peek-utility-actions">
+            <Button variant="outline" onClick={() => peek && copy(peek)}>Copy text</Button>
+            {peek && <Button variant="outline" className="rf-peek-delete" onClick={() => { setDeleteId(peek.id); setPeekId(null); }}>Delete post</Button>}
+          </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={deleteId !== null} onOpenChange={open => { if (!open && !deleting) setDeleteId(null); }}><DialogContent><DialogHeader><DialogTitle>Remove this post?</DialogTitle><DialogDescription>{deleteTarget?.name || 'This post'} will disappear from your Library. Any unpublished schedule will be cancelled. Its text, image, and history remain stored for audit; a post already published on LinkedIn will stay there.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={deleting} onClick={() => setDeleteId(null)}>Cancel</Button><Button variant="destructive" disabled={deleting || !deleteTarget} onClick={() => { if (deleteTarget) void deletePost(deleteTarget); }}>{deleting ? 'Removing…' : 'Delete from Library'}</Button></DialogFooter></DialogContent></Dialog>
     <Schedule open={schedule} onClose={() => setSchedule(false)} onPick={applySchedule} timeZone={selectedScheduleZone} allowWithoutDate={peek?.status !== 'scheduled'} />
   </>;
 }

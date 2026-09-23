@@ -35,6 +35,7 @@ export const TOOL_INPUT_SCHEMAS: Record<ToolName, z.ZodType> = {
   }),
   submit_draft: z.object({
     body: z.string().describe("The post itself, and only the post"),
+    title: z.string().trim().min(1).max(100).describe("A short, useful Library title grounded in the post. Not part of the published post"),
     cited_atom_ids: z.array(handleCitation).describe("One entry per factual claim about the client"),
     agent_text: z.string().describe("What you want to say to the client. Never the post itself"),
   }),
