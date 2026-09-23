@@ -351,6 +351,25 @@ html[data-refined] {
 .rf-agent-message { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; line-height: 1.7; color: #625c54; white-space: pre-wrap; margin-bottom: 22px; }
 .rf-agent-mark { display: grid; place-items: center; width: 26px; height: 26px; flex: none; border-radius: 8px; background: #24211d; color: white; font-size: 8px; font-weight: 600; margin-top: 2px; }
 .rf-agent-message > div { min-width: 0; }
+.rf-agent-markdown { color: var(--foreground, #171717); white-space: normal; overflow-wrap: anywhere; }
+.rf-agent-markdown p { margin: 0 0 12px; white-space: pre-wrap; }
+.rf-agent-markdown strong { color: inherit; font-weight: 700; }
+.rf-agent-markdown em { font-style: italic; }
+.rf-agent-markdown :is(ul, ol) { margin: 0 0 14px; padding-left: 24px; }
+.rf-agent-markdown ul { list-style: disc; }
+.rf-agent-markdown ol { list-style: decimal; }
+.rf-agent-markdown li { margin: 6px 0; }
+.rf-agent-markdown li > p { margin-bottom: 6px; }
+.rf-agent-markdown :is(h1, h2, h3, h4, h5, h6) { margin: 16px 0 8px; font-size: 1em; line-height: 1.5; font-weight: 700; }
+.rf-agent-markdown a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.rf-agent-markdown a:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+.rf-agent-markdown blockquote { margin: 12px 0; padding-left: 12px; border-left: 2px solid var(--border); }
+.rf-agent-markdown code { font-family: monospace; font-size: .9em; background: var(--muted); border-radius: 3px; padding: 1px 4px; }
+.rf-agent-markdown pre { max-width: 100%; overflow-x: auto; white-space: pre; margin: 12px 0; padding: 12px; background: var(--muted); border-radius: 6px; }
+.rf-agent-markdown pre code { padding: 0; }
+.rf-agent-markdown hr { margin: 14px 0; border: 0; border-top: 1px solid var(--border); }
+.rf-agent-markdown > :first-child { margin-top: 0; }
+.rf-agent-markdown > :last-child { margin-bottom: 0; }
 .rf-post-media { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; max-width: 100%; margin-bottom: 18px; }
 .rf-post-media > img { display: block; width: 100%; max-width: 100%; height: auto; max-height: 320px; object-fit: contain; border: 1px solid var(--border); border-radius: 10px; background: var(--muted); }
 .rf-revision-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 9px; }
