@@ -1,5 +1,5 @@
 ---
-version: 1.2.1
+version: 1.2.2
 checksum: runtime-recorded
 ---
 
@@ -19,6 +19,11 @@ and safety instructions control what may be claimed; this skill controls present
   business in every post.
 - Give enough context that a reader outside the company can follow the point. Use short,
   natural paragraphs, but vary rhythm rather than splitting every sentence onto a line.
+- Keep the default post concise: aim for 100-150 words and stay under 180 words unless
+  the client explicitly requests a longer post. Shorter is welcome when the idea is
+  complete. A requested length takes precedence over this default. Keep one central
+  point, cut repeated explanations and long introductions, and use at most one brief
+  closing call to action when useful. Do not pad a short idea to reach the range.
 - A lesson, story, update, or concise practical explanation can all work. Do not force a
   formula, contrarian stance, numbered framework, or fixed character target.
 - If an image is attached, write text that complements it. Never describe unseen visual

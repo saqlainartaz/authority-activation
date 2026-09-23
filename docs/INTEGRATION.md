@@ -4,6 +4,17 @@
 
 ## Current Promo Partner integration — 2026-09-22
 
+### Concise social writing defaults — 2026-09-23
+
+LinkedIn skill 1.2.2 aims for 100-150 words, below 180 unless a longer post is
+explicitly requested, with no padding to meet the range. Shared instructions
+1.5.3 prohibit em dashes in generated bodies/titles across LinkedIn, Instagram,
+X and Facebook, including revisions. Source citation quotes remain verbatim;
+claim spans must match the rewritten copy. These are generation instructions,
+not a post-save text transformation or a hard length validator. Existing saved
+posts are untouched. Deterministic instruction tests do not prove live model
+compliance; no paid writing evaluation was run for this refinement.
+
 ### Broad business writing refinement — 2026-09-23
 
 The server-side agent reads a bounded, balanced set of live overview, named-term,
