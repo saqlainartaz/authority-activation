@@ -176,7 +176,7 @@ describe("client onboarding PUT boundary", () => {
     expect(putOnboarding).toHaveBeenCalledWith(
       "session-token",
       expect.objectContaining({
-        responses: [
+        business_dna_responses: [
           { ...response, text: "Edited only this section." },
           {
             question_id: "tone",
@@ -187,5 +187,45 @@ describe("client onboarding PUT boundary", () => {
         ],
       }),
     );
+  });
+
+  it("forwards six validated clarification pairs without replacing Business DNA", async () => {
+    const clarificationVersion = "business-clarification/1.0.0";
+    const clarificationIds = [
+      "work_today", "therapy_locations", "practice_start_year", "retreat_role",
+      "retreat_misunderstanding", "anything_else",
+    ];
+    vi.mocked(getOnboarding).mockResolvedValue({
+      user: { display_name: "Amina", email: "amina@example.test", profession: "Founder" },
+      audience_options: [],
+      answers: { tldr: ["Keep this Business DNA value."] },
+      confirmed_at: null,
+      guardrail_questions: [],
+      questions,
+      clarification_questions: clarificationIds.map((question_id, index) => ({
+        question_id,
+        question_version: clarificationVersion,
+        review_label: `Clarification ${index + 1}`,
+        prompt: `Clarification ${index + 1}?`,
+        input_type: index === 1 || index === 3 ? "multi" : index < 4 ? "single" : "long",
+        required: index < 4,
+        choices: index < 4 ? ["First", "Second"] : [],
+        max_text_chars: 2_000,
+      })),
+      trust: "untrusted",
+    });
+    const clarifications = clarificationIds.slice(0, 4).map((question_id, index) => ({
+      question_id,
+      question_version: clarificationVersion,
+      selected: index === 1 || index === 3 ? ["First", "Second"] : ["First"],
+      text: "",
+    }));
+    const result = await PUT(new Request("http://local/api/client/onboarding", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clarifications }),
+    }));
+    expect(result.status).toBe(200);
+    expect(putOnboarding).toHaveBeenCalledWith("session-token", { clarifications });
   });
 });

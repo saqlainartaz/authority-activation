@@ -350,6 +350,29 @@ not rerun against Render or Anthropic.
   hosted retrieval latency, which remain for the operator's documented demo
   smoke test.
 
+### Delegated-topic wire correction — 2026-09-23
+
+- The earlier flexible-retrieval record described the intended tool and Python
+  contracts, but the actual Next.js `prepareGeneration` adapter omitted both
+  `subject` and `retrieval_query` from its HTTP body. Python therefore received
+  only the broad original message and could return the same missing-subject
+  question even when the agent had chosen an angle. A pre-fix regression test
+  reproduced the omitted fields; the adapter and request type now carry them.
+- Broad requests to write a post about the client's business now trigger the
+  bounded, tenant-authenticated workspace overview. Its topic candidates are
+  for selecting a retrieval angle, not evidence for a published claim; only
+  the frozen retrieval snapshot supplies citable material. This deliberately
+  does not dump raw account context into the chat or bypass source checks.
+- The focused frontend regression tests passed (22/22). The full frontend
+  `npm run check` passed with the documented standalone fixture override
+  (22 design tests, 352 Vitest tests, TypeScript and static boundaries), and
+  `npm run build` passed. Against a new loopback-only disposable PostgreSQL
+  container, 58 focused and 158 adjacent backend tests passed; scoped Ruff
+  passed. These checks prove the wire, readiness and affected route behavior,
+  not that a particular hosted client's corpus has citable results or that
+  the live model will choose a compelling angle; that requires an authenticated
+  end-to-end demo check.
+
 ## Honest limits
 
 - Production Anthropic behavior, Voyage embeddings, Docling availability, real

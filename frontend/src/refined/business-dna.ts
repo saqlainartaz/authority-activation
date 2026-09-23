@@ -50,7 +50,7 @@ export function businessDnaSections(prefill: OnboardingPrefill): BusinessDnaSect
       label: question.review_label,
       value: responseValue(response),
       editable: true,
-      required: question.required,
+      required: false,
       question,
       answer: response
         ? { selected: [...response.selected], text: response.text }

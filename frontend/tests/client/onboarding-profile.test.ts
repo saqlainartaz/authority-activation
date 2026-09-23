@@ -120,6 +120,26 @@ function prefill(answers: Record<string, unknown> = {}): OnboardingPrefill {
 }
 
 describe("onboarding profile adapter", () => {
+  it("restores multiple-choice answers without losing a custom answer", () => {
+    const multiQuestions = questions.map((question) => question.question_id === "distinctive_approach"
+      ? { ...question, input_type: "multi" as const, choices: ["Consulting", "Training"] }
+      : question);
+    const current = { ...prefill({ questionnaire: { version: VERSION, responses: [{
+      question_id: "distinctive_approach",
+      question_version: VERSION,
+      question: multiQuestions[3].prompt,
+      answers: ["Consulting", "Workshops"],
+      submitted_at: "2026-09-23T10:00:00Z",
+      ordinal: 0,
+    }] } }), questions: multiQuestions };
+    expect(decodeStoredResponses(current)).toEqual([{
+      question_id: "distinctive_approach",
+      question_version: VERSION,
+      selected: ["Consulting", "__other__"],
+      text: "Workshops",
+    }]);
+  });
+
   it("decodes the exact versioned catalogue and refuses malformed server data", () => {
     expect(decodeQuestions(prefill())).toEqual(questions);
 
@@ -352,5 +372,16 @@ describe("onboarding profile adapter", () => {
         text: "Updated summary.",
       },
     ]);
+  });
+
+  it("allows a new Business DNA to start empty and save only one filled field", () => {
+    const edited = mergeOnboardingResponses(prefill(), [
+      { question_id: "business_overview", question_version: VERSION, selected: [], text: "" },
+      { question_id: "proof", question_version: VERSION, selected: [], text: "One verified example." },
+    ]);
+    expect(edited).toEqual([
+      { question_id: "proof", question_version: VERSION, selected: [], text: "One verified example." },
+    ]);
+    expect(buildCompatibleConfirm(prefill(), edited).responses).toEqual(edited);
   });
 });

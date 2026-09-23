@@ -35,6 +35,8 @@ export function needsWorkspaceOverview(message: string): boolean {
     /\bwhat(?:'s| is) (?:a |the )?question (?:that )?(?:(?:my|the) )?clients? (?:keep|keeps) asking (?:me|us)\b/,
     /\bwhat (?:do|does) (?:my|our) clients? (?:keep )?ask(?:ing)?\b/,
     /\bwrite (?:me )?something[.!?]?$/,
+    /\b(?:write|create|draft)(?: me)? (?:a |some )?(?:linkedin |social (?:media )?)?post\b[^.!?]*\b(?:my|our) business\b/,
+    /\b(?:write|create|draft)(?: me)? (?:a |some )?(?:linkedin |social (?:media )?)?post[.!?]?$/,
   ].some((pattern) => pattern.test(text));
 }
 

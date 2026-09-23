@@ -37,6 +37,8 @@ describe("workspace overview intent", () => {
     "What's a question that my clients keep asking me? Write something.",
     "What do our clients keep asking?",
     "Find a question clients keep asking me in my material and write about it.",
+    "Write a post that will get me people interested in my business.",
+    "Write a post to introduce my business.",
   ])("adds account context for %s", (message) => {
     expect(needsWorkspaceOverview(message)).toBe(true);
   });

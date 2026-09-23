@@ -38,7 +38,7 @@ function AnswerLimit({ id, value, limit }: { id: string; value: string; limit: n
   </p>;
 }
 
-export default function BusinessDna() {
+export default function BusinessDna({ embedded = false }: { embedded?: boolean }) {
   const d = useData();
   const navigate = useNavigate();
   const navigateRef = useRef(navigate);
@@ -129,8 +129,8 @@ export default function BusinessDna() {
   }
 
   return <>
-    <header className="rf-topbar"><h1>Business DNA</h1></header>
-    <div className="rf-dna-scroll"><div className="rf-dna-content">
+    {!embedded && <header className="rf-topbar"><h1>Business DNA</h1></header>}
+    <div className={embedded ? 'rf-dna-embedded' : 'rf-dna-scroll'}><div className="rf-dna-content">
       <div className="rf-section-heading"><div><h2>Business DNA</h2><p className="rf-section-description">The core context your writing assistant uses to understand you and your work.</p></div></div>
       {!ready && <p className="rf-dna-state">Loading your profile…</p>}
       {ready && d.isDemo && <Card className="rf-dna-card"><CardContent><p className="rf-dna-state">No Business DNA has been saved in this demo.</p></CardContent></Card>}

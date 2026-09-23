@@ -125,7 +125,8 @@ test('Business DNA is minimal, populated, dark, and fits a phone', async ({ page
   await expect(page.getByRole('heading', { name: 'Business DNA', exact: true }).first()).toBeVisible();
   await expect(page.getByText('Amina Yusuf')).toBeVisible();
   await expect(page.getByText('Finding the human story behind a business.')).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByText('DNA')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByText('Train')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByText('DNA')).toHaveCount(0);
   await expect(page.getByRole('navigation', { name: 'Main navigation' }).getByText('Settings')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   await page.screenshot({ path: 'test-results/e2e/business-dna-populated-dark-phone.png', fullPage: true });

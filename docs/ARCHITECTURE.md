@@ -59,17 +59,18 @@ Demo behavior is gated by `NEXT_PUBLIC_AUTHORITY_DEMO=1`. With it unset, support
 
 ## Business DNA and onboarding boundary
 
-- Python owns the versioned `business-dna/1.0.0` nine-question catalogue,
-  accepted choice values, required/optional rules, canonical response envelope,
-  completion timestamp, exact question text/version provenance, and atom
-  writeback. The browser never invents a second authoritative questionnaire.
-- The Next adapter decodes that wire shape, renders the existing onboarding
-  system, and sends answer-only replacements. Long answers, ordinary single
-  choices, auto-advance, optional blank Next, and the persistent **Something
-  else** path are presentation behavior; canonical persistence stays server-owned.
-- Business DNA is a minimal projection of authenticated identity plus canonical
-  responses. Section edits replace only their owned response fields and retain
-  unsaved input on a failed write.
+- Python owns two versioned catalogues: the shared six-question demo intake
+  (`business-clarification/1.0.0`) and the retained nine-field Business DNA
+  (`business-dna/1.0.0`). Their canonical response envelopes are stored under
+  separate keys. The browser sends answer-only pairs; Python supplies exact
+  question text, accepted choices, provenance and atom writeback.
+- The Next adapter renders single, multiple and long answers, including an
+  exclusive multi-choice option, optional blank Next, and the persistent
+  **Something else** path. Completion requires the first four answers, then
+  shows “You’re good to go” before opening the workspace.
+- Business DNA is now the third Train Your AI tab, after Knowledge and before
+  Guidance. It starts empty for a new client, retains previously saved values,
+  and saves section edits without replacing the separate intake answers.
 - Train Your AI's existing Questions design now reviews real provisional atoms.
   Confirm/deprecate actions use the backend decision ledger and retry one
   decision with one idempotency key; Guidance and Preferences remain local gaps.

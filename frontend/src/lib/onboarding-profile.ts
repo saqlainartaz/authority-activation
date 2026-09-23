@@ -9,6 +9,15 @@ import type {
 const MAX_ONBOARDING_METADATA_CHARS = 300;
 export const OTHER_VALUE = "__other__";
 export const BUSINESS_DNA_CATALOGUE_VERSION = "business-dna/1.0.0";
+export const CLARIFICATION_CATALOGUE_VERSION = "business-clarification/1.0.0";
+export const CLARIFICATION_QUESTION_IDS = [
+  "work_today",
+  "therapy_locations",
+  "practice_start_year",
+  "retreat_role",
+  "retreat_misunderstanding",
+  "anything_else",
+] as const;
 export const BUSINESS_DNA_QUESTION_IDS = [
   "business_overview",
   "audience_context",
@@ -66,12 +75,16 @@ function exactKeys(record: Record<string, unknown>, allowed: readonly string[], 
   if (unknown.length) throw new Error(`${label} has unknown field(s): ${unknown.join(", ")}.`);
 }
 
-export function decodeQuestions(prefill: OnboardingPrefill): OnboardingQuestion[] {
-  if (!Array.isArray(prefill.questions)) throw new Error("Onboarding questions are missing.");
+function decodeCatalogue(
+  candidates: unknown,
+  expectedVersion: string,
+  expectedIds: readonly string[],
+): OnboardingQuestion[] {
+  if (!Array.isArray(candidates)) throw new Error("Onboarding questions are missing.");
   const seen = new Set<string>();
   let catalogueVersion: string | null = null;
 
-  const questions = prefill.questions.map((candidate, index) => {
+  const questions = candidates.map((candidate, index) => {
     const raw = objectValue(candidate, `Question ${index + 1}`);
     exactKeys(
       raw,
@@ -83,6 +96,7 @@ export function decodeQuestions(prefill: OnboardingPrefill): OnboardingQuestion[
         "input_type",
         "required",
         "choices",
+        "exclusive_choices",
         "max_text_chars",
       ],
       `Question ${index + 1}`,
@@ -98,7 +112,7 @@ export function decodeQuestions(prefill: OnboardingPrefill): OnboardingQuestion[
     }
     catalogueVersion = version;
 
-    if (raw.input_type !== "long" && raw.input_type !== "single") {
+    if (raw.input_type !== "long" && raw.input_type !== "single" && raw.input_type !== "multi") {
       throw new Error(`Question ${questionId} has an unknown input type.`);
     }
     const inputType: OnboardingQuestion["input_type"] = raw.input_type;
@@ -118,8 +132,16 @@ export function decodeQuestions(prefill: OnboardingPrefill): OnboardingQuestion[
     if (inputType === "long" && choices.length) {
       throw new Error(`Long-text question ${questionId} cannot publish choices.`);
     }
-    if (inputType === "single" && !choices.length) {
-      throw new Error(`Single-choice question ${questionId} must publish choices.`);
+    if ((inputType === "single" || inputType === "multi") && !choices.length) {
+      throw new Error(`Choice question ${questionId} must publish choices.`);
+    }
+    const rawExclusive = raw.exclusive_choices ?? [];
+    if (!Array.isArray(rawExclusive) || !rawExclusive.every((choice) => typeof choice === "string")) {
+      throw new Error(`Question ${questionId} has malformed exclusive choices.`);
+    }
+    const exclusiveChoices = rawExclusive.map((choice) => normalizeText(choice, `Question ${questionId} exclusive choice`));
+    if (new Set(exclusiveChoices).size !== exclusiveChoices.length || exclusiveChoices.some((choice) => !choices.includes(choice))) {
+      throw new Error(`Question ${questionId} has an unoffered exclusive choice.`);
     }
 
     return {
@@ -130,21 +152,30 @@ export function decodeQuestions(prefill: OnboardingPrefill): OnboardingQuestion[
       input_type: inputType,
       required: raw.required,
       choices,
+      ...(raw.exclusive_choices !== undefined ? { exclusive_choices: exclusiveChoices } : {}),
       max_text_chars: Number(raw.max_text_chars),
     };
   });
 
-  if (catalogueVersion !== BUSINESS_DNA_CATALOGUE_VERSION) {
+  if (catalogueVersion !== expectedVersion) {
     throw new Error(`Unsupported onboarding catalogue version: ${catalogueVersion ?? "missing"}.`);
   }
   const publishedIds = questions.map((question) => question.question_id);
   if (
-    publishedIds.length !== BUSINESS_DNA_QUESTION_IDS.length ||
-    publishedIds.some((questionId, index) => questionId !== BUSINESS_DNA_QUESTION_IDS[index])
+    publishedIds.length !== expectedIds.length ||
+    publishedIds.some((questionId, index) => questionId !== expectedIds[index])
   ) {
     throw new Error("Onboarding catalogue question ids or order are unsupported.");
   }
   return questions;
+}
+
+export function decodeQuestions(prefill: OnboardingPrefill): OnboardingQuestion[] {
+  return decodeCatalogue(prefill.questions, BUSINESS_DNA_CATALOGUE_VERSION, BUSINESS_DNA_QUESTION_IDS);
+}
+
+export function decodeClarificationQuestions(prefill: OnboardingPrefill): OnboardingQuestion[] {
+  return decodeCatalogue(prefill.clarification_questions, CLARIFICATION_CATALOGUE_VERSION, CLARIFICATION_QUESTION_IDS);
 }
 
 function normalizeResponse(
@@ -166,9 +197,9 @@ function normalizeResponse(
   const text = normalizeAnswerText(raw.text, `Response ${questionId} text`, question.max_text_chars);
   if (question.input_type === "long") {
     if (selected.length) throw new Error(`Long-text response ${questionId} cannot select a choice.`);
-    if (question.required && !text) throw new Error(`Response ${questionId} cannot be blank.`);
-  } else {
-    if (allowOptionalClear && !question.required && selected.length === 0 && !text) {
+    if (question.required && !text && !allowOptionalClear) throw new Error(`Response ${questionId} cannot be blank.`);
+  } else if (question.input_type === "single") {
+    if (allowOptionalClear && selected.length === 0 && !text) {
       return { question_id: questionId, question_version: version, selected: [], text: "" };
     }
     if (selected.length !== 1) throw new Error(`Response ${questionId} must select exactly one choice.`);
@@ -180,6 +211,22 @@ function normalizeResponse(
     }
     if (selected[0] !== OTHER_VALUE && text) {
       throw new Error(`Response ${questionId} cannot carry hidden custom text.`);
+    }
+  } else {
+    if (allowOptionalClear && selected.length === 0 && !text) {
+      return { question_id: questionId, question_version: version, selected: [], text: "" };
+    }
+    if (!selected.length || selected.length > 10 || new Set(selected).size !== selected.length) {
+      throw new Error(`Response ${questionId} must select one or more distinct choices.`);
+    }
+    if (selected.length > 1 && selected.some((choice) => question.exclusive_choices?.includes(choice))) {
+      throw new Error(`Response ${questionId} combines an exclusive choice with another answer.`);
+    }
+    if (selected.some((choice) => choice !== OTHER_VALUE && !question.choices.includes(choice))) {
+      throw new Error(`Response ${questionId} selected an unoffered choice.`);
+    }
+    if (selected.includes(OTHER_VALUE) !== Boolean(text)) {
+      throw new Error(`Response ${questionId} has an invalid custom answer.`);
     }
   }
   return { question_id: questionId, question_version: version, selected, text };
@@ -207,10 +254,13 @@ function legacyResponse(
   };
 }
 
-export function decodeStoredResponses(prefill: OnboardingPrefill): OnboardingQuestionResponse[] {
-  const questions = decodeQuestions(prefill);
+function decodeStoredCatalogueResponses(
+  prefill: OnboardingPrefill,
+  kind: "dna" | "clarification",
+): OnboardingQuestionResponse[] {
+  const questions = kind === "dna" ? decodeQuestions(prefill) : decodeClarificationQuestions(prefill);
   const questionsById = new Map(questions.map((question) => [question.question_id, question]));
-  const envelopeValue = prefill.answers.questionnaire;
+  const envelopeValue = prefill.answers[kind === "dna" ? "questionnaire" : "clarification_questionnaire"];
 
   if (envelopeValue !== undefined) {
     const envelope = objectValue(envelopeValue, "Stored questionnaire") as Partial<QuestionnaireEnvelope>;
@@ -238,9 +288,10 @@ export function decodeStoredResponses(prefill: OnboardingPrefill): OnboardingQue
       const answers = record.answers.map((answer) =>
         normalizeAnswerText(answer, `Stored response ${questionId} answer`, question.max_text_chars)
       );
-      if (answers.length !== 1) throw new Error(`Stored response ${questionId} must have one answer.`);
+      if (!answers.length) throw new Error(`Stored response ${questionId} must have an answer.`);
       const answer = answers[0];
       if (question.input_type === "long") {
+        if (answers.length !== 1) throw new Error(`Stored response ${questionId} must have one answer.`);
         return {
           question_id: questionId,
           question_version: question.question_version,
@@ -248,6 +299,20 @@ export function decodeStoredResponses(prefill: OnboardingPrefill): OnboardingQue
           text: answer,
         };
       }
+      if (question.input_type === "multi") {
+        const ordinary = answers.filter((value) => question.choices.includes(value));
+        const custom = answers.filter((value) => !question.choices.includes(value));
+        if (custom.length > 1 || new Set(ordinary).size !== ordinary.length) {
+          throw new Error(`Stored response ${questionId} has invalid multiple choices.`);
+        }
+        return {
+          question_id: questionId,
+          question_version: question.question_version,
+          selected: [...ordinary, ...(custom.length ? [OTHER_VALUE] : [])],
+          text: custom[0] ?? "",
+        };
+      }
+      if (answers.length !== 1) throw new Error(`Stored response ${questionId} must have one answer.`);
       const ordinary = question.choices.includes(answer);
       return {
         question_id: questionId,
@@ -258,6 +323,7 @@ export function decodeStoredResponses(prefill: OnboardingPrefill): OnboardingQue
     });
   }
 
+  if (kind === "clarification") return [];
   const legacyMappings: Array<[string, string]> = [
     ["business_overview", "tldr"],
     ["problem_or_goal", "pain_point"],
@@ -269,6 +335,14 @@ export function decodeStoredResponses(prefill: OnboardingPrefill): OnboardingQue
     const response = legacyResponse(questionsById.get(questionId), stringList(prefill.answers[answerKey]));
     return response ? [response] : [];
   });
+}
+
+export function decodeStoredResponses(prefill: OnboardingPrefill): OnboardingQuestionResponse[] {
+  return decodeStoredCatalogueResponses(prefill, "dna");
+}
+
+export function decodeStoredClarifications(prefill: OnboardingPrefill): OnboardingQuestionResponse[] {
+  return decodeStoredCatalogueResponses(prefill, "clarification");
 }
 
 export function buildCompatibleConfirm(
@@ -297,6 +371,21 @@ export function buildCompatibleConfirm(
     terminology: stringList(prefill.answers.terminology),
     responses: normalized,
   };
+}
+
+export function buildClarificationConfirm(
+  prefill: OnboardingPrefill,
+  responses: OnboardingQuestionResponse[],
+): Pick<OnboardingConfirm, "clarifications"> {
+  const questions = decodeClarificationQuestions(prefill);
+  const questionsById = new Map(questions.map((question) => [question.question_id, question]));
+  if (!Array.isArray(responses)) throw new Error("clarifications must be a list.");
+  const normalized = responses.map((response) => normalizeResponse(response, questionsById));
+  const submitted = new Set(normalized.map((response) => response.question_id));
+  if (submitted.size !== normalized.length) throw new Error("Clarifications contain a duplicate question id.");
+  const missing = questions.filter((question) => question.required && !submitted.has(question.question_id));
+  if (missing.length) throw new Error(`Required clarification missing: ${missing.map((question) => question.question_id).join(", ")}.`);
+  return { clarifications: normalized };
 }
 
 function clearedResponse(response: OnboardingQuestionResponse): boolean {
