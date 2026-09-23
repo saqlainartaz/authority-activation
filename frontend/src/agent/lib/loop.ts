@@ -3,6 +3,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 
 import type { Driver, DriverRequest, ProviderToolCall, TurnResult } from "@/agent/lib/driver";
+import type { ModelMessage } from "@/agent/transcript";
 
 /**
  * The agent loop's provider half. THE ONLY FILE IN THE REPOSITORY PERMITTED A
@@ -73,6 +74,15 @@ import type { Driver, DriverRequest, ProviderToolCall, TurnResult } from "@/agen
 export const MODEL = "claude-opus-5";
 export const MAX_TOKENS = 4096;
 export const EFFORT = "low" as const;
+
+export function providerMessages(messages: ModelMessage[]): Anthropic.MessageParam[] {
+  return messages.map(({ role, content, cache }) => ({
+    role,
+    content: cache
+      ? [{ type: "text" as const, text: content, cache_control: { type: "ephemeral" as const } }]
+      : content,
+  }));
+}
 
 /** Pinned explicitly rather than inherited from the SDK's default (currently
  *  also 2) — see the header note. Passed to `withOptions` on every call, so a
@@ -171,7 +181,7 @@ export const anthropicDriver: Driver = {
         thinking: { type: "adaptive" },
         output_config: { effort: EFFORT },
         system,
-        messages: request.messages as Anthropic.MessageParam[],
+        messages: providerMessages(request.messages),
         tools: this.toProviderTools(request.tools) as Anthropic.Tool[],
       });
 

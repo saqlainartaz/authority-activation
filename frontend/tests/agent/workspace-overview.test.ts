@@ -24,6 +24,10 @@ const overview: WorkspaceOverview = {
   },
   topic_suggestions: ["A real client lesson"],
   discovery_candidates: [{ kind: "objection", text: "Why does implementation take so long?" }],
+  business_context_candidates: [{
+    kind: "terminology", text: "Example Studio is our practice.",
+    source_label: "your brand document", confirmed: true,
+  }],
 };
 
 describe("workspace overview intent", () => {
@@ -39,6 +43,12 @@ describe("workspace overview intent", () => {
     "Find a question clients keep asking me in my material and write about it.",
     "Write a post that will get me people interested in my business.",
     "Write a post to introduce my business.",
+    "Promote my business.",
+    "What's my business name?",
+    "What does my business do?",
+    "Who do I serve?",
+    "What services do we offer?",
+    "What do you know about my practice?",
   ])("adds account context for %s", (message) => {
     expect(needsWorkspaceOverview(message)).toBe(true);
   });
@@ -64,6 +74,7 @@ describe("workspace overview rendering", () => {
     expect(message.content).toContain("represented_source_count");
     expect(message.content).toContain("atom_count");
     expect(message.content).toContain("Why does implementation take so long?");
+    expect(message.content).toContain("Example Studio is our practice.");
     expect(message.content).toContain("Synthetic &lt;Founder>");
     expect(message.content).not.toContain("client_id");
     expect(message.content).not.toContain("email");
@@ -105,5 +116,26 @@ describe("workspace overview reads", () => {
     await readWorkspaceOverview("token-a");
     expect(product.getOnboarding).toHaveBeenCalledTimes(1);
     expect(product.listClientAtoms).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes bounded, live identity candidates without treating constraints as business facts", async () => {
+    product.listClientAtoms.mockResolvedValue({
+      client_id: "client-a",
+      atoms: [
+        { document_id: "doc-a", atom_type: "tldr", status: "confirmed", text: "Example Studio offers consulting.", source_label: "your brand document" },
+        { document_id: "doc-a", atom_type: "terminology", status: "provisional", text: "Example Studio is the practice name.", source_label: "your brand document" },
+        { document_id: "doc-a", atom_type: "pain_point", status: "confirmed", text: "Founders need practical implementation help.", source_label: "your interview" },
+        { document_id: "doc-a", atom_type: "voice_constraint", status: "confirmed", text: "Never use a sales pitch.", source_label: "your brand document" },
+        { document_id: "doc-b", atom_type: "terminology", status: "deprecated", text: "Former Practice", source_label: "your old notes" },
+      ],
+      atom_counts: { tldr: 1, terminology: 1, voice_constraint: 1 },
+      generated_at: "2026-09-20T10:00:00Z",
+    });
+    const result = await readWorkspaceOverview("token-a", onboarding);
+    expect(result.business_context_candidates).toEqual([
+      { kind: "tldr", text: "Example Studio offers consulting.", source_label: "your brand document", confirmed: true },
+      { kind: "terminology", text: "Example Studio is the practice name.", source_label: "your brand document", confirmed: false },
+      { kind: "pain_point", text: "Founders need practical implementation help.", source_label: "your interview", confirmed: true },
+    ]);
   });
 });
