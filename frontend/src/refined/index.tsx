@@ -26,13 +26,23 @@ function RefinedApp() {
   const questions = trainingBadgeCount(d.isDemo, d.answers);
   const location = useLocation();
   const [settings, setSettings] = useState(false);
+  const [linkedInResult, setLinkedInResult] = useState<string>();
   useEffect(() => { document.documentElement.dataset.refined = 'true'; document.title = 'Promo Partner'; return () => { delete document.documentElement.dataset.refined; }; }, []);
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get('linkedin');
+    if (!result) return;
+    setLinkedInResult(result);
+    setSettings(true);
+    url.searchParams.delete('linkedin');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
   const entry = location.pathname.split('/')[2];
   if (['signin', 'invite', 'onboarding'].includes(entry)) return <TooltipProvider delay={350}>{entry === 'onboarding' ? <Onboarding /> : <Auth key={entry} invite={entry === 'invite'} />}<Toaster theme={dark ? 'dark' : 'light'} position="bottom-right" richColors /></TooltipProvider>;
   const screen = entry === 'workspace' ? <Workspace /> : entry === 'library' ? <Library /> : entry === 'train' ? <Training /> : entry === 'profile' ? <BusinessDna /> : <Home questions={questions} />;
   return <TooltipProvider delay={350}><Shell active={location.pathname.split('/')[2] || 'home'} questions={questions} onSettings={() => setSettings(true)}>
     {screen}
   </Shell>
-  <Settings open={settings} onOpenChange={setSettings} /><Toaster theme={dark ? 'dark' : 'light'} position="bottom-right" richColors />
+  <Settings open={settings} onOpenChange={setSettings} initialSection={linkedInResult ? 'integrations' : undefined} linkedInResult={linkedInResult} /><Toaster theme={dark ? 'dark' : 'light'} position="bottom-right" richColors />
   </TooltipProvider>;
 }

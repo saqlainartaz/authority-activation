@@ -12,7 +12,9 @@ export type SavedPost = Post & {
   backendState?: string | null;
   versionId?: string | null;
   slotId?: string | null;
+  slotZone?: string | null;
   media?: SavedPostMedia | null;
+  publication?: { status: 'planned' | 'connection_required' | 'queued' | 'publishing' | 'published' | 'failed' | 'outcome_unknown' | 'cancelled'; dispatch_mode: 'scheduled' | 'immediate'; error_message: string | null; provider_post_id: string | null } | null;
 };
 export type SavedPostMedia = { media_id: string; media_type: 'image/jpeg' | 'image/png' | 'image/webp'; byte_size: number; width: number; height: number; original_name: string; alt_text: string | null; download_url: string };
 export type Rule = { id: string; text: string; enabled: boolean };
@@ -24,6 +26,7 @@ type VersionEntry = { content_version_id: string; body: string; created_at: stri
 type VersionHistory = { versions: VersionEntry[] };
 type CalendarEnvelope = { slots: Array<{ slot_id: string; slot_at: string; slot_zone: string; status: string; content_item_id: string; objective: string }> };
 type ProfileEnvelope = { identity: { display_name: string; profession: string | null; client_name: string; timezone: string }; document_count: number };
+type PublicationEnvelope = NonNullable<SavedPost['publication']> & { content_item_id: string; content_version_id: string; created_at: string };
 
 const DEMO = process.env.NEXT_PUBLIC_AUTHORITY_DEMO === '1';
 const EMPTY: Data = { posts: [], answers: {}, onboarding: { answers: {}, completed: false }, preferences: [true, true, true], timeZone: 'UTC', profile: { name: 'Your profile', headline: '' }, rules: [], sourceCount: 0 };
@@ -55,13 +58,14 @@ async function getJson<T>(path: string): Promise<T> {
 }
 
 function displayDate(value: string): string { return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(new Date(value)); }
-function statusFor(state: string | null, scheduled: boolean): Post['status'] { if (scheduled) return 'scheduled'; return state === 'approved' || state === 'posted' ? 'approved' : 'draft'; }
+function statusFor(state: string | null, scheduled: boolean): Post['status'] { if (state === 'posted') return 'posted'; if (scheduled) return 'scheduled'; return state === 'approved' ? 'approved' : 'draft'; }
 
 async function loadPosts(): Promise<{ posts: SavedPost[]; profile: ProfileEnvelope; zone: string }> {
-  const [library, calendar, profile] = await Promise.all([
+  const [library, calendar, profile, publications] = await Promise.all([
     getJson<{ items: LibraryItem[] }>('/api/client/content-items'),
     getJson<CalendarEnvelope>('/api/client/calendar'),
     getJson<ProfileEnvelope>('/api/client/profile'),
+    getJson<PublicationEnvelope[]>('/api/client/social/publications').catch(() => []),
   ]);
   const histories = await Promise.all(library.items.map(item => item.latest_version_id ? getJson<VersionHistory>(`/api/client/content-items/${encodeURIComponent(item.content_item_id)}/versions`) : Promise.resolve({ versions: [] })));
   const posts = library.items.flatMap((item, index): SavedPost[] => {
@@ -73,14 +77,15 @@ async function loadPosts(): Promise<{ posts: SavedPost[]; profile: ProfileEnvelo
     const slot = calendar.slots.find(candidate => candidate.content_item_id === item.content_item_id && candidate.status === 'scheduled');
     const instant = slot ? new Date(slot.slot_at) : null;
     const body = latest.body;
+    const publication = publications.filter(candidate => candidate.content_item_id === item.content_item_id && candidate.content_version_id === latest.content_version_id).sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
     return [{
       id: item.content_item_id, ch: channelFromAssetKind(item.asset_kind) ?? 'li', name: slot?.objective?.trim() || body.split(/\r?\n/)[0]?.slice(0, 72) || 'Untitled post', snip: body.split(/\r?\n/)[0] || '', body,
       status: statusFor(item.state, Boolean(slot)), backendState: item.state, created: displayDate(item.created_at),
       when: instant ? `${new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: slot!.slot_zone }).format(instant)}, ${new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: slot!.slot_zone }).format(instant)}` : undefined,
       date: instant ? new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: slot!.slot_zone }).format(instant) : undefined,
       day: instant ? Number(new Intl.DateTimeFormat('en', { day: 'numeric', timeZone: slot!.slot_zone }).format(instant)) : undefined,
-      versionId: latest.content_version_id, slotId: slot?.slot_id ?? null,
-      media: latest.media ?? null,
+      versionId: latest.content_version_id, slotId: slot?.slot_id ?? null, slotZone: slot?.slot_zone ?? null,
+      media: latest.media ?? null, publication,
       version: { paras: body.split(/\r?\n\r?\n/).map(text => ({ g: '', segs: [{ t: text }] })), sources: [], count: `${body.length} / 3,000` },
     }];
   });

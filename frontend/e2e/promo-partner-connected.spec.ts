@@ -64,7 +64,8 @@ test('Promo Partner generates four channel drafts and preserves exact media vers
     for (const channel of ['LinkedIn', 'Instagram', 'X', 'Facebook']) {
       await expect(page.getByRole('button', { name: channel, exact: true })).toHaveAttribute('aria-pressed', 'true');
     }
-    await page.getByPlaceholder(/Tell it what happened/).fill('Write a grounded post for LinkedIn, Instagram, X, and Facebook about how the last cohort saved eleven hours a week inside the first month.');
+    // The clicked four-channel selector wins even when the brief mentions only LinkedIn.
+    await page.getByPlaceholder(/Tell it what happened/).fill('Write a grounded post about our LinkedIn campaign and how the last cohort saved eleven hours a week inside the first month.');
     await page.getByRole('button', { name: 'Send' }).click();
     await expect(page.getByRole('button', { name: 'Keep as draft' })).toBeVisible({ timeout: 90_000 });
 
@@ -127,6 +128,8 @@ test('Promo Partner generates four channel drafts and preserves exact media vers
     await page.getByLabel('Time').fill('09:15');
     await page.getByRole('button', { name: 'Schedule', exact: true }).click();
     await expect(page.getByText(/Scheduled for .*09:15/)).toBeVisible();
+    await formatButton(page, 'LinkedIn').click();
+    await expect(page.locator('.rf-draft-pane .sheet')).toContainText('A useful detail from your source:');
 
     await page.goto('/refined/home');
     await page.getByRole('button', { name: /[1-9]\d* scheduled posts?/ }).first().click();
@@ -135,7 +138,7 @@ test('Promo Partner generates four channel drafts and preserves exact media vers
     await page.goto('/refined/library');
     await expect(page.getByRole('tab', { name: 'Calendar' })).toHaveCount(0);
     const row = page.locator(`tr[data-content-id="${contentItemId}"]`);
-    await expect(row).toContainText('Scheduled');
+    await expect(row).toContainText('Planned');
     await row.locator('.rf-post-open').click();
     await expect(page.getByRole('link', { name: 'Download image' })).toBeVisible();
     await page.getByRole('button', { name: 'Open', exact: true }).click();

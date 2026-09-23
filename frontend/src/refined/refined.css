@@ -279,6 +279,7 @@ html[data-refined] {
 .rf-status i { width: 4px; height: 4px; border-radius: 50%; background: #a09a92; }
 .rf-status-approved i { background: #517b64; }
 .rf-status-scheduled i { background: #7264a0; }
+.rf-status-posted i { background: #346a86; }
 .rf-compact td { padding-top: 8px; padding-bottom: 8px; }
 .rf-empty { padding: 80px 24px; text-align: center; color: #787168; }
 .rf-empty h2 { font-size: 18px; color: #24211d; margin-bottom: 6px; }
@@ -475,6 +476,16 @@ html[data-refined] {
 .rf-settings-body .rf-setting-row { gap: 16px; padding: 16px 0; }
 .rf-settings-body .rf-setting-row > button { flex: none; }
 .rf-settings-body .rf-local-note { margin-top: 24px; }
+.rf-integration-card { display: flex; align-items: center; gap: 14px; margin-top: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 12px; }
+.rf-integration-icon { width: 32px; height: 32px; }
+.rf-integration-details { flex: 1; min-width: 0; }
+.rf-integration-heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.rf-integration-heading b { font-size: 14px; font-weight: 600; }
+.rf-integration-details small { display: block; margin-top: 3px; color: var(--muted-foreground); font-size: 12px; line-height: 1.5; }
+.rf-integration-status { display: inline-flex; align-items: center; gap: 5px; padding: 3px 7px; border-radius: 999px; background: var(--muted); color: var(--muted-foreground); font-size: 11px; font-weight: 600; }
+.rf-integration-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.rf-integration-status.is-connected { background: #e7f4eb; color: #246b43; }
+.rf-integration-note { margin: 10px 0 0; color: var(--muted-foreground); font-size: 12px; line-height: 1.5; }
 .rf-timezone-row { align-items: flex-start; flex-wrap: wrap; }
 .rf-timezone-row [data-slot="select-trigger"] { max-width: 100%; }
 .rf-account-field { display: block; margin-bottom: 20px; font-weight: 500; }
@@ -553,6 +564,8 @@ html[data-refined] {
   .rf-settings-mobile .rf-settings-detail .rf-settings-body { display: block; }
   .rf-settings-mobile .rf-setting-row { flex-wrap: wrap; }
   .rf-settings-mobile .rf-setting-row > span:first-child { min-width: 180px; }
+  .rf-settings-mobile .rf-integration-card { flex-wrap: wrap; }
+  .rf-settings-mobile .rf-integration-card > button { margin-left: 46px; }
   .rf-settings-mobile .rf-settings-section-title { margin-left: -10px; }
   .rf-workspace-header { flex-wrap: wrap; }
   .rf-workspace-header > h1 { font-size: 16px; }
