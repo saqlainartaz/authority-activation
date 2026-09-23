@@ -4,6 +4,21 @@
 
 ## Current Promo Partner integration — 2026-09-22
 
+### Broad business writing refinement — 2026-09-23
+
+The server-side agent reads a bounded, balanced set of live overview, named-term,
+insight, need, proof and objection candidates for broad business-promotion and
+basic account questions. This account overview is a retrieval hint, not citable post evidence.
+When the backend supplies a small full corpus as `background`, the agent uses it
+to distinguish businesses, offers and audiences while choosing an angle and
+retrieval query. It cannot cite that background or silently convert inferred
+profile fields into confirmed client answers.
+The agent must still use `prepare_generation` and cite its returned material;
+the backend snapshot now reserves up to eight source-linked business-brief atoms
+for explicit business-writing requests. A Business DNA answer saved by the
+client already writes a confirmed provenance-tracked atom. Uploaded-source
+suggestions do not silently overwrite editable Business DNA fields.
+
 The runnable application is the Next.js app in `frontend/`, invoked from this repository's `frontend/` directory (`frontend/frontend/` from the parent backend workspace). The current connected path uses a closed LinkedIn/Instagram/X/Facebook registry from browser toggles through BFF validation, channel-bound Python chat/session persistence and dedicated TypeScript-agent skills. Multi-channel requests coordinate separate sessions/content items sequentially.
 
 Post media uses `POST /api/client/post-media` for multipart upload and `GET /api/client/post-media/{media_id}` for authorized preview/download. Browser-supplied tenant identity or storage paths are never trusted. An edit may bind `media_id` plus optional alt text, replace that binding or explicitly remove it; version history returns the exact immutable binding for every content version. Static JPEG, PNG and WebP images are limited to 4 MB and 8,192 × 8,192. Editing an approved/scheduled post invalidates approval and moves its active slot to `needs_reapproval`.
@@ -163,6 +178,32 @@ Date labels and the calendar are based on a fixed March 2026 fixture. Replace fi
 `Schedule.tsx` returns a display label plus an optional ISO calendar date. The chosen timezone is included in the label; there is no authoritative UTC timestamp. Introduce a real scheduling payload with separate timezone/local time and server-resolved execution time. Do not parse display strings to schedule posts. Handle invalid/past dates and daylight-saving boundaries using the backend's scheduling conventions.
 
 Keep approval and scheduling distinct: Approve without a date produces approved status; a selected date produces scheduled status. Actual publishing, platform tokens, queues and retries are not implemented. Reconcile a persistent confirmation with the real result before showing success.
+
+## Whole-client understanding — 2026-09-23
+
+The chat server reads authenticated `GET /v1/knowledge-context` on every turn and
+places escaped source documents before the transcript, with an ephemeral provider
+cache marker. The backend is reread each turn; no application cache hides source
+edits/removals. Failure is labelled unavailable, not empty. Saved Business DNA is
+still included separately. Instructions 1.5.2 ask the existing loop agent to build
+a working business/offer/audience map from both, with neither automatically taking
+priority. This is not a second persisted summary or a required onboarding step.
+
+Generation now receives whole-source `source_passage` handles as well as retrieved
+atoms. Exact quote checks and server-owned receipts remain in force. Source text
+is untrusted data, and does not make proposals, old events or claims true/current.
+Backend support must deploy before this frontend; the frontend degrades to normal
+retrieval when that read is unavailable. No visual design changes are included.
+
+The backend owns `WHOLE_CLIENT_CONTEXT_ENABLED` (default false). Set true on the
+backend and restart it to opt in; no Vercel/frontend feature flag is needed.
+When false, the authenticated response is `disabled` with no source text and a
+null document count (not counted). The agent receives only a disabled marker and
+uses saved DNA/ordinary retrieval. New backend snapshots stop full-source reads
+and citation-anchor creation; compatibility for retained drafts/citations remains.
+Existing conversations and in-flight requests can still contain previous context.
+Use a new chat when testing disablement. This is a feature-off recovery path, not
+a database restore or an instruction to deploy an older incompatible backend.
 
 ## 9. Remaining fixture locations
 

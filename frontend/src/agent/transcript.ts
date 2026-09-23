@@ -67,6 +67,8 @@ export type TranscriptMessage = {
 export type ModelMessage = {
   role: "assistant" | "user";
   content: string;
+  /** Stable client-source prefix; maps to an ephemeral provider cache marker. */
+  cache?: boolean;
 };
 
 /**

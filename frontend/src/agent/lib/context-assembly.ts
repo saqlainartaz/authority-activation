@@ -38,10 +38,12 @@ export function buildTurnMessages(
   transcript: ModelMessage[],
   clientMessage: string,
   turnContext: ModelMessage[] = [],
+  sourceContext: ModelMessage[] = [],
 ): { messages: ModelMessage[]; handles: HandleMap } {
   const { text, handles } = renderMaterial(material);
 
   const messages: ModelMessage[] = [
+    ...sourceContext,
     { role: "user", content: `<material-set>\n${text}\n</material-set>` },
     ...transcript,
     ...turnContext,

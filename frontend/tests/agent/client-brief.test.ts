@@ -83,6 +83,7 @@ describe('bounded client brief', () => {
     );
     expect(route.match(/await getOnboarding\(token\)/g)).toHaveLength(1);
     expect(route).toContain('readWorkspaceOverview(token, onboarding)');
-    expect(route).toContain('buildTurnMessages([], transcript, clientMessage, turnContext)');
+    expect(route).toContain('await readClientKnowledge(token)');
+    expect(route).toContain('buildTurnMessages([], transcript, clientMessage, turnContext, sourceContext)');
   });
 });

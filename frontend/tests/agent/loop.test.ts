@@ -11,9 +11,19 @@ import {
   RETRY_BACKOFF_ALLOWANCE_MS,
   anthropicDriver,
   perCallTimeoutMs,
+  providerMessages,
 } from "@/agent/lib/loop";
 
 describe("the model configuration", () => {
+  it('caches the stable source prefix, not client messages, and preserves bytes', () => {
+    expect(providerMessages([
+      { role: 'user', content: '<client-knowledge>source &amp; bytes</client-knowledge>', cache: true },
+      { role: 'user', content: 'Who do we serve?' },
+    ])).toEqual([
+      { role: 'user', content: [{ type: 'text', text: '<client-knowledge>source &amp; bytes</client-knowledge>', cache_control: { type: 'ephemeral' } }] },
+      { role: 'user', content: 'Who do we serve?' },
+    ]);
+  });
   it("pins §5.8's values", () => {
     // Each is either measured or a documented divergence — none is a taste
     // choice, so each is asserted rather than left to a code review.

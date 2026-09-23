@@ -1673,6 +1673,17 @@ export function listClientAtoms(token: string, atomType?: AtomType | null): Prom
   return clientJson(`/v1/atoms${query}`, token);
 }
 
+export type ClientKnowledgeContext = {
+  status: 'available' | 'empty' | 'unavailable' | 'disabled';
+  document_count: number | null;
+  included_document_count: number;
+  documents: { source_type: string; text: string; trust: 'untrusted' }[];
+};
+
+export function getClientKnowledgeContext(token: string): Promise<ClientKnowledgeContext> {
+  return clientJson('/v1/knowledge-context', token);
+}
+
 export function decideClientAtom(
   token: string,
   atomId: string,

@@ -15,6 +15,7 @@ import {
 import type { AgentEvent } from "@/agent/events";
 import { derivedKey } from "@/agent/lib/backend";
 import { clientBriefMessage, projectClientBrief } from "@/agent/lib/client-brief";
+import { readClientKnowledge } from "@/agent/lib/client-knowledge";
 import { buildSystemBlocks, buildTurnMessages } from "@/agent/lib/context-assembly";
 import type { Driver, DriverRequest, TurnUsage } from "@/agent/lib/driver";
 import { createExecutor } from "@/agent/lib/executor";
@@ -261,7 +262,10 @@ export async function POST(request: Request, { params }: Params) {
       // and generation snapshot when an overview read is temporarily down.
     }
   }
-  const { messages } = buildTurnMessages([], transcript, clientMessage, turnContext);
+  // Whole available source context precedes conversation on every turn, including
+  // basic business questions. It does not depend on an intent regex or search hit.
+  const sourceContext = [await readClientKnowledge(token)];
+  const { messages } = buildTurnMessages([], transcript, clientMessage, turnContext, sourceContext);
   const tools = buildToolSpecs(profile.tools);
 
   const encoder = new TextEncoder();

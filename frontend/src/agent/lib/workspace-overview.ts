@@ -1,10 +1,14 @@
 import "server-only";
 
-import { getOnboarding, listClientAtoms, type OnboardingPrefill } from "@/lib/product";
+import { getOnboarding, listClientAtoms, type ClientAtom, type OnboardingPrefill } from "@/lib/product";
 import { escapeForBody, type ModelMessage } from "@/agent/transcript";
 
 const TOPIC_SOURCE_TYPES = ["insight", "quote", "objection", "proof_point"] as const;
 const DISCOVERY_SOURCE_TYPES = new Set(["objection", "pain_point", "insight", "proof_point", "quote"]);
+const BUSINESS_CONTEXT_QUOTAS = [
+  ["tldr", 2], ["terminology", 3], ["insight", 3],
+  ["pain_point", 2], ["proof_point", 2], ["objection", 1],
+] as const;
 
 export type WorkspaceOverview = {
   identity: { display_name: string; profession: string | null };
@@ -15,6 +19,7 @@ export type WorkspaceOverview = {
   };
   topic_suggestions: string[];
   discovery_candidates: Array<{ kind: string; text: string }>;
+  business_context_candidates: Array<{ kind: string; text: string; source_label: string; confirmed: boolean }>;
 };
 
 /** Account-wide reads are useful for discovery questions, but would add
@@ -25,6 +30,12 @@ export function needsWorkspaceOverview(message: string): boolean {
   const text = message.trim().toLowerCase();
   return [
     /\bwho am i\b/,
+    /\b(?:what(?:'s| is)|do you know) (?:my|our) business name\b/,
+    /\b(?:what(?:'s| is)|tell me about) (?:my|our) business\b/,
+    /\bwhat do you know about (?:my|our) (?:business|practice|brand)\b/,
+    /\bwhat (?:do|does) (?:my|our) (?:business|practice|company) do\b/,
+    /\bwho (?:do|does) (?:i|we|my business|our business) (?:serve|help|work with)\b/,
+    /\bwhat (?:services|products|offers) (?:do|does) (?:i|we|my business|our business) (?:provide|offer|sell)\b/,
     /\bwhat (?:do you know|data do you have) about me\b/,
     /\bhow much (?:data|material|knowledge)\b/,
     /\b(?:my|the) (?:data|sources|knowledge|snapshot)\b/,
@@ -35,9 +46,28 @@ export function needsWorkspaceOverview(message: string): boolean {
     /\bwhat(?:'s| is) (?:a |the )?question (?:that )?(?:(?:my|the) )?clients? (?:keep|keeps) asking (?:me|us)\b/,
     /\bwhat (?:do|does) (?:my|our) clients? (?:keep )?ask(?:ing)?\b/,
     /\bwrite (?:me )?something[.!?]?$/,
+    /\b(?:promote|introduce|describe) (?:my|our) business\b/,
     /\b(?:write|create|draft)(?: me)? (?:a |some )?(?:linkedin |social (?:media )?)?post\b[^.!?]*\b(?:my|our) business\b/,
     /\b(?:write|create|draft)(?: me)? (?:a |some )?(?:linkedin |social (?:media )?)?post[.!?]?$/,
   ].some((pattern) => pattern.test(text));
+}
+
+function businessContextCandidates(atoms: ClientAtom[]): WorkspaceOverview["business_context_candidates"] {
+  return BUSINESS_CONTEXT_QUOTAS.flatMap(([kind, quota]) =>
+    atoms
+      .filter((atom) => atom.atom_type === kind && atom.status !== "deprecated" && atom.text.trim())
+      .sort((a, b) =>
+        Number(b.status === "confirmed") - Number(a.status === "confirmed")
+        || (b.created_at ?? "").localeCompare(a.created_at ?? ""),
+      )
+      .slice(0, quota)
+      .map((atom) => ({
+        kind,
+        text: atom.text.trim().slice(0, 600),
+        source_label: atom.source_label,
+        confirmed: atom.status === "confirmed",
+      })),
+  );
 }
 
 function topicSuggestions(answers: Record<string, unknown>): string[] {
@@ -89,6 +119,7 @@ export async function readWorkspaceOverview(
       .map((atom) => ({ kind: atom.atom_type, text: atom.text.trim() }))
       .filter((candidate) => candidate.text.length > 0)
       .slice(0, 6),
+    business_context_candidates: businessContextCandidates(atoms.atoms),
   };
 }
 
