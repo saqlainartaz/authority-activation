@@ -46,7 +46,7 @@ import { submitChatDraft } from "@/lib/product";
  * via `clientJson`, with `context.token` threaded down through `ToolContext`.
  */
 export async function submitDraft(
-  args: { draft: ModelDraft; agentText: string; snapshotId: string; usage: TurnUsage },
+  args: { draft: ModelDraft; agentText: string; title: string; snapshotId: string; usage: TurnUsage },
   context: ToolContext,
   attempt = 1,
 ): Promise<{
@@ -69,6 +69,7 @@ export async function submitDraft(
   const response = await submitChatDraft(context.token, context.sessionId, {
     snapshot_id: args.snapshotId,
     body: payload.body,
+    title: args.title,
     cited_atom_ids: payload.cited_atom_ids,
     agent_text: args.agentText,
     idempotency_key: derivedKey(context.turnId, "submit_draft", attempt),

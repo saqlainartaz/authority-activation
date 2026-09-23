@@ -138,7 +138,7 @@ test('Promo Partner generates four channel drafts and preserves exact media vers
     await page.goto('/refined/library');
     await expect(page.getByRole('tab', { name: 'Calendar' })).toHaveCount(0);
     const row = page.locator(`tr[data-content-id="${contentItemId}"]`);
-    await expect(row).toContainText('Planned');
+    await expect(row).toContainText('Scheduled');
     await row.locator('.rf-post-open').click();
     await expect(page.getByRole('link', { name: 'Download image' })).toBeVisible();
     await page.getByRole('button', { name: 'Open', exact: true }).click();

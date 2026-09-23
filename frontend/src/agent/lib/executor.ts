@@ -202,11 +202,12 @@ export function createExecutor(options: CreateExecutorOptions): { executor: Tool
               reachedPython: false,
             };
           }
-          const args = parsed.data as { body: string; cited_atom_ids: ModelCitation[]; agent_text: string };
+          const args = parsed.data as { body: string; title: string; cited_atom_ids: ModelCitation[]; agent_text: string };
           const outcome = await submitDraft(
             {
               draft: { body: args.body, cited_atom_ids: args.cited_atom_ids },
               agentText: args.agent_text,
+              title: args.title,
               snapshotId: state.snapshotId,
               usage: options.getUsage(),
             },

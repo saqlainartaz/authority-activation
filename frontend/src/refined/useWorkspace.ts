@@ -238,7 +238,7 @@ export function useWorkspace() {
       draftsByChannel.current[s.fmt] = {
         id: envelope.session.content_item_id ?? Date.now(),
         version,
-        title: selected.body.split(/\r?\n/)[0]?.slice(0, 72) || TITLE,
+        title: selected.title?.trim() || selected.body.split(/\r?\n/)[0]?.slice(0, 72) || TITLE,
         thread: visibleThread,
         status: 'draft',
       };
@@ -257,7 +257,7 @@ export function useWorkspace() {
         typing: Boolean(batch.current) || working,
         thread: visibleThread,
         status: 'draft',
-        title: selected.body.split(/\r?\n/)[0]?.slice(0, 72) || TITLE,
+        title: selected.title?.trim() || selected.body.split(/\r?\n/)[0]?.slice(0, 72) || TITLE,
         media: null,
         mediaTouched: false,
       }));
@@ -516,7 +516,7 @@ export function useWorkspace() {
       hasRecord: true,
       typing: target.phase.kind === 'working',
       thread: assembleWorkspaceConversation(envelope.messages, target.echo, target.phase.kind === 'working' ? target.phase.text : ''),
-      title: selected.body.split(/\r?\n/)[0]?.slice(0, 72) || TITLE,
+      title: selected.title?.trim() || selected.body.split(/\r?\n/)[0]?.slice(0, 72) || TITLE,
       status: 'draft',
       when: undefined,
       date: undefined,
@@ -554,7 +554,21 @@ export function useWorkspace() {
     attachImage, removeImage, setMediaAlt,
     startNewPost, openRecord: () => patch({ phase: 'record', hasRecord: true }),
     setComposer: (composer: string) => patch({ composer }), setFmt: selectFormat, setView: (view: 'write' | 'preview') => patch({ view }), toggleLens: () => patch({ lens: !s.lens }),
-    rename: (title: string) => patch({ title: title.trim() || 'Untitled', settled: false }),
+    rename: async (title: string) => {
+      const next = title.trim().slice(0, 100);
+      if (!next) return false;
+      if (!d.isDemo && typeof s.id === 'string') {
+        try {
+          await postJson(`/api/client/content-items/${encodeURIComponent(s.id)}/title`, { title: next }, { idempotencyKey: crypto.randomUUID() });
+          await d.refreshPosts();
+        } catch (reason) {
+          notify.error(reason instanceof Error ? reason.message : 'The title was not saved.');
+          return false;
+        }
+      }
+      patch({ title: next, settled: false });
+      return true;
+    },
     editBody: (body: string) => { if (body === s.version.paras.map(paraText).join('\n\n')) return; patch({ version: versionWithEditedBody(s.version, body), settled: false, status: 'draft' }); },
     editPara: (index: number, text: string) => { if (text === paraText(s.version.paras[index])) return; patch({ version: { ...s.version, paras: s.version.paras.map((p, i) => i === index ? { g: '', segs: [{ t: text }] } : p) }, settled: false, status: 'draft' }); },
   };

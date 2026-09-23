@@ -767,6 +767,7 @@ export type ChatVariant = {
   variant_no: number;
   status: "verified" | "rejected" | string;
   body: string;
+  title?: string | null;
   sources?: ChatSource[];
   /** Browser-only claim receipt for evidence highlighting while the verified
    * variant is still temporary. Runtime/model envelopes deliberately omit it. */
@@ -965,6 +966,7 @@ export type ChatDraftCitation = { atom_id: string; quoted_span: string; claim_te
 export type ChatDraftSubmitCreate = {
   snapshot_id: string;
   body: string;
+  title?: string;
   cited_atom_ids: ChatDraftCitation[];
   agent_text: string;
   idempotency_key: string;
@@ -1094,6 +1096,8 @@ export type ClientContentItem = {
    * `library.py` reads the column straight through. Nothing renders it. */
   campaign_id: string | null;
   asset_kind: string;
+  display_title?: string | null;
+  untrusted_fields?: ["display_title"];
   state: string | null;
   state_changed_at: string | null;
   latest_version_id: string | null;
@@ -1244,6 +1248,24 @@ export function approve(token: string, contentItemId: string, body: KeyedIn): Pr
     method: "POST",
     headers: JSON_HEADERS,
     body: JSON.stringify(body),
+  });
+}
+
+export function changeContentTitle(token: string, contentItemId: string, body: KeyedIn & { title: string }): Promise<{ display_title: string }> {
+  return clientJson(`/v1/content-items/${encodeURIComponent(contentItemId)}/title`, token, {
+    method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body),
+  });
+}
+
+export function returnContentToDraft(token: string, contentItemId: string, body: KeyedIn): Promise<{ state: "draft" }> {
+  return clientJson(`/v1/content-items/${encodeURIComponent(contentItemId)}/return-to-draft`, token, {
+    method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body),
+  });
+}
+
+export function removeContentFromLibrary(token: string, contentItemId: string, body: KeyedIn): Promise<{ removed: true }> {
+  return clientJson(`/v1/content-items/${encodeURIComponent(contentItemId)}/delete`, token, {
+    method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body),
   });
 }
 

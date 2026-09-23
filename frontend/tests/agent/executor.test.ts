@@ -113,7 +113,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
 
   it("rejects submit_draft with reachedPython: false when no snapshot has been prepared yet", async () => {
     const { executor } = build();
-    const execution = await executor("submit_draft", { body: "b", cited_atom_ids: [], agent_text: "a" });
+    const execution = await executor("submit_draft", { body: "b", title: "Test post", cited_atom_ids: [], agent_text: "a" });
     expect(execution.kind).toBe("rejected");
     if (execution.kind === "rejected") expect(execution.reachedPython).toBe(false);
     expect(submitDraft).not.toHaveBeenCalled();
@@ -141,6 +141,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
     await executor("prepare_generation", prepareArgs("m"));
     await executor("submit_draft", {
       body: "we doubled revenue",
+      title: "Revenue lesson",
       cited_atom_ids: [{ handle: "M1", quoted_span: "we doubled revenue", claim_text: "we doubled revenue" }],
       agent_text: "here",
     });
@@ -164,6 +165,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
     await executor("prepare_generation", prepareArgs("m"));
     const execution = await executor("submit_draft", {
       body: "b",
+      title: "Test post",
       cited_atom_ids: [{ handle: "M1", quoted_span: "x", claim_text: "x" }],
       agent_text: "a",
     });
@@ -195,6 +197,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
     await executor("prepare_generation", prepareArgs("m"));
     const execution = await executor("submit_draft", {
       body: "b",
+      title: "Test post",
       cited_atom_ids: [{ handle: "M1", quoted_span: "x", claim_text: "x" }],
       agent_text: "a",
     });
@@ -215,6 +218,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
     await executor("prepare_generation", prepareArgs("m"));
     const execution = await executor("submit_draft", {
       body: "b",
+      title: "Test post",
       cited_atom_ids: [{ handle: "M1", quoted_span: "x", claim_text: "x" }],
       agent_text: "a",
     });
@@ -233,6 +237,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
     await executor("prepare_generation", prepareArgs("the launch"));
     await executor("submit_draft", {
       body: "A post citing M1.",
+      title: "Grounded draft",
       cited_atom_ids: [{ handle: "M1", quoted_span: "we doubled revenue", claim_text: "A post citing M1." }],
       agent_text: "Here's a draft from your 14 March call.",
     });
@@ -247,6 +252,7 @@ describe("createExecutor — dispatch and the mutable handles/snapshotId wiring"
 
     const execution = await executor("submit_draft", {
       body: "No material prepared.",
+      title: "Unprepared draft",
       cited_atom_ids: [],
       agent_text: "Here you go.",
     });
@@ -357,7 +363,7 @@ describe("item 3, through the real executor — a local pre-flight hold spends n
       {
         id,
         name: "submit_draft",
-        input: { body: "we doubled revenue", cited_atom_ids: [{ handle: "M1", quoted_span: "we doubled revenue", claim_text: "we doubled revenue" }], agent_text: "here" },
+        input: { body: "we doubled revenue", title: "Revenue lesson", cited_atom_ids: [{ handle: "M1", quoted_span: "we doubled revenue", claim_text: "we doubled revenue" }], agent_text: "here" },
       },
     ],
     stopReason: "tool_use",

@@ -80,7 +80,7 @@ describe("submitDraft — unwrapping Python's nested payload", () => {
     );
 
     const { submitDraft: freshSubmitDraft } = await import("@/agent/tools/submit-draft");
-    const result = await freshSubmitDraft({ draft, agentText: "here is your draft", snapshotId: "snap-1", usage }, context);
+    const result = await freshSubmitDraft({ draft, agentText: "here is your draft", title: "Draft topic", snapshotId: "snap-1", usage }, context);
 
     expect(result.outcome).toBe("verified");
     expect(result.variant_id).toBe("variant-123");
@@ -104,7 +104,7 @@ describe("submitDraft — unwrapping Python's nested payload", () => {
     );
 
     const { submitDraft: freshSubmitDraft } = await import("@/agent/tools/submit-draft");
-    const result = await freshSubmitDraft({ draft, agentText: "let me try again", snapshotId: "snap-1", usage }, context);
+    const result = await freshSubmitDraft({ draft, agentText: "let me try again", title: "Draft topic", snapshotId: "snap-1", usage }, context);
 
     expect(result.outcome).toBe("held");
     expect(result.variant_id).toBeUndefined();
@@ -154,7 +154,7 @@ describe("submitDraft — unwrapping Python's nested payload", () => {
     );
 
     const { submitDraft: freshSubmitDraft } = await import("@/agent/tools/submit-draft");
-    await freshSubmitDraft({ draft, agentText: "here is your draft", snapshotId: "snap-1", usage }, context);
+    await freshSubmitDraft({ draft, agentText: "here is your draft", title: "Draft topic", snapshotId: "snap-1", usage }, context);
 
     const headers = new Headers(capturedHeaders);
     expect(headers.get("X-API-Key")).toBe("test-key");
@@ -187,7 +187,7 @@ describe("submitDraft — unwrapping Python's nested payload", () => {
     );
 
     const { submitDraft: freshSubmitDraft } = await import("@/agent/tools/submit-draft");
-    await freshSubmitDraft({ draft, agentText: "here is your draft", snapshotId: "snap-1", usage }, context);
+    await freshSubmitDraft({ draft, agentText: "here is your draft", title: "Draft topic", snapshotId: "snap-1", usage }, context);
 
     expect(capturedBody).toMatchObject({
       skill_versions: [
@@ -222,7 +222,7 @@ describe("submitDraft — unwrapping Python's nested payload", () => {
 
     const { submitDraft: freshSubmitDraft } = await import("@/agent/tools/submit-draft");
     const emptyContext: ToolContext = { ...context, skillVersions: [] };
-    await freshSubmitDraft({ draft, agentText: "here is your draft", snapshotId: "snap-1", usage }, emptyContext);
+    await freshSubmitDraft({ draft, agentText: "here is your draft", title: "Draft topic", snapshotId: "snap-1", usage }, emptyContext);
 
     expect(capturedBody).toMatchObject({ skill_versions: [] });
   });

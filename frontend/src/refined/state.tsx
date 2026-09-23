@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { POSTS, FULL, paraText, type Post, type Version } from '@/shared/data';
 import { channelFromAssetKind } from '@/shared/channels';
 import { restoreSetup, setupComplete, type Setup, type SetupAnswer } from './setup-packets';
+import { parseLibraryDisplay, type LibraryView } from './library-display';
 
 export type SavedPost = Post & {
   body: string;
@@ -21,7 +22,7 @@ export type Rule = { id: string; text: string; enabled: boolean };
 type Profile = { name: string; headline: string };
 type Connection = 'demo' | 'loading' | 'connected' | 'error';
 type Data = { posts: SavedPost[]; answers: Record<string, string[]>; onboarding: Setup; rules: Rule[]; preferences: boolean[]; timeZone: string; profile: Profile; sourceCount: number };
-type LibraryItem = { content_item_id: string; asset_kind: string; state: string | null; latest_version_id: string | null; created_at: string };
+type LibraryItem = { content_item_id: string; asset_kind: string; display_title?: string | null; state: string | null; latest_version_id: string | null; created_at: string };
 type VersionEntry = { content_version_id: string; body: string; created_at: string; media?: SavedPostMedia | null };
 type VersionHistory = { versions: VersionEntry[] };
 type CalendarEnvelope = { slots: Array<{ slot_id: string; slot_at: string; slot_zone: string; status: string; content_item_id: string; objective: string }> };
@@ -41,6 +42,8 @@ const FIXTURES: Data = {
   ],
 };
 const KEY = 'authority-refined-local-v1';
+const LIBRARY_DISPLAY_KEY = 'promo-partner-library-display-v1';
+function restoreLibraryDisplay() { try { return parseLibraryDisplay(localStorage.getItem(LIBRARY_DISPLAY_KEY)); } catch { return parseLibraryDisplay(null); } }
 
 function restoreDemo(): Data {
   try {
@@ -79,7 +82,7 @@ async function loadPosts(): Promise<{ posts: SavedPost[]; profile: ProfileEnvelo
     const body = latest.body;
     const publication = publications.filter(candidate => candidate.content_item_id === item.content_item_id && candidate.content_version_id === latest.content_version_id).sort((a, b) => b.created_at.localeCompare(a.created_at))[0] ?? null;
     return [{
-      id: item.content_item_id, ch: channelFromAssetKind(item.asset_kind) ?? 'li', name: slot?.objective?.trim() || body.split(/\r?\n/)[0]?.slice(0, 72) || 'Untitled post', snip: body.split(/\r?\n/)[0] || '', body,
+      id: item.content_item_id, ch: channelFromAssetKind(item.asset_kind) ?? 'li', name: item.display_title?.trim() || body.split(/\r?\n/)[0]?.slice(0, 72) || 'Untitled post', snip: body.split(/\r?\n/)[0] || '', body,
       status: statusFor(item.state, Boolean(slot)), backendState: item.state, created: displayDate(item.created_at),
       when: instant ? `${new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short', timeZone: slot!.slot_zone }).format(instant)}, ${new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: slot!.slot_zone }).format(instant)}` : undefined,
       date: instant ? new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: slot!.slot_zone }).format(instant) : undefined,
@@ -95,6 +98,7 @@ async function loadPosts(): Promise<{ posts: SavedPost[]; profile: ProfileEnvelo
 function useDataValue() {
   const pathname = usePathname();
   const [data, setData] = useState<Data>(() => DEMO ? restoreDemo() : EMPTY);
+  const [libraryDisplay, setLibraryDisplay] = useState(restoreLibraryDisplay);
   const [connection, setConnection] = useState<Connection>(DEMO ? 'demo' : 'loading');
   const connectedDataLoaded = useRef(DEMO);
   const refreshPosts = useCallback(async () => {
@@ -107,6 +111,7 @@ function useDataValue() {
   }, []);
 
   useEffect(() => { if (DEMO) { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* Demo storage is best-effort. */ } } }, [data]);
+  useEffect(() => { try { localStorage.setItem(LIBRARY_DISPLAY_KEY, JSON.stringify(libraryDisplay)); } catch { /* Browser preference remains session-local if storage is unavailable. */ } }, [libraryDisplay]);
   useEffect(() => {
     if (DEMO) return;
     if (/\/refined\/(signin|invite|onboarding)$/.test(pathname)) {
@@ -126,6 +131,9 @@ function useDataValue() {
 
   return useMemo(() => ({
     ...data, connection, isDemo: DEMO, refreshPosts,
+    libraryView: libraryDisplay.view, compactRows: libraryDisplay.compactRows,
+    setLibraryView: (view: LibraryView) => setLibraryDisplay(current => ({ ...current, view })),
+    setCompactRows: (compactRows: boolean) => setLibraryDisplay(current => ({ ...current, compactRows })),
     setSetupAnswer: (id: string, answer: SetupAnswer) => setData(d => ({ ...d, onboarding: { completed: false, answers: { ...d.onboarding.answers, [id]: answer } } })),
     completeSetupLocal: () => setData(d => setupComplete(d.onboarding) ? { ...d, onboarding: { ...d.onboarding, completed: true } } : d),
     setTimeZone: async (timeZone: string) => {
@@ -138,10 +146,11 @@ function useDataValue() {
     setProfile: (profile: Profile) => { if (DEMO) setData(d => ({ ...d, profile })); else localOnly('Profile editing is unavailable.'); },
     exportData: () => { const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })); const link = document.createElement('a'); link.href = url; link.download = DEMO ? 'authority-demo-data.json' : 'authority-browser-view.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); },
     savePostLocal: (post: SavedPost) => setData(d => ({ ...d, posts: d.posts.some(p => p.id === post.id) ? d.posts.map(p => p.id === post.id ? post : p) : [...d.posts, post] })),
+    removePostLocal: (postId: SavedPost['id']) => setData(d => ({ ...d, posts: d.posts.filter(post => post.id !== postId) })),
     answer: (id: string, value: string[]) => { setData(d => ({ ...d, answers: { ...d.answers, [id]: value } })); if (!DEMO) localOnly('Training answers are kept in this browser session only.'); },
     setRule: (rule: Rule) => { setData(d => ({ ...d, rules: d.rules.some(r => r.id === rule.id) ? d.rules.map(r => r.id === rule.id ? rule : r) : [...d.rules, rule] })); if (!DEMO) localOnly('Guidance is kept in this browser session only.'); },
     setPreference: (i: number, checked: boolean) => { setData(d => ({ ...d, preferences: d.preferences.map((v, j) => i === j ? checked : v) })); if (!DEMO) localOnly('This preference is kept in this browser session only.'); },
-  }), [connection, data, localOnly, refreshPosts]);
+  }), [connection, data, libraryDisplay, localOnly, refreshPosts]);
 }
 
 const Context = createContext<ReturnType<typeof useDataValue> | null>(null);
