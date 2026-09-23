@@ -28,6 +28,7 @@ import { newPostConfirmationKind, showsConversation } from './workspace-presenta
 import { CHANNELS, CHANNEL_KEYS, DEFAULT_CHANNEL } from '@/shared/channels';
 import FormattedText from './FormattedText';
 import ChannelMark from './ChannelMark';
+import { useConversationScroll } from './useConversationScroll';
 
 const ICONS: Record<string, React.ComponentType<{ className?: string }>> = { how: ListChecks, win: Star, mistake: RotateCcw, question: MessageSquare };
 const Mark = ({ ch, className }: { ch: Channel; className?: string }) => (
@@ -80,8 +81,8 @@ function Sheet({ ws }: { ws: WS }) {
     );
   }
   return (
-    <Card className={cn('sheet mx-auto w-full max-w-[520px] rounded-b-none', ws.phase === 'streaming' ? 'min-h-[60vh]' : 'min-h-[calc(100%-2.25rem)]')}><CardContent className="pt-6 pb-24">
-      {ws.phase === 'record' && <PostImage ws={ws} />}
+    <Card className="sheet mx-auto w-full max-w-[520px] gap-0 overflow-hidden py-0"><CardContent className="py-6">
+      {ws.phase === 'record' && <PostImage ws={ws} editable={false} />}
       <div className="grid grid-cols-[18px_1fr] gap-x-3 gap-y-3.5">
         {ws.visible.done.map((p, i) => (
           <div key={i} className="contents">
@@ -93,33 +94,14 @@ function Sheet({ ws }: { ws: WS }) {
           <div className="contents"><span /><p className="m-0 font-serif text-[15.5px] leading-[1.72]">{ws.visible.partial}<span className="ml-0.5 inline-block h-[1em] w-0.5 animate-pulse bg-foreground align-[-2px]" /></p></div>
         )}
       </div>
-      {ws.phase === 'record' && (
-        <div className="sources mt-7 border-t pt-4">
-          <p className="ui-label mb-2 text-xs text-muted-foreground">Sources</p>
-          {v.sources.map((s) => <p key={s.n} className="flex items-baseline gap-3 py-1 text-xs"><span className={cn('w-3 font-semibold', s.bad ? 'text-[var(--miss)]' : 'text-[var(--cite)]')}>{s.n}</span><span>{s.t}</span>{s.loc && <span className="locator ml-auto font-mono text-[10.5px] text-muted-foreground">{s.loc}</span>}</p>)}
-        </div>
-      )}
-    </CardContent></Card>
+    </CardContent>
+      {ws.phase === 'record' && <SourceDetails ws={ws} />}
+    </Card>
   );
 }
 
-/** How much of the draft carries a source, and the lens that shows which parts do not. It sits in
- *  a bar rather than floating: a pill hovering over a scrolling document lands on a live sentence
- *  at some scroll position whatever padding is under it, and that is what read as chrome dropped
- *  onto the screen. `short` is the phone form, four words instead of a sentence. */
-function Evidence({ ws, iconLens, className }: { ws: WS; iconLens?: boolean; className?: string }) {
-  const label = ws.lens ? 'Hide evidence' : 'Show evidence';
-  return (
-    <div className={cn('flex min-w-0 items-center gap-1.5 text-xs', className)}>
-      <span className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-        <span className="size-1.5 shrink-0 rounded-full bg-[var(--cite-mark)]" />
-        <span className="truncate">{ws.evidenceShort}</span>
-      </span>
-      <Button variant={ws.lens ? 'default' : 'ghost'} size={iconLens ? 'icon-xs' : 'xs'} className="shrink-0 gap-1.5 rounded-full" onClick={ws.toggleLens} disabled={!ws.hasEvidenceClaims} aria-pressed={ws.lens} aria-label={iconLens ? label : undefined} title={!ws.hasEvidenceClaims ? 'This draft has no claim-level evidence links.' : label}>
-        <Eye className="size-3" />{!iconLens && label}
-      </Button>
-    </div>
-  );
+function SourceDetails({ ws }: { ws: WS }) {
+  return <Collapsible className="rf-inline-evidence"><CollapsibleTrigger render={<Button variant="ghost" />} className="rf-inline-evidence-trigger"><span>Sources · {ws.evidenceShort}</span><ChevronDown /></CollapsibleTrigger><CollapsibleContent>{ws.version.sources.length ? <ul>{ws.version.sources.map(source => <li key={source.n}><span>{source.n}. {source.t}</span>{source.loc && <small>{source.loc}</small>}</li>)}</ul> : <p>No source citations in this draft.</p>}</CollapsibleContent></Collapsible>;
 }
 
 function PostImage({ ws, editable = true }: { ws: WS; editable?: boolean }) {
@@ -131,12 +113,12 @@ function PostImage({ ws, editable = true }: { ws: WS; editable?: boolean }) {
   </div>;
 }
 
-function ImageActions({ ws }: { ws: WS }) {
+function ImageActions({ ws, allowAttach = false }: { ws: WS; allowAttach?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
-  if (!ws.media) return null;
+  if (!ws.media && !allowAttach) return null;
   return <div className="rf-image-actions" role="group" aria-label="Image actions">
-    <Button variant="ghost" disabled={ws.mediaUploading} onClick={() => input.current?.click()}><ImagePlus />Replace Image</Button>
-    <Button variant="ghost" size="icon" aria-label="Remove image" title="Remove image" disabled={ws.mediaUploading} onClick={ws.removeImage}><Trash2 /></Button>
+    <Button variant="ghost" size="sm" disabled={ws.mediaUploading} onClick={() => input.current?.click()}><ImagePlus />{ws.mediaUploading ? 'Uploading…' : ws.media ? 'Replace image' : 'Attach image'}</Button>
+    {ws.media && <Button variant="ghost" size="icon-sm" aria-label="Remove image" title="Remove image" disabled={ws.mediaUploading} onClick={ws.removeImage}><Trash2 /></Button>}
     <input ref={input} type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={event => { const file = event.target.files?.[0]; if (file) void ws.attachImage(file); event.currentTarget.value = ''; }} />
   </div>;
 }
@@ -255,15 +237,15 @@ function InlineDraft({ ws, onRename }: { ws: WS; onRename: () => void }) {
   useEffect(() => { if (streaming) setEditing(false); }, [streaming]);
   return <Card className="rf-inline-draft" role="article" aria-label="Draft result">
     <div className="rf-inline-draft-heading"><span>{streaming ? 'Writing your draft' : ws.status === 'draft' ? 'Draft' : ws.status === 'approved' ? 'Approved' : ws.status === 'posted' ? 'Posted' : 'Scheduled'}</span>{!streaming && <Button variant="ghost" size="icon" aria-label="Rename draft" onClick={onRename}><Pencil /></Button>}<h2>{streaming ? 'Your post is taking shape…' : ws.title}</h2></div>
-    <div className="rf-inline-draft-controls"><FormatTabs ws={ws} />{!streaming && <div className="rf-inline-view-controls"><Button variant={preview ? 'secondary' : 'ghost'} aria-pressed={preview} onClick={() => { setEditing(false); ws.setView(preview ? 'write' : 'preview'); }}><Eye />{preview ? 'Back to draft' : 'Preview post'}</Button>{!preview && <ImageActions ws={ws} />}</div>}</div>
+    <div className="rf-inline-draft-controls"><FormatTabs ws={ws} />{!streaming && <div className="rf-inline-view-controls"><Button variant={preview ? 'secondary' : 'ghost'} aria-pressed={preview} onClick={() => { setEditing(false); ws.setView(preview ? 'write' : 'preview'); }}><Eye />{preview ? 'Back to draft' : 'Preview post'}</Button>{!preview && <ImageActions ws={ws} allowAttach />}</div>}</div>
     <div className={`rf-inline-draft-text ${preview ? 'rf-inline-feed-preview' : ''}`}>
       {preview && <div className="rf-inline-author"><Avatar className="size-9"><AvatarFallback>{PERSON.initials}</AvatarFallback></Avatar><span><b>{profile.name}</b><small>{profile.headline} · {CHANNELS[ws.fmt].label}</small></span></div>}
-      {!streaming && <PostImage ws={ws} editable={!preview} />}
+      {!streaming && <PostImage ws={ws} editable={false} />}
       {!streaming && !preview && <div className="rf-inline-text-edit"><Button variant={editing ? 'secondary' : 'ghost'} size="sm" aria-pressed={editing} onClick={() => setEditing(value => !value)}><Pencil />{editing ? 'Done editing' : 'Edit text'}</Button></div>}
       {editing ? <UnifiedTextEditor ws={ws} /> : ws.visible.done.map((p, i) => preview ? !p.miss && <p className="post-p" key={i}><FormattedText text={paraText(p)} /></p> : <div key={i}><ParaView p={p} lens={ws.lens} sources={ws.version.sources} />{p.miss && <span className="rf-inline-needs-source">Needs a source · excluded from the feed preview</span>}</div>)}
       {streaming && <p className="post-p">{ws.visible.partial}<span className="rf-inline-caret" aria-hidden="true" /></p>}
     </div>
-    {!streaming && !preview && <Collapsible className="rf-inline-evidence"><CollapsibleTrigger render={<Button variant="ghost" />} className="rf-inline-evidence-trigger"><span>{ws.evidenceShort}</span><ChevronDown /></CollapsibleTrigger><CollapsibleContent><Evidence ws={ws} />{ws.version.sources.length ? <ul>{ws.version.sources.map(source => <li key={source.n}><span>{source.n}. {source.t}</span>{source.loc && <small>{source.loc}</small>}</li>)}</ul> : <p>No source citations in this draft.</p>}</CollapsibleContent></Collapsible>}
+    {!streaming && !preview && <SourceDetails ws={ws} />}
     {streaming && <div className="rf-inline-draft-actions"><span>{COPY.writing(ws.paragraphsDone, ws.version.paras.length)}</span><Button variant="outline" onClick={ws.stop}><Square /> Stop</Button></div>}
   </Card>;
 }
@@ -329,17 +311,7 @@ export default function Workspace() {
   const [startingNew, setStartingNew] = useState(false);
   const [rename, setRename] = useState(false);
   const [title, setTitle] = useState('');
-  const conversationScroll = useRef<HTMLDivElement>(null);
-  const followConversation = useRef(true);
-  const scrollFrame = useRef<number | null>(null);
-  useEffect(() => {
-    if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
-    scrollFrame.current = requestAnimationFrame(() => {
-      const panel = conversationScroll.current;
-      if (panel && panel.clientHeight > 0 && followConversation.current) panel.scrollTop = panel.scrollHeight;
-    });
-    return () => { if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current); };
-  }, [ws.lastAgent?.text, ws.pos, ws.thread.length, ws.phase]);
+  const conversationScroll = useConversationScroll();
   const conversation = showsConversation(ws.phase, ws.thread.length);
   const hasRecord = ws.showDraft;
   const [draftPaneVisible, setDraftPaneVisible] = useState(false);
@@ -373,11 +345,10 @@ export default function Workspace() {
           <Button variant="ghost" size="icon" aria-label="Rename" onClick={() => { setTitle(ws.title); setRename(true); }}><Pencil /></Button>
         </div>
         {ws.phase === 'record' && (
-          <div className="mt-1 flex items-center gap-2">
+          <div className="mt-1 flex flex-wrap items-center gap-2">
             <Badge variant={ws.status === 'approved' ? 'default' : 'secondary'}>{ws.status === 'draft' ? 'Draft' : ws.status === 'approved' ? 'Approved' : ws.status === 'posted' ? 'Posted' : 'Scheduled'}</Badge>
-            {ws.view === 'write' && <Evidence ws={ws} iconLens={mobile} className="min-w-0" />}
             <Tabs className="ml-auto shrink-0" value={ws.view} onValueChange={(v) => ws.setView(v as 'write' | 'preview')}><TabsList><TabsTrigger value="write">Write</TabsTrigger><TabsTrigger value="preview">Preview</TabsTrigger></TabsList></Tabs>
-            {ws.view === 'write' && <ImageActions ws={ws} />}
+            {ws.view === 'write' && <ImageActions ws={ws} allowAttach />}
           </div>
         )}
       </div>
@@ -393,10 +364,17 @@ export default function Workspace() {
     <div className="flex min-h-0 flex-1 flex-col">
       {!conversation ? <Fresh ws={ws} mobile={mobile} /> : (
         <>
-          <div ref={conversationScroll} onScroll={e => { const panel = e.currentTarget; followConversation.current = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 80; }} className="rf-conversation-scroll flex min-h-0 flex-1 flex-col overflow-auto px-6 py-5"><div className="mx-auto w-full max-w-[680px]"><Thread ws={ws} inlineDraft={!twoPane} draft={!twoPane ? <InlineDraft ws={ws} onRename={() => { setTitle(ws.title); setRename(true); }} /> : undefined} /></div></div>
+          <div ref={conversationScroll.ref} className="rf-conversation-scroll flex min-h-0 flex-1 flex-col overflow-auto px-6 py-5"><div className="mx-auto w-full max-w-[680px]"><Thread ws={ws} inlineDraft={!twoPane} draft={!twoPane ? <InlineDraft ws={ws} onRename={() => { setTitle(ws.title); setRename(true); }} /> : undefined} /></div></div>
           <div className="rf-workspace-composer flex-none px-6 pb-5"><div className="mx-auto max-w-[680px]">
-            {!twoPane && ws.phase === 'record' && <div className="rf-composer-post-actions" role="group" aria-label="Post actions"><Button variant="outline" disabled={ws.typing || ws.mediaUploading || ws.status !== 'draft'} onClick={ws.keep}>{COPY.keep}</Button><Button disabled={ws.typing || ws.mediaUploading || ws.status === 'posted'} onClick={() => setSched(true)}>{ws.status === 'scheduled' ? 'Change schedule' : ws.status === 'approved' ? 'Schedule' : COPY.approve}</Button></div>}
-            {ws.phase === 'record' && <div className="rf-revision-chips" role="group" aria-label="Suggested revisions">{COPY.changes.map(change => <Button key={change} variant="outline" size="sm" disabled={!ws.canSend || ws.typing} onClick={() => ws.askChange(`Make it ${change.toLowerCase()}.`)}>{change}<ArrowRight /></Button>)}</div>}
+            <div className="rf-conversation-jumps" role="group" aria-label="Conversation navigation">
+              {!twoPane && hasRecord && ws.phase === 'record' && !ws.typing
+                ? conversationScroll.jump && <Button className="rf-scroll-jump" variant="outline" size="icon-sm" aria-label={conversationScroll.jump === 'response' ? 'Go to response' : 'Go to post'} title={conversationScroll.jump === 'response' ? 'Go to response' : 'Go to post'} onClick={conversationScroll.jump === 'response' ? conversationScroll.viewResponse : conversationScroll.viewPost}>{conversationScroll.jump === 'post-up' ? <ArrowUp /> : <ArrowUp className="rotate-180" />}</Button>
+                : conversationScroll.unread && <Button className="rf-scroll-jump" variant="outline" size="icon-sm" aria-label="New response" title="New response" onClick={conversationScroll.latest}><ArrowUp className="rotate-180" /></Button>}
+            </div>
+            {ws.phase === 'record' && <div className="rf-composer-action-row">
+              <div className="rf-revision-chips" role="group" aria-label="Suggested revisions">{COPY.changes.map(change => <Button key={change} variant="ghost" size="sm" disabled={!ws.canSend || ws.typing} onClick={() => ws.askChange(`Make it ${change.toLowerCase()}.`)}>{change}</Button>)}</div>
+              {!twoPane && <div className="rf-composer-post-actions" role="group" aria-label="Post actions"><Button variant="outline" size="sm" disabled={ws.typing || ws.mediaUploading || ws.status !== 'draft'} onClick={ws.keep}>Save draft</Button><Button size="sm" disabled={ws.typing || ws.mediaUploading || ws.status === 'posted'} onClick={() => setSched(true)}>{ws.status === 'scheduled' ? 'Change schedule' : ws.status === 'approved' ? 'Schedule' : COPY.approve}</Button></div>}
+            </div>}
             <Composer ws={ws} placeholder={COPY.changePlaceholder} />
           </div></div>
         </>
