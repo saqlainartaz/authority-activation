@@ -37,6 +37,13 @@ describe('channel writing skills', () => {
     expect(body).toContain('not a carousel script');
   });
 
+  it('defaults LinkedIn to a concise post without padding or overriding explicit length requests', () => {
+    const body = flat(skill('linkedin-post'));
+    expect(body).toContain('aim for 100-150 words and stay under 180 words unless');
+    expect(body).toContain('A requested length takes precedence over this default');
+    expect(body).toContain('Do not pad a short idea to reach the range');
+  });
+
   it('keeps X to one concise post with no invented handles or numbers', () => {
     const body = flat(skill('x-post')).toLowerCase();
     expect(body).toContain('single post, not a thread');
@@ -54,6 +61,14 @@ describe('channel writing skills', () => {
 
 describe('global agent instructions still govern every skill', () => {
   const prose = flat(instructions);
+
+  it('bans em dashes across social copy while preserving citation evidence', () => {
+    expect(prose).toContain('Never use em dashes (U+2014) in generated post bodies or titles');
+    expect(prose).toContain('LinkedIn, Instagram, X or Facebook');
+    expect(prose).toContain('first drafts and revisions');
+    expect(prose).toContain('Keep `claim_text` aligned with the final rewritten body');
+    expect(prose).toContain('Preserve verbatim source text in internal `quoted_span` citations');
+  });
 
   it('uses whole sources and saved DNA without privileging either or copying interviews', () => {
     expect(prose).toContain('before every turn, independently of search');

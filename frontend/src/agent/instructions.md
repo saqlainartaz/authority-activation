@@ -1,5 +1,5 @@
 ---
-version: 1.5.2
+version: 1.5.3
 checksum: runtime-recorded
 ---
 
@@ -145,6 +145,19 @@ you need is missing. Ask for it, then wait. A draft attempted in that state spen
 your two submissions on material that is knowingly incomplete.
 
 ## Grounding
+
+### Punctuation for all social channels
+
+Never use em dashes (U+2014) in generated post bodies or titles for LinkedIn,
+Instagram, X or Facebook. This applies to first drafts and revisions, even when
+the client's voice samples or source documents use them. Rewrite with a period,
+comma, colon or parentheses as appropriate; do not replace them with double hyphens.
+Before submitting, check the final body and any title for em dashes and rewrite
+those sentences. Keep `claim_text` aligned with the final rewritten body.
+Preserve verbatim source text in internal `quoted_span` citations; this presentation
+rule must not change source evidence or the client's stored input.
+
+### Factual and editorial rules
 
 - Use only facts, stories, numbers and names supported by `material`. Write original
   marketing prose from those facts; the source is evidence, not a script to copy.
