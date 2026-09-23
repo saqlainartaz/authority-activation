@@ -57,6 +57,61 @@ Do not put service/provider secrets in any `NEXT_PUBLIC_*` variable. Do not copy
 - The Python backend can stay on a different origin because browsers call the same-origin Next BFF, not Python directly. Allow outbound HTTPS from Vercel to `ENGINE_URL`.
 - Reverse proxies must not buffer or truncate `text/event-stream` responses from the agent route.
 
+### LinkedIn OAuth and client integration (local change, not deployed)
+
+The 2026-09-23 local refinement adds `PATCH /api/client/social/accounts/[accountId]/auto-publish`
+and requires backend social migrations `0025` and `0026` from PR #37 on the
+main-based lineage. A connected account defaults to scheduled auto-publish on;
+turning it off cancels queued scheduled jobs and leaves calendar plans, while Post now
+remains explicit. Deploy backend migration/API and the Next route together. The
+deployment-level publishing gate remains default-off regardless of this preference.
+
+The local Next BFF now exposes `POST /api/client/social/linkedin/start`,
+`GET /api/client/social/linkedin/callback`, and session-authenticated account,
+provider and publication reads. A separate publish-now BFF route forwards to the
+Python API. Settings → Integrations now shows a LinkedIn icon, personal-profile
+label, verified connection state, token expiry and Connect/Reconnect control;
+the Library exposes Post now for approved LinkedIn items
+only when the backend enables publishing, plus a Posted status and publication
+outcome. No provider token is stored in the browser. The backend
+OAuth `POST` cannot itself receive LinkedIn's browser `GET`; the Next callback
+exchanges the code server-side using the same httpOnly client session, then
+redirects to `/refined/home?linkedin=...`; the client opens Integrations, removes
+the query marker, and reads actual account state from the backend. The query
+marker is informational, not proof of a connection.
+
+For a given HTTPS hostname, register **exactly**
+`https://<hostname>/api/client/social/linkedin/callback` in LinkedIn's Auth
+tab and set the backend `LINKEDIN_REDIRECT_URI` to the identical URL. The
+browser must start OAuth while signed in on that same origin. Vercel's existing
+production hostname is not usable for this flow until these frontend routes,
+the compatible Python backend/migration, and the matching server-only runtime
+configuration are deployed. The unrelated Promo Partner deployment does not
+provide them. A local HTTPS tunnel must reach the Next app and preserve the
+signed-in origin; Vercel cannot call an unexposed localhost backend.
+
+Backend runtime also needs `LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`, and
+`SOCIAL_TOKEN_ENCRYPTION_KEYS`. Keep all values server-only and out of Git and
+browser storage. `LINKEDIN_PUBLISHING_ENABLED` remains false by default; the
+operator's personal-account test set it true in an isolated local runtime and
+verified immediate text, immediate single-image, and scheduled text delivery.
+Production enablement requires a separate provider-terms and rollout decision.
+LinkedIn's [API Terms §3.1(26)](https://www.linkedin.com/legal/l/api-terms-of-use)
+expressly prohibit using the APIs to automate posting, while its
+[Posts API documentation](https://learn.microsoft.com/en-us/linkedin/marketing/community-management/shares/posts-api)
+documents `w_member_social` for member publishing. The operator considers
+human-approved scheduling compliant, but the unattended worker's status under
+that restriction has not been confirmed by LinkedIn or qualified legal review;
+do not infer authorization merely from scope access or a successful test.
+For the current local visual preview, the worker and publishing are off, and
+Reconnect is disabled because developer credentials are not loaded in that
+process. Production flag changes need the terms question resolved;
+pushing or merging code alone does not enable publishing. The temporary
+`http://localhost:3101/api/client/social/linkedin/callback` registration in
+the LinkedIn developer portal still needs removal when that portal accepts
+the change. The current frontend/backend onboarding question-shape mismatch
+is a separate overhaul issue and can obstruct a normal login walkthrough.
+
 ## Upload compatibility
 
 The approved browser accepts individual files up to 20 MiB and the Python backend supports the inherited upload route. The current same-origin Next BFF receives each multipart body before forwarding it. Vercel Functions currently enforce a 4.5 MB request-body limit, so files above that platform limit will be rejected before this code runs ([official Vercel upload guidance](https://vercel.com/kb/guide/how-to-bypass-vercel-body-size-limit-serverless-functions)).

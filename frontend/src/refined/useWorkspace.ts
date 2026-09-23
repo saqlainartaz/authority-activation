@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from './navigation';
-import { COPY, FULL, SHORT, DEMO_MSG, REPLY_FULL, REPLY_SHORT, TITLE, XPOSTS, paraText, versionChars, type Channel, type Para, type Version } from '@/shared/data';
+import { COPY, FULL, SHORT, DEMO_MSG, REPLY_FULL, REPLY_SHORT, TITLE, XPOSTS, paraText, versionChars, type Channel, type Para, type Version, type Status } from '@/shared/data';
 import { useData, type SavedPostMedia } from './state';
 import { toast as notify } from 'sonner';
 import { PACKETS, packetAnswer } from './setup-packets';
@@ -14,13 +14,14 @@ import {
   type WorkspacePhase,
 } from './workspace-presentation';
 import { versionFromBody, versionFromReceipt, versionFromVariant, versionWithEditedBody, type ReceiptClaim } from './evidence';
-import { CHANNELS, CHANNEL_KEYS, DEFAULT_CHANNEL, channelsFromIntent, type SocialPlatform } from '@/shared/channels';
+import { CHANNELS, CHANNEL_KEYS, DEFAULT_CHANNEL, channelsForGeneration, type SocialPlatform } from '@/shared/channels';
+import { rescheduleSlotInstant } from './schedule-zone';
 
 type Msg = WorkspaceConversationMessage | { who: 't'; n: number };
-type State = { composer: string; phase: WorkspacePhase; thread: Msg[]; variant: 'full' | 'short'; version: Version; pos: number; formats: Channel[]; fmt: Channel; view: 'write' | 'preview'; status: 'draft' | 'approved' | 'scheduled'; settled: boolean; lens: boolean; typing: boolean; hasRecord: boolean; title: string; id: number | string; when?: string; date?: string; media: SavedPostMedia | null; mediaTouched: boolean; mediaUploading: boolean };
+type State = { composer: string; phase: WorkspacePhase; thread: Msg[]; variant: 'full' | 'short'; version: Version; pos: number; formats: Channel[]; fmt: Channel; view: 'write' | 'preview'; status: Status; settled: boolean; lens: boolean; typing: boolean; hasRecord: boolean; title: string; id: number | string; when?: string; date?: string; media: SavedPostMedia | null; mediaTouched: boolean; mediaUploading: boolean };
 type VersionHistory = { versions: Array<{ content_version_id: string; body: string; receipt?: ReceiptClaim[]; media?: SavedPostMedia | null }> };
 type BatchRun = { channels: Channel[]; message: string; index: number; started: boolean; baseline: Partial<Record<Channel, string>>; baselineTaskCount: Partial<Record<Channel, number>>; failed: Channel[] };
-type ChannelDraft = { id: number | string; version: Version; title: string; thread: Msg[] };
+type ChannelDraft = { id: number | string; version: Version; title: string; thread: Msg[]; status: Status; when?: string; date?: string };
 
 const initial = (): State => ({ composer: '', phase: 'empty', thread: [], variant: 'full', version: FULL, pos: 0, formats: [DEFAULT_CHANNEL], fmt: DEFAULT_CHANNEL, view: 'write', status: 'draft', settled: false, lens: false, typing: false, hasRecord: false, title: TITLE, id: Date.now(), media: null, mediaTouched: false, mediaUploading: false });
 
@@ -101,6 +102,9 @@ export function useWorkspace() {
         typing: false,
         thread: visibleDraft.thread,
         title: visibleDraft.title,
+        status: visibleDraft.status,
+        when: visibleDraft.when,
+        date: visibleDraft.date,
         media: mediaByChannel.current[visibleChannel] ?? null,
         mediaTouched: mediaByChannel.current[visibleChannel] !== undefined,
       } : { ...current, phase: current.hasRecord ? 'record' : 'empty', typing: false });
@@ -125,6 +129,7 @@ export function useWorkspace() {
         thread: active.session
           ? assembleWorkspaceConversation(active.session.messages, active.echo, '')
           : [],
+        status: 'draft',
       };
       advance(false);
       return;
@@ -235,6 +240,7 @@ export function useWorkspace() {
         version,
         title: selected.body.split(/\r?\n/)[0]?.slice(0, 72) || TITLE,
         thread: visibleThread,
+        status: 'draft',
       };
       set(current => ({
         ...current,
@@ -288,11 +294,10 @@ export function useWorkspace() {
     }, 35);
   }
 
-  function send(text: string, channels: Channel[]) {
+  function send(text: string, channels: Channel[], selectorTouched = false) {
     if (!['empty', 'record'].includes(s.phase)) return false;
     const message = text.trim() || DEMO_MSG;
-    const intended = channelsFromIntent(message);
-    const requested = intended.length ? intended : channels;
+    const requested = channelsForGeneration(message, channels, selectorTouched);
     if (!requested.length) { notify.error('Select at least one channel.'); return false; }
     manualFormat.current = null;
     for (const channel of requested) delete draftsByChannel.current[channel];
@@ -416,12 +421,16 @@ export function useWorkspace() {
     patch({ media, mediaTouched: true, status: 'draft', settled: false });
   }
 
-  async function save(status: State['status'], when?: string, date?: string, time?: string) {
+  async function save(status: Exclude<State['status'], 'posted'>, when?: string, date?: string, time?: string) {
     const body = s.version.paras.filter(p => !p.miss).map(paraText).join('\n\n');
     if (!body.trim()) { notify.error('Write something before saving.'); return false; }
     if (d.isDemo || typeof s.id === 'number') {
       d.savePostLocal({ id: s.id, ch: s.fmt, name: s.title, snip: body.split('\n')[0], body, status, created: 'Today', when, date, day: date ? Number(date.slice(-2)) : undefined, version: s.version });
-      resetLocal(); notify.success(status === 'draft' ? 'Draft saved to your demo Library' : when ? `Demo scheduled for ${when}` : 'Approved in the demo Library'); return true;
+      if (s.formats.length > 1) {
+        draftsByChannel.current[s.fmt] = { id: s.id, version: s.version, title: s.title, thread: s.thread, status, when, date };
+        patch({ status, when, date, settled: true });
+      } else resetLocal();
+      notify.success(status === 'draft' ? 'Draft saved to your demo Library' : when ? `Demo scheduled for ${when}` : 'Approved in the demo Library'); return true;
     }
     const contentItemId = s.id;
     try {
@@ -443,13 +452,23 @@ export function useWorkspace() {
         }, { idempotencyKey: crypto.randomUUID() });
         latest = { content_version_id: edited.content_version_id, body, media: s.media };
       }
-      if (status !== 'draft') await postJson(`/api/client/content-items/${encodeURIComponent(contentItemId)}/approve`, undefined, { idempotencyKey: crypto.randomUUID() });
+      if (status !== 'draft' && s.status === 'draft') await postJson(`/api/client/content-items/${encodeURIComponent(contentItemId)}/approve`, undefined, { idempotencyKey: crypto.randomUUID() });
       if (status === 'scheduled') {
         if (!date || !time) throw new Error('Pick a date and a time.');
-        await postJson(`/api/client/content-items/${encodeURIComponent(contentItemId)}/schedule`, { date, time }, { idempotencyKey: crypto.randomUUID() });
+        const existing = d.posts.find(post => String(post.id) === String(contentItemId));
+        if (existing?.slotId) {
+          await postJson(`/api/client/schedule-slots/${encodeURIComponent(existing.slotId)}/reschedule`, {
+            slot_at: rescheduleSlotInstant(existing, date, time),
+          }, { idempotencyKey: crypto.randomUUID() });
+        } else {
+          await postJson(`/api/client/content-items/${encodeURIComponent(contentItemId)}/schedule`, { date, time }, { idempotencyKey: crypto.randomUUID() });
+        }
       }
       await d.refreshPosts();
-      resetLocal();
+      if (s.formats.length > 1) {
+        draftsByChannel.current[s.fmt] = { id: s.id, version: s.version, title: s.title, thread: s.thread, status, when, date };
+        patch({ status, when, date, settled: true });
+      } else resetLocal();
       notify.success(status === 'draft' ? 'Draft saved to your Library' : when ? `Scheduled for ${when}` : 'Approved and saved to your Library');
       return true;
     } catch (reason) { notify.error(reason instanceof Error ? reason.message : 'Nothing was saved. Try again.'); return false; }
@@ -458,6 +477,9 @@ export function useWorkspace() {
   function selectFormat(fmt: Channel) {
     manualFormat.current = fmt;
     mediaByChannel.current[s.fmt] = s.media;
+    if (s.hasRecord && s.formats.includes(s.fmt)) {
+      draftsByChannel.current[s.fmt] = { id: s.id, version: s.version, title: s.title, thread: s.thread, status: s.status, when: s.when, date: s.date };
+    }
     const cached = draftsByChannel.current[fmt];
     if (cached) {
       set(current => ({
@@ -471,6 +493,9 @@ export function useWorkspace() {
         typing: false,
         thread: cached.thread,
         title: cached.title,
+        status: cached.status,
+        when: cached.when,
+        date: cached.date,
         media: mediaByChannel.current[fmt] ?? null,
         mediaTouched: mediaByChannel.current[fmt] !== undefined,
       }));
@@ -492,6 +517,9 @@ export function useWorkspace() {
       typing: target.phase.kind === 'working',
       thread: assembleWorkspaceConversation(envelope.messages, target.echo, target.phase.kind === 'working' ? target.phase.text : ''),
       title: selected.body.split(/\r?\n/)[0]?.slice(0, 72) || TITLE,
+      status: 'draft',
+      when: undefined,
+      date: undefined,
       media: mediaByChannel.current[fmt] ?? null,
       mediaTouched: mediaByChannel.current[fmt] !== undefined,
     }));

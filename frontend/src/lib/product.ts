@@ -421,6 +421,99 @@ export function getMe(token: string): Promise<Me> {
   return clientJson("/v1/me", token);
 }
 
+// ---- social accounts: server-side OAuth bridge ----------------------------
+
+export type SocialAccount = {
+  id: string;
+  provider: "linkedin";
+  account_kind: "person";
+  provider_account_id: string;
+  display_name: string;
+  avatar_url: string | null;
+  token_expires_at: string;
+  scopes: string[];
+  status: "connected" | "reauth_required" | "revoked";
+  is_default: boolean;
+  auto_publish_enabled: boolean;
+  connected_by_user_id: string;
+};
+
+export function startLinkedInOAuth(token: string): Promise<{
+  authorization_url: string;
+  expires_at: string;
+}> {
+  return clientJson("/v1/social/linkedin/oauth/start", token, { method: "POST" });
+}
+
+export function completeLinkedInOAuth(
+  token: string,
+  code: string,
+  state: string,
+): Promise<SocialAccount> {
+  return clientJson("/v1/social/linkedin/oauth/callback", token, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ code, state }),
+  });
+}
+
+export function listSocialAccounts(token: string): Promise<SocialAccount[]> {
+  return clientJson("/v1/social/accounts", token);
+}
+
+export function setSocialAutoPublish(token: string, accountId: string, enabled: boolean): Promise<SocialAccount> {
+  return clientJson(`/v1/social/accounts/${encodeURIComponent(accountId)}/auto-publish`, token, {
+    method: "PATCH",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ enabled }),
+  });
+}
+
+export type SocialProviderStatus = {
+  provider: "linkedin";
+  configured: boolean;
+  publishing_enabled: boolean;
+  capabilities: string[];
+};
+
+export function listSocialProviders(token: string): Promise<SocialProviderStatus[]> {
+  return clientJson("/v1/social/providers", token);
+}
+
+export type SocialPublication = {
+  id: string;
+  content_item_id: string;
+  content_version_id: string;
+  schedule_slot_id: string;
+  social_account_id: string | null;
+  provider: "linkedin";
+  dispatch_mode: "scheduled" | "immediate";
+  status: "planned" | "connection_required" | "queued" | "publishing" | "published" | "failed" | "outcome_unknown" | "cancelled";
+  provider_post_id: string | null;
+  provider_media_id: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export function listSocialPublications(token: string): Promise<SocialPublication[]> {
+  return clientJson("/v1/social/publications", token);
+}
+
+export function publishContentItemNow(
+  token: string,
+  contentItemId: string,
+  idempotencyKey: string,
+): Promise<SocialPublication> {
+  return clientJson(`/v1/content-items/${encodeURIComponent(contentItemId)}/publish`, token, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ idempotency_key: idempotencyKey }),
+  });
+}
+
 // ---- identity: POST /v1/auth/login -----------------------------------------
 //
 // Review fix (2026-08-22, F1). `api/login/route.ts` used to read

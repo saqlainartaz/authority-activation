@@ -64,7 +64,7 @@ export const TEMPLATES = [
   { id: 'question', name: 'A customer question', line: 'Something clients keep asking you, answered straight.', starter: 'What is a question clients keep asking me? Find one in my material and write a post answering it.' },
 ];
 
-export type Status = 'draft' | 'approved' | 'scheduled';
+export type Status = 'draft' | 'approved' | 'scheduled' | 'posted';
 export type Post = { id: number | string; ch: Channel; name: string; snip: string; status: Status; created: string; when?: string; day?: number };
 export const POSTS: Post[] = [
   { id: 1, ch: 'li', name: 'Why we stopped using spreadsheets', snip: 'Nine tabs. Four owners. Zero source of truth.', status: 'approved', created: '2 Mar' },
@@ -77,9 +77,9 @@ export const POSTS: Post[] = [
   { id: 8, ch: 'ig', name: 'Behind the launch', snip: 'The bit nobody saw: three discarded prototypes.', status: 'draft', created: 'Today' },
   { id: 9, ch: 'fb', name: 'A note to our clients', snip: 'Thank you for asking the difficult questions.', status: 'approved', created: '1 Mar' },
 ];
-export const FILTER_LABEL: Record<string, string> = { all: 'All', draft: 'Drafts', approved: 'Approved', scheduled: 'Scheduled' };
+export const FILTER_LABEL: Record<string, string> = { all: 'All', draft: 'Drafts', approved: 'Approved', scheduled: 'Scheduled', posted: 'Posted' };
 export const VIEW_LABEL: Record<string, string> = { table: 'Table', board: 'Board', calendar: 'Calendar' };
-export const STATUS_LABEL: Record<Status, string> = { draft: 'Draft', approved: 'Approved', scheduled: 'Scheduled' };
+export const STATUS_LABEL: Record<Status, string> = { draft: 'Draft', approved: 'Approved', scheduled: 'Scheduled', posted: 'Posted' };
 export const CHANNEL_LABEL: Record<Channel, string> = Object.fromEntries(
   Object.entries(CHANNELS).map(([key, channel]) => [key, channel.label]),
 ) as Record<Channel, string>;

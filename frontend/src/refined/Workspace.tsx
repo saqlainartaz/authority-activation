@@ -15,6 +15,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, D
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useWorkspace, type Workspace as WS } from './useWorkspace';
 import Schedule from './Schedule';
+import { scheduleZone } from './schedule-zone';
 import AgentThread from './AgentThread';
 import PageHeading from './PageHeading';
 import { Input } from '@/components/ui/input';
@@ -197,14 +198,14 @@ function FormatTabs({ ws }: { ws: WS }) {
 
 /** The registry's InputGroup is the composer: a textarea with a block-end addon row for controls.
  *  Hand-rolling this was where the old build leaked its own spacing and focus behaviour. */
-function Composer({ ws, placeholder, channels, onChannels, initialText, selectedChannels }: { ws: WS; placeholder: string; channels?: Channel[]; onChannels?: (c: Channel[]) => void; initialText?: string; selectedChannels?: Channel[] }) {
+function Composer({ ws, placeholder, channels, onChannels, initialText, selectedChannels, selectorTouched = false }: { ws: WS; placeholder: string; channels?: Channel[]; onChannels?: (c: Channel[]) => void; initialText?: string; selectedChannels?: Channel[]; selectorTouched?: boolean }) {
   const text = ws.composer;
   const setText = ws.setComposer;
   useEffect(() => { if (initialText) setText(initialText); }, [initialText]);
   const submit = () => {
     if (!ws.canSend) return;
     const accepted = ws.phase === 'empty'
-      ? ws.send(text, channels ?? selectedChannels ?? [DEFAULT_CHANNEL])
+      ? ws.send(text, channels ?? selectedChannels ?? [DEFAULT_CHANNEL], selectorTouched)
       : ws.askChange(text);
     if (accepted !== false) setText('');
   };
@@ -253,7 +254,7 @@ function InlineDraft({ ws, onRename }: { ws: WS; onRename: () => void }) {
   const preview = ws.view === 'preview' && !streaming;
   useEffect(() => { if (streaming) setEditing(false); }, [streaming]);
   return <Card className="rf-inline-draft" role="article" aria-label="Draft result">
-    <div className="rf-inline-draft-heading"><span>{streaming ? 'Writing your draft' : ws.status === 'draft' ? 'Draft' : ws.status === 'approved' ? 'Approved' : 'Scheduled'}</span>{!streaming && <Button variant="ghost" size="icon" aria-label="Rename draft" onClick={onRename}><Pencil /></Button>}<h2>{streaming ? 'Your post is taking shape…' : ws.title}</h2></div>
+    <div className="rf-inline-draft-heading"><span>{streaming ? 'Writing your draft' : ws.status === 'draft' ? 'Draft' : ws.status === 'approved' ? 'Approved' : ws.status === 'posted' ? 'Posted' : 'Scheduled'}</span>{!streaming && <Button variant="ghost" size="icon" aria-label="Rename draft" onClick={onRename}><Pencil /></Button>}<h2>{streaming ? 'Your post is taking shape…' : ws.title}</h2></div>
     <div className="rf-inline-draft-controls"><FormatTabs ws={ws} />{!streaming && <div className="rf-inline-view-controls"><Button variant={preview ? 'secondary' : 'ghost'} aria-pressed={preview} onClick={() => { setEditing(false); ws.setView(preview ? 'write' : 'preview'); }}><Eye />{preview ? 'Back to draft' : 'Preview post'}</Button>{!preview && <ImageActions ws={ws} />}</div>}</div>
     <div className={`rf-inline-draft-text ${preview ? 'rf-inline-feed-preview' : ''}`}>
       {preview && <div className="rf-inline-author"><Avatar className="size-9"><AvatarFallback>{PERSON.initials}</AvatarFallback></Avatar><span><b>{profile.name}</b><small>{profile.headline} · {CHANNELS[ws.fmt].label}</small></span></div>}
@@ -285,6 +286,8 @@ function TemplateCarousel({ onSelect }: { onSelect: (starter: string) => void })
 
 function Fresh({ ws, mobile }: { ws: WS; mobile: boolean }) {
   const [channels, setChannels] = useState<Channel[]>([DEFAULT_CHANNEL]);
+  const [selectorTouched, setSelectorTouched] = useState(false);
+  const chooseChannels = (selected: Channel[]) => { setChannels(selected); setSelectorTouched(true); };
   const [starter, setStarter] = useState('');
   return (
     <div className={cn('flex min-h-0 flex-1 flex-col', mobile ? '' : 'items-center justify-center overflow-auto')}>
@@ -293,12 +296,12 @@ function Fresh({ ws, mobile }: { ws: WS; mobile: boolean }) {
         <h2 className={cn('font-semibold tracking-tight', mobile ? 'mt-auto text-[27px] leading-tight' : 'text-2xl')}>{COPY.fresh}</h2>
         {mobile ? <p className="mt-2 mb-6 flex-none text-sm text-muted-foreground">{COPY.freshSub}</p> : (
           <div className="rf-fresh-channel-row my-4 flex items-center">
-            <ToggleGroup multiple value={channels} onValueChange={(v) => setChannels(v as Channel[])} variant="outline" size="sm" className="rf-channel-choice-list" data-selection-count={channels.length}>
+            <ToggleGroup multiple value={channels} onValueChange={(v) => chooseChannels(v as Channel[])} variant="outline" size="sm" className="rf-channel-choice-list" data-selection-count={channels.length}>
               {CHANNEL_KEYS.map(channel => <ToggleGroupItem key={channel} value={channel} data-channel={channel} aria-label={CHANNELS[channel].label} aria-pressed={channels.includes(channel)} className="rf-channel-choice gap-1.5"><Mark ch={channel} /><span className="rf-channel-choice-label">{CHANNELS[channel].label}</span></ToggleGroupItem>)}
             </ToggleGroup>
           </div>
         )}
-        {!mobile && <Composer ws={ws} placeholder={COPY.placeholder} initialText={starter} selectedChannels={channels} />}
+        {!mobile && <Composer ws={ws} placeholder={COPY.placeholder} initialText={starter} selectedChannels={channels} selectorTouched={selectorTouched} />}
         {!mobile && <p className="ui-label mt-6 mb-2.5 text-xs text-muted-foreground">{COPY.templates}</p>}
         {mobile ? <TemplateCarousel onSelect={value => ws.setComposer(value)} /> : <div className="grid grid-cols-2 gap-2.5">
           {TEMPLATES.map((t) => { const I = ICONS[t.id]; return (
@@ -311,13 +314,14 @@ function Fresh({ ws, mobile }: { ws: WS; mobile: boolean }) {
             </Item>); })}
         </div>}
       </div>
-      {mobile && <div className="sticky bottom-0 border-t bg-background/90 p-3 backdrop-blur"><Composer ws={ws} placeholder={COPY.placeholder} initialText={starter} channels={channels} onChannels={setChannels} /></div>}
+      {mobile && <div className="sticky bottom-0 border-t bg-background/90 p-3 backdrop-blur"><Composer ws={ws} placeholder={COPY.placeholder} initialText={starter} channels={channels} onChannels={chooseChannels} selectorTouched={selectorTouched} /></div>}
     </div>
   );
 }
 
 export default function Workspace() {
   const ws = useWorkspace();
+  const d = useData();
   const mobile = useMobile();
   const twoPane = useTwoPane();
   const [sched, setSched] = useState(false);
@@ -370,7 +374,7 @@ export default function Workspace() {
         </div>
         {ws.phase === 'record' && (
           <div className="mt-1 flex items-center gap-2">
-            <Badge variant={ws.status === 'approved' ? 'default' : 'secondary'}>{ws.status === 'draft' ? 'Draft' : ws.status === 'approved' ? 'Approved' : 'Scheduled'}</Badge>
+            <Badge variant={ws.status === 'approved' ? 'default' : 'secondary'}>{ws.status === 'draft' ? 'Draft' : ws.status === 'approved' ? 'Approved' : ws.status === 'posted' ? 'Posted' : 'Scheduled'}</Badge>
             {ws.view === 'write' && <Evidence ws={ws} iconLens={mobile} className="min-w-0" />}
             <Tabs className="ml-auto shrink-0" value={ws.view} onValueChange={(v) => ws.setView(v as 'write' | 'preview')}><TabsList><TabsTrigger value="write">Write</TabsTrigger><TabsTrigger value="preview">Preview</TabsTrigger></TabsList></Tabs>
             {ws.view === 'write' && <ImageActions ws={ws} />}
@@ -381,7 +385,7 @@ export default function Workspace() {
         <FormatTabs ws={ws} />
         <Sheet ws={ws} />
       </div>
-      {ws.phase === 'record' && <footer className="flex flex-none items-center justify-end gap-2 border-t bg-background px-3 py-2.5" aria-label="Draft actions"><Button variant="outline" size="sm" disabled={ws.typing || ws.mediaUploading} onClick={ws.keep}>{COPY.keep}</Button><Button size="sm" disabled={ws.typing || ws.mediaUploading} onClick={() => setSched(true)}>{COPY.approve}</Button></footer>}
+      {ws.phase === 'record' && <footer className="flex flex-none items-center justify-end gap-2 border-t bg-background px-3 py-2.5" aria-label="Draft actions"><Button variant="outline" size="sm" disabled={ws.typing || ws.mediaUploading || ws.status !== 'draft'} onClick={ws.keep}>{COPY.keep}</Button><Button size="sm" disabled={ws.typing || ws.mediaUploading || ws.status === 'posted'} onClick={() => setSched(true)}>{ws.status === 'scheduled' ? 'Change schedule' : ws.status === 'approved' ? 'Schedule' : COPY.approve}</Button></footer>}
     </div>
   );
 
@@ -391,7 +395,7 @@ export default function Workspace() {
         <>
           <div ref={conversationScroll} onScroll={e => { const panel = e.currentTarget; followConversation.current = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 80; }} className="rf-conversation-scroll flex min-h-0 flex-1 flex-col overflow-auto px-6 py-5"><div className="mx-auto w-full max-w-[680px]"><Thread ws={ws} inlineDraft={!twoPane} draft={!twoPane ? <InlineDraft ws={ws} onRename={() => { setTitle(ws.title); setRename(true); }} /> : undefined} /></div></div>
           <div className="rf-workspace-composer flex-none px-6 pb-5"><div className="mx-auto max-w-[680px]">
-            {!twoPane && ws.phase === 'record' && <div className="rf-composer-post-actions" role="group" aria-label="Post actions"><Button variant="outline" disabled={ws.typing || ws.mediaUploading} onClick={ws.keep}>{COPY.keep}</Button><Button disabled={ws.typing || ws.mediaUploading} onClick={() => setSched(true)}>{COPY.approve}</Button></div>}
+            {!twoPane && ws.phase === 'record' && <div className="rf-composer-post-actions" role="group" aria-label="Post actions"><Button variant="outline" disabled={ws.typing || ws.mediaUploading || ws.status !== 'draft'} onClick={ws.keep}>{COPY.keep}</Button><Button disabled={ws.typing || ws.mediaUploading || ws.status === 'posted'} onClick={() => setSched(true)}>{ws.status === 'scheduled' ? 'Change schedule' : ws.status === 'approved' ? 'Schedule' : COPY.approve}</Button></div>}
             {ws.phase === 'record' && <div className="rf-revision-chips" role="group" aria-label="Suggested revisions">{COPY.changes.map(change => <Button key={change} variant="outline" size="sm" disabled={!ws.canSend || ws.typing} onClick={() => ws.askChange(`Make it ${change.toLowerCase()}.`)}>{change}<ArrowRight /></Button>)}</div>}
             <Composer ws={ws} placeholder={COPY.changePlaceholder} />
           </div></div>
@@ -421,7 +425,7 @@ export default function Workspace() {
         <div className="rf-workspace-panel">{agent}</div>
       )}
       </div>
-      <Schedule open={sched} onClose={() => setSched(false)} onPick={async (label, date, time) => { if (await ws.approve(label || undefined, date, time)) setSched(false); }} />
+      <Schedule open={sched} onClose={() => setSched(false)} timeZone={scheduleZone(d.posts.find(post => String(post.id) === String(ws.id)) ?? null, d.timeZone)} allowWithoutDate={ws.status !== 'scheduled'} onPick={async (label, date, time) => { if (await ws.approve(label || undefined, date, time)) setSched(false); }} />
       <Dialog open={rename} onOpenChange={setRename}><DialogContent><DialogHeader><DialogTitle>Rename post</DialogTitle><DialogDescription>A title to find this post in your Library.</DialogDescription></DialogHeader><Input autoFocus aria-label="Post title" value={title} onChange={e => setTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && title.trim()) { ws.rename(title); setRename(false); } }} /><DialogFooter><Button variant="outline" onClick={() => setRename(false)}>Cancel</Button><Button disabled={!title.trim()} onClick={() => { ws.rename(title); setRename(false); }}>Save title</Button></DialogFooter></DialogContent></Dialog>
       {mobile ? (
         <Drawer open={discard} onOpenChange={setDiscard} showSwipeHandle>

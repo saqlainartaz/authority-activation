@@ -30,3 +30,10 @@ export function channelsFromIntent(text: string): Channel[] {
   if (/\btwitter\b|\bx post\b|\bpost (?:for|on) x\b|(?:^|[^a-z0-9])x(?:$|[^a-z0-9])/.test(normalized)) requested.add("x");
   return CHANNEL_KEYS.filter((channel) => requested.has(channel));
 }
+
+/** A deliberate selector change wins over channel names mentioned as subject matter. */
+export function channelsForGeneration(text: string, selected: Channel[], selectorTouched: boolean): Channel[] {
+  if (selectorTouched) return selected;
+  const named = channelsFromIntent(text);
+  return named.length ? named : selected;
+}
