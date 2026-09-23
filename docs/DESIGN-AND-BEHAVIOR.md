@@ -73,6 +73,31 @@ Preserve the approved Home composition: greeting, dominant month calendar with s
 
 ## Workspace
 
+Owner-approved refinement, 2026-09-23: compact Save draft and Approve controls are
+content-sized and right-aligned. Conversation navigation uses at most one small
+contextual jump: New response during streaming; after completion, Go to post
+points up/down when the post is offscreen, or Go to response points down when
+the post is visible and its following reply is below the viewport. Response
+navigation targets its beginning and pauses following. Shorter/Longer/Punchier
+are quiet controls on the left of the action row, with Save draft and Approve
+on the right; groups wrap at narrow widths. Revision controls use a subtle muted
+fill, thin border and medium-weight foreground text to remain discoverable without
+competing with Approve. Both desktop and compact drafts hide source
+details behind a collapsed Sources disclosure. The Show evidence lens toggle is
+removed from both layouts; retained source/citation data is unchanged. These
+decisions supersede the older evidence-lens control descriptions below.
+
+The compact post toolbar pairs Preview post with Attach image (or Replace image
+and Remove image once attached). The image renders beneath it; the empty image
+placeholder is absent. Edit text sits on the divider directly above the copy.
+Conversation jumps use rounded arrow-only buttons with direction, accessible names
+and title tooltips, above the composer rather than over the post.
+
+Desktop Write mode places Attach/Replace/Remove image at the right of the padded
+header toolbar. Its post card is content-height, without a forced minimum height
+or blank bottom extension. Sources occupies the card's bottom edge as on mobile;
+the enclosing pane scrolls only when its contents exceed the available height.
+
 The fresh state presents a writing prompt, channel selection and templates. Desktop uses a small template grid. Phone uses one horizontal card carousel with previous/next controls, a visible count and a partial next card. Selecting a template fills the composer with a short, complete discovery request, not a dangling heading; browsing templates does not submit a prompt. The visible card names and descriptions remain unchanged.
 
 The fresh state ends as soon as the user sends the first message. From that point the Workspace is a continuous chat: the submitted message remains visible, the agent exposes its current activity and streamed response, and clarification turns stay in the conversation instead of falling back to the starter prompt. Consecutive persisted assistant records may be grouped into one visual response, but their text must not be dropped or duplicated.

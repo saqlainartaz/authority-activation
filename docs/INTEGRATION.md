@@ -4,7 +4,56 @@
 
 ## Current Promo Partner integration — 2026-09-22
 
+### Workspace streaming scroll — 2026-09-23
+
+Owner-approved local change: the workspace is the sole conversation scroll owner;
+assistant-ui automatic scrolling (including run start/history/thread switch) is off.
+`ConversationScroll` follows the live edge until the reader scrolls up or an inline
+post is visible. Content/viewport resizing does not resume a paused reader.
+An explicit **New response** button resumes following. In compact layouts with a
+completed post, it is replaced by directional **Go to post** when the post is
+offscreen, or **Go to response** when the post is visible and its following reply
+is below the viewport. Clicking targets the beginning, not the end, and pauses
+following. Only one jump appears. Compact Save draft / Approve actions are
+content-sized and right-aligned, sharing a wrapping row with quiet revision buttons.
+These use existing buttons above the composer, not an overlay on post text.
+Native scroll anchoring is disabled on this scroller so it does not compete with
+the controller. No backend, generation, storage or publishing behavior changes.
+
+Verification: typecheck, production build and all 22 design, 367 stack and 5 rendering tests passed.
+`PLAYWRIGHT_CHANNEL=chrome node scripts/check-conversation-scroll.mjs` passed at
+390 and 1280 px using the actual controller with synthetic DOM content: following,
+scroll-up pause, explicit resume, visible-post protection, View post and unchanged
+document scroll position. This isolated check is not an authenticated live agent
+journey or full-screen visual review. No AI calls, production writes or deployment.
+
+Follow-up preview refinement: removed the Show evidence lens control in both
+layouts. Desktop and compact drafts share a collapsed-by-default Sources section;
+expansion preserves source names and locators, and citation data is unchanged.
+The loopback-only, login-free preview uses actual Workspace components and fixture
+streaming, with network operations stubbed. At 390/1280 px, Sources was verified
+collapsed initially and expandable, Show evidence absent, and the mobile View post
+button absent while the post was visible. Mobile screenshot inspected. This does
+not test live generation or production authentication.
+
 ### Assistant response formatting — 2026-09-23
+
+Workspace toolbar follow-up: compact Preview/Attach controls now share one row;
+an attached image uses the existing Replace/Remove handlers. Empty media no longer
+occupies a separate row, and Edit text sits on the divider. Jump controls are
+rounded arrows with accessible destination names and native title tooltips.
+Local fixture browser checks at 320/390 px confirmed aligned Preview/Attach,
+one attachment button and accessible jump naming; 320/390/1280 had no horizontal
+overflow. The 390 px screenshot was inspected. Typecheck and all 394 tests passed.
+Actual upload persistence was not exercised in the network-disabled preview.
+
+Desktop card follow-up: removed forced card minimum height and 96px bottom
+padding; Sources is now a sibling footer to the padded body. Attach image moved
+to the right-side header controls without changing its upload handler. Mobile
+was unchanged. Fixture browser checks: a short post at 1440x1000 had equal
+pane client/scroll heights (775px), Sources ended 1px inside the card border,
+and disclosure expanded. At 1280x650 the longer post had 546px content in a
+425px pane and scrolled 121px. Screenshot reviewed; typecheck and 394 tests passed.
 
 Assistant conversation text now renders CommonMark paragraphs, bold/italic,
 lists, headings, quotes and code through `AssistantMarkdown`. The assistant-ui
