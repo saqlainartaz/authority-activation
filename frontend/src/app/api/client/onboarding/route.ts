@@ -16,7 +16,7 @@
 // can attribute their own write to somebody else (T-07A-04-04).
 
 import { clientToken } from "@/lib/client-session";
-import { buildCompatibleConfirm, mergeOnboardingResponses } from "@/lib/onboarding-profile";
+import { buildClarificationConfirm, buildCompatibleConfirm, mergeOnboardingResponses } from "@/lib/onboarding-profile";
 import type { OnboardingPrefill, OnboardingQuestionResponse } from "@/lib/product";
 import {
   expiredLinkResponse,
@@ -41,7 +41,7 @@ export async function PUT(request: Request) {
   if (!token) return expiredLinkResponse();
   const raw = await readJsonObject(request);
 
-  const allowed = new Set(["responses", "merge"]);
+  const allowed = new Set(["responses", "clarifications", "merge"]);
   const unknown = Object.keys(raw).filter((key) => !allowed.has(key));
   if (unknown.length) {
     return Response.json(
@@ -50,11 +50,20 @@ export async function PUT(request: Request) {
     );
   }
 
-  if (!Array.isArray(raw.responses)) {
+  if ((raw.responses === undefined) === (raw.clarifications === undefined)) {
+    return Response.json({ detail: "Send either responses or clarifications." }, { status: 422 });
+  }
+  if (raw.responses !== undefined && !Array.isArray(raw.responses)) {
     return Response.json({ detail: "responses must be a list." }, { status: 422 });
+  }
+  if (raw.clarifications !== undefined && !Array.isArray(raw.clarifications)) {
+    return Response.json({ detail: "clarifications must be a list." }, { status: 422 });
   }
   if (raw.merge !== undefined && typeof raw.merge !== "boolean") {
     return Response.json({ detail: "merge must be a boolean." }, { status: 422 });
+  }
+  if (raw.clarifications !== undefined && raw.merge !== undefined) {
+    return Response.json({ detail: "Clarifications cannot use Business DNA merge." }, { status: 422 });
   }
 
   let prefill: OnboardingPrefill;
@@ -73,10 +82,17 @@ export async function PUT(request: Request) {
     // knowledge the new packets do not own. The adapter reconstructs exact
     // fields and never spreads browser data, keeping actor and tenant identity
     // outside this boundary.
-    const responses = raw.merge === true
-      ? mergeOnboardingResponses(prefill, raw.responses as OnboardingQuestionResponse[])
-      : raw.responses as OnboardingQuestionResponse[];
-    forwarded = buildCompatibleConfirm(prefill, responses);
+    if (raw.clarifications !== undefined) {
+      forwarded = buildClarificationConfirm(prefill, raw.clarifications as OnboardingQuestionResponse[]);
+    } else {
+      const responses = raw.merge === true
+        ? mergeOnboardingResponses(prefill, raw.responses as OnboardingQuestionResponse[])
+        : raw.responses as OnboardingQuestionResponse[];
+      const compatible = buildCompatibleConfirm(prefill, responses);
+      forwarded = raw.merge === true
+        ? { ...compatible, responses: undefined, business_dna_responses: compatible.responses }
+        : compatible;
+    }
   } catch (e) {
     return Response.json(
       { detail: e instanceof Error ? e.message : "Invalid onboarding responses." },

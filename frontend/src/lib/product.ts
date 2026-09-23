@@ -625,9 +625,10 @@ export type OnboardingQuestion = {
   question_version: string;
   review_label: string;
   prompt: string;
-  input_type: "long" | "single";
+  input_type: "long" | "single" | "multi";
   required: boolean;
   choices: string[];
+  exclusive_choices?: string[];
   max_text_chars: number;
 };
 
@@ -659,6 +660,7 @@ export type OnboardingPrefill = {
   confirmed_at: string | null;
   guardrail_questions: Array<{ key: string; prompt: string; atom_type: string }>;
   questions: OnboardingQuestion[];
+  clarification_questions?: OnboardingQuestion[];
   trust: "untrusted";
 };
 
@@ -686,6 +688,8 @@ export type OnboardingConfirm = {
   quote: string[];
   terminology: string[];
   responses?: OnboardingQuestionResponse[];
+  business_dna_responses?: OnboardingQuestionResponse[];
+  clarifications?: OnboardingQuestionResponse[];
   actor?: string;
 };
 
@@ -720,7 +724,7 @@ export function getOnboarding(token: string): Promise<OnboardingPrefill> {
 
 export function putOnboarding(
   token: string,
-  body: OnboardingConfirm,
+  body: OnboardingConfirm | Pick<OnboardingConfirm, "clarifications">,
 ): Promise<OnboardingResponse> {
   return clientJson("/v1/onboarding", token, {
     method: "PUT",
@@ -922,6 +926,8 @@ export type AgentTurnCreate = { text: string; idempotency_key: string };
 export type ChatContextCreate = {
   message: string;
   operation: "generate" | "revise" | "resume";
+  subject: string;
+  retrieval_query: string;
   selected_variant_id?: string;
   clarification?: string;
   idempotency_key: string;

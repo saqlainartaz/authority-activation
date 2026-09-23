@@ -1,6 +1,6 @@
 import {
-  decodeQuestions,
-  decodeStoredResponses,
+  decodeClarificationQuestions,
+  decodeStoredClarifications,
   OTHER_VALUE,
 } from "@/lib/onboarding-profile";
 import type { OnboardingPrefill, OnboardingQuestionResponse } from "@/lib/product";
@@ -13,9 +13,9 @@ import {
 } from "./setup-packets";
 
 export function connectedPackets(prefill: OnboardingPrefill): Packet[] {
-  return decodeQuestions(prefill).map((question) => ({
+  return decodeClarificationQuestions(prefill).map((question) => ({
     id: question.question_id,
-    type: question.input_type === "single" ? "choice" : "long",
+    type: question.input_type === "single" ? "choice" : question.input_type === "multi" ? "multi" : "long",
     why:
       question.input_type === "single"
         ? "Choose the closest answer."
@@ -27,7 +27,8 @@ export function connectedPackets(prefill: OnboardingPrefill): Packet[] {
     required: question.required,
     questionVersion: question.question_version,
     maxTextChars: question.max_text_chars,
-    options: question.input_type === "single"
+    exclusiveChoices: question.exclusive_choices,
+    options: question.input_type !== "long"
       ? question.choices.map((label) => ({ label }))
       : undefined,
     placeholder: question.input_type === "long" ? "Write naturally. You can refine it later." : undefined,
@@ -37,7 +38,7 @@ export function connectedPackets(prefill: OnboardingPrefill): Packet[] {
 export function setupFromPrefill(prefill: OnboardingPrefill): Setup {
   const packets = connectedPackets(prefill);
   const answers = Object.fromEntries(
-    decodeStoredResponses(prefill).map((response) => [
+    decodeStoredClarifications(prefill).map((response) => [
       response.question_id,
       { selected: response.selected, text: response.text },
     ]),
@@ -59,12 +60,12 @@ export function responsesFromSetup(
       return [];
     }
     if (!packet.questionVersion) throw new Error(`Packet ${packet.id} has no question version.`);
-    const selected = packet.options ? answer.selected.slice(0, 1) : [];
+    const selected = packet.type === "multi" ? [...answer.selected] : packet.options ? answer.selected.slice(0, 1) : [];
     return [{
       question_id: packet.id,
       question_version: packet.questionVersion,
       selected,
-      text: selected[0] === OTHER_VALUE ? answer.text.trim() : packet.options ? "" : answer.text.trim(),
+      text: selected.includes(OTHER_VALUE) ? answer.text.trim() : packet.options ? "" : answer.text.trim(),
     }];
   });
 }

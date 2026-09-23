@@ -7,22 +7,23 @@ const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarg
 const { PACKETS, OTHER, packetAnswer, setupComplete, canContinue, advancesOnChoice, restoreSetup } = await import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
 const complete = () => ({ completed: true, answers: Object.fromEntries(PACKETS.map(p => [p.id, { selected: p.options ? [p.options[0].label] : [], text: p.options ? '' : 'An answer in my words.' }])) });
 
-test('all five packet types require an answer and typed alternatives cannot be blank', () => {
-  assert.deepEqual(new Set(PACKETS.map(p => p.type)), new Set(['choice', 'pick_source', 'multi', 'short', 'long']));
+test('the six shared demo packets cover single, multiple and long answers', () => {
+  assert.equal(PACKETS.length, 6);
+  assert.deepEqual(new Set(PACKETS.map(p => p.type)), new Set(['choice', 'multi', 'long']));
   for (const p of PACKETS) {
     assert.equal(packetAnswer(p), null);
     assert.equal(packetAnswer(p, { selected: p.options ? [OTHER] : [], text: ' \n ' }), null);
     assert.deepEqual(packetAnswer(p, { selected: p.options ? [OTHER] : [], text: '  Ask our operations lead.  ' }), ['Ask our operations lead.']);
   }
 });
-test('multi keeps chosen services and the written answer together', () => {
+test('multi keeps chosen options and the written answer together', () => {
   const p = PACKETS.find(p => p.type === 'multi');
-  assert.deepEqual(packetAnswer(p, { selected: ['Payroll', OTHER], text: 'Recruiting' }), ['Payroll', 'Recruiting']);
+  assert.deepEqual(packetAnswer(p, { selected: [p.options[0].label, OTHER], text: 'Another location' }), [p.options[0].label, 'Another location']);
 });
 test('review completion requires every packet and remains false after an answer is cleared', () => {
   const setup = complete();
   assert.equal(setupComplete(setup), true);
-  setup.answers.company.text = '';
+  setup.answers.work_today.selected = [];
   assert.equal(setupComplete(setup), false);
   assert.equal(restoreSetup(setup).completed, false);
 });
@@ -42,12 +43,12 @@ test('a blank optional packet can continue, but an attempted invalid optional an
 test('removed follow-up flags are discarded while preserving saved answers', () => {
   const setup = complete();
   const legacy = structuredClone(setup);
-  legacy.answers.company.followUp = true;
+  legacy.answers.anything_else.followUp = true;
   assert.deepEqual(restoreSetup(legacy), setup);
 });
 
 test('old or malformed storage migrates safely without losing valid answers', () => {
   assert.deepEqual(restoreSetup(undefined), { answers: {}, completed: false });
-  assert.deepEqual(restoreSetup({ answers: { audience: { selected: null } }, completed: true }), { answers: {}, completed: false });
+  assert.deepEqual(restoreSetup({ answers: { work_today: { selected: null } }, completed: true }), { answers: {}, completed: false });
   assert.deepEqual(restoreSetup(complete()), complete());
 });

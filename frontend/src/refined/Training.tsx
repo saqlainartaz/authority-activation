@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from 'sonner';
 import { useData } from './state';
 import Knowledge from './Knowledge';
+import BusinessDna from './BusinessDna';
 import { QUESTIONS, OTHER_ANSWER, getQuestionAnswer } from './questions';
 import type { ClientAtomDecided, ClientAtoms } from '@/lib/product';
 import { decisionBody, removeReviewed, reviewQueue, type ReviewQueueEntry } from './connected-training';
@@ -119,7 +120,7 @@ export default function Training() {
   return <>
     <header className="rf-topbar"><h1>Train your AI</h1></header>
     <Tabs value={tab} onValueChange={value => setSearch({ tab: String(value) })} className="rf-training-tabs">
-      <TabsList variant="line" className="rf-training-nav"><TabsTrigger value="questions">Questions {waiting > 0 && <span className="rf-count">{waiting}</span>}</TabsTrigger><TabsTrigger value="knowledge">Knowledge</TabsTrigger><TabsTrigger value="guidance">Guidance</TabsTrigger></TabsList>
+      <TabsList variant="line" className="rf-training-nav"><TabsTrigger value="questions">Questions {waiting > 0 && <span className="rf-count">{waiting}</span>}</TabsTrigger><TabsTrigger value="knowledge">Knowledge</TabsTrigger><TabsTrigger value="dna">Business DNA</TabsTrigger><TabsTrigger value="guidance">Guidance</TabsTrigger></TabsList>
       <TabsContent value="questions" className="rf-training-page rf-questions-page"><div className="rf-section-heading"><h2>Questions</h2>{waiting > 0 && <span>{waiting} waiting</span>}</div><p className="rf-section-description">Gaps the agent found in your material. Answer what you can; the rest stays here.</p>
         {d.isDemo ? q ? <Card className="rf-question"><CardContent><p className="rf-question-position">{Math.min(index + 1, unanswered.length)} of {unanswered.length}</p><h3>{q.title}</h3><p className="rf-question-reason">{q.why}</p>
           {'options' in q ? <>
@@ -136,6 +137,7 @@ export default function Training() {
         {!d.isDemo && connectedError && <p className="rf-auth-error" role="alert">{connectedError}</p>}
       </TabsContent>
       <TabsContent value="knowledge" className="rf-training-page"><Knowledge /></TabsContent>
+      <TabsContent value="dna" className="rf-training-page"><BusinessDna embedded /></TabsContent>
       <TabsContent value="guidance" className="rf-training-page"><div className="rf-section-heading"><h2>Guidance</h2><span>{d.rules.filter(rule => rule.enabled).length} active</span><Button variant="outline" onClick={() => { setEditing('new'); setText(''); setActive(true); }}><Plus /> Add</Button></div><p className="rf-section-description">Sent to the agent every time it writes.</p><div className="rf-guidance-list">{rules.map((rule, position) => <div key={rule.id} className="rf-rule" data-disabled={!rule.enabled || undefined}><span className="rf-rule-number" aria-hidden="true">{rule.enabled ? position + 1 : '—'}</span><span className="rf-rule-text" title={rule.text}>{rule.text}</span><Switch checked={rule.enabled} onCheckedChange={enabled => d.setRule({ ...rule, enabled })} aria-label={`Enable: ${rule.text}`} /><Button variant="ghost" size="icon" className="rf-rule-edit" aria-label={`Edit: ${rule.text}`} onClick={() => { setEditing(rule.id); setText(rule.text); setActive(rule.enabled); }}><Pencil /></Button></div>)}</div></TabsContent>
     </Tabs>
     <Dialog open={editing !== null} onOpenChange={open => !open && setEditing(null)}><DialogContent className="rf-settings"><DialogHeader><DialogTitle>{editing === 'new' ? 'Add guidance' : 'Edit guidance'}</DialogTitle><DialogDescription>A clear rule to guide every draft.</DialogDescription></DialogHeader><Textarea autoFocus aria-label="Guidance" value={text} onChange={event => setText(event.target.value)} rows={4} /><DialogFooter className="rf-guidance-editor-footer"><label>Active<Switch checked={active} onCheckedChange={setActive} /></label><Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button><Button disabled={!text.trim()} onClick={() => { d.setRule({ id: editing === 'new' ? crypto.randomUUID() : editing!, text: text.trim(), enabled: active }); setEditing(null); toast.success('Guidance saved'); }}>Save guidance</Button></DialogFooter></DialogContent></Dialog>

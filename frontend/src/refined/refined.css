@@ -138,6 +138,7 @@ html[data-refined] {
 .rf-section-heading > button { margin-left: auto; }
 .rf-section-description { margin: 7px 0 24px; font-size: 13px; color: #6d6964; }
 .rf-dna-scroll { flex: 1; min-height: 0; overflow: auto; padding: 28px 32px 40px; }
+.rf-dna-embedded { width: 100%; }
 .rf-dna-content { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 820px; margin: 0 auto; }
 .rf-dna-content > .rf-section-heading { margin-bottom: 4px; }
 .rf-dna-content > .rf-section-heading h2 { margin-bottom: 5px; font-size: 22px; }

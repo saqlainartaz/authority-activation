@@ -124,7 +124,7 @@ describe("prepareGeneration — sends the client credential, not the service one
     });
   });
 
-  it("sends only fields accepted by Python without rewriting the client's request", async () => {
+  it("sends the client's request and the separate topic/search intent to Python", async () => {
     let capturedBody = "";
     vi.stubGlobal(
       "fetch",
@@ -159,9 +159,9 @@ describe("prepareGeneration — sends the client credential, not the service one
     expect(JSON.parse(capturedBody)).toMatchObject({
       message: "Write me a post based on my documentary. Find a catchy line from it.",
       operation: "generate",
+      subject: "a strong story or quotable insight from the client's documentary",
+      retrieval_query: "documentary stories, memorable lines, turning points, and lessons",
     });
-    expect(JSON.parse(capturedBody)).not.toHaveProperty("subject");
-    expect(JSON.parse(capturedBody)).not.toHaveProperty("retrieval_query");
   });
 
   it("derives revision identity from stored runtime state, not model input", async () => {
