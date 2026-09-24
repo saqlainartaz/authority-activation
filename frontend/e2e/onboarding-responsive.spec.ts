@@ -1,13 +1,13 @@
 import { expect, test } from '@playwright/test';
 
-const VERSION = 'business-clarification/1.0.0';
+const VERSION = 'business-clarification/2.0.0';
 const questions = [
-  ['work_today', 'Your work today', 'In your interview, you said you still see some therapy clients while directing the practice and creating retreats. Which best describes how you spend your working time today?', 'single', true, ['Mostly seeing therapy clients.', 'Mostly directing the practice and supporting the team.', 'Mostly creating or leading retreats and education.', 'My time is fairly evenly split across these.']],
-  ['therapy_locations', 'Where you work', 'Your materials mention in-person and online therapy across Washington and California, but different clinicians may serve different locations. Where do you personally see therapy clients today? Choose all that apply.', 'multi', true, ['In person in Washington.', 'Online with clients in Washington.', 'Online with clients in California.', 'I am not currently seeing therapy clients.']],
-  ['practice_start_year', 'Founding year', 'One account says you started your private practice in 2015, while another says 2016. Which year is right?', 'single', true, ['2015.', '2016.', 'I would like to check before answering.']],
-  ['retreat_role', 'Your role in retreats', 'In your recorded interview, you explain that a trained team can run retreats when you cannot attend. Which parts do you personally handle for most retreats today? Choose all that apply.', 'multi', true, ['Creating the retreat concept and programme.', 'Teaching or facilitating sessions.', 'Leading the experience on site.', 'Choosing or working with venues and partners.', 'Training and overseeing the retreat team.']],
-  ['retreat_misunderstanding', 'A common misunderstanding', 'Your materials describe therapist retreats that bring together continuing education, travel, and time to rest. What do people often misunderstand about that experience, and how would you explain it in your own words?', 'long', false, []],
-  ['anything_else', 'Anything else', 'Is there anything else you would like us to understand about your business or the work you do?', 'long', false, []],
+  ["sixty_day_hustle_role", "60 Day Hustle", "Public sources describe your role on 60 Day Hustle in different ways. Which describes it accurately?", "single", true, ["I host it.", "I host it and I am a producer.", "I co-created it, host it and executive produce it."]],
+  ["mawer_capital", "Mawer Capital", "How should your posts treat Mawer Capital today?", "single", true, ["As an active brand I post about.", "Only as part of my past work.", "Leave it out of my posts."]],
+  ["content_focus", "Your focus", "What should most of your posts focus on right now?", "single", true, ["My personal brand.", "Inside Success TV.", "An even mix of both."]],
+  ["istv_voice", "Inside Success TV's voice", "When you ask for a post written as Inside Success TV rather than as you, how should it sound? Choose all that apply.", "multi", true, ["Cinematic and inspiring.", "Warm and focused on our cast.", "Bold and energetic, like me.", "Professional and understated."]],
+  ["usable_figures", "Figures we can use", "Which revenue, ad-spend or growth figures from your websites may we use in posts, and for which business and time period?", "long", false, []],
+  ["istv_turning_point", "A turning point", "Tell us about one hard decision you made while building Inside Success TV: what you decided, what happened, and what you learned.", "long", false, []],
 ].map(([question_id, review_label, prompt, input_type, required, choices]) => ({
   question_id,
   question_version: VERSION,
@@ -16,7 +16,7 @@ const questions = [
   input_type,
   required,
   choices,
-  exclusive_choices: question_id === 'therapy_locations' ? ['I am not currently seeing therapy clients.'] : [],
+  exclusive_choices: [],
   max_text_chars: 2_000,
 }));
 

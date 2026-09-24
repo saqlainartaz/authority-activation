@@ -4,6 +4,18 @@
 
 ## Current Promo Partner integration — 2026-09-22
 
+### Rudy follow-up questions and point of view — 2026-09-24
+
+The shared onboarding follow-up set is replaced: `business-clarification/2.0.0`
+asks six questions written for the Rudy Mawer test account (four required choices,
+two optional written answers), and the frontend pins the new ids with the backend.
+Both sides must deploy together. The set is still shown to every new account.
+Shared instructions 1.6.0 add "Whose voice a post is written in": the person in
+the first person by default, one of the client's own brands only when asked, the
+other entity only through its relationship. The rule is generic, not client-specific.
+Deterministic instruction tests do not prove live model compliance; no paid writing
+evaluation was run.
+
 ### Workspace streaming scroll — 2026-09-23
 
 Owner-approved local change: the workspace is the sole conversation scroll owner;
