@@ -9,14 +9,14 @@ import type {
 const MAX_ONBOARDING_METADATA_CHARS = 300;
 export const OTHER_VALUE = "__other__";
 export const BUSINESS_DNA_CATALOGUE_VERSION = "business-dna/1.0.0";
-export const CLARIFICATION_CATALOGUE_VERSION = "business-clarification/1.0.0";
+export const CLARIFICATION_CATALOGUE_VERSION = "business-clarification/2.0.0";
 export const CLARIFICATION_QUESTION_IDS = [
-  "work_today",
-  "therapy_locations",
-  "practice_start_year",
-  "retreat_role",
-  "retreat_misunderstanding",
-  "anything_else",
+  "sixty_day_hustle_role",
+  "mawer_capital",
+  "content_focus",
+  "istv_voice",
+  "usable_figures",
+  "istv_turning_point",
 ] as const;
 export const BUSINESS_DNA_QUESTION_IDS = [
   "business_overview",

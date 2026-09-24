@@ -190,10 +190,10 @@ describe("client onboarding PUT boundary", () => {
   });
 
   it("forwards six validated clarification pairs without replacing Business DNA", async () => {
-    const clarificationVersion = "business-clarification/1.0.0";
+    const clarificationVersion = "business-clarification/2.0.0";
     const clarificationIds = [
-      "work_today", "therapy_locations", "practice_start_year", "retreat_role",
-      "retreat_misunderstanding", "anything_else",
+      "sixty_day_hustle_role", "mawer_capital", "content_focus", "istv_voice",
+      "usable_figures", "istv_turning_point",
     ];
     vi.mocked(getOnboarding).mockResolvedValue({
       user: { display_name: "Amina", email: "amina@example.test", profession: "Founder" },
