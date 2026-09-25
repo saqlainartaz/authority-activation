@@ -150,11 +150,15 @@ export function updateClientTimezone(clientId: string, timezone: string): Promis
   });
 }
 
+/** Clients created from /internal start here; the backend column default is Europe/London.
+ * A client can change it later in Settings → Scheduling → Time zone. */
+export const DEFAULT_CLIENT_TIMEZONE = "America/New_York";
+
 export function createClient(name: string): Promise<EngineClient> {
   return engineJson("/v1/clients", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, timezone: DEFAULT_CLIENT_TIMEZONE }),
   });
 }
 
