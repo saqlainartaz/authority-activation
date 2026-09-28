@@ -23,7 +23,7 @@ test('multi keeps chosen options and the written answer together', () => {
 test('review completion requires every packet and remains false after an answer is cleared', () => {
   const setup = complete();
   assert.equal(setupComplete(setup), true);
-  setup.answers.work_today.selected = [];
+  setup.answers.sixty_day_hustle_role.selected = [];
   assert.equal(setupComplete(setup), false);
   assert.equal(restoreSetup(setup).completed, false);
 });
@@ -43,12 +43,12 @@ test('a blank optional packet can continue, but an attempted invalid optional an
 test('removed follow-up flags are discarded while preserving saved answers', () => {
   const setup = complete();
   const legacy = structuredClone(setup);
-  legacy.answers.anything_else.followUp = true;
+  legacy.answers.istv_turning_point.followUp = true;
   assert.deepEqual(restoreSetup(legacy), setup);
 });
 
 test('old or malformed storage migrates safely without losing valid answers', () => {
   assert.deepEqual(restoreSetup(undefined), { answers: {}, completed: false });
-  assert.deepEqual(restoreSetup({ answers: { work_today: { selected: null } }, completed: true }), { answers: {}, completed: false });
+  assert.deepEqual(restoreSetup({ answers: { sixty_day_hustle_role: { selected: null } }, completed: true }), { answers: {}, completed: false });
   assert.deepEqual(restoreSetup(complete()), complete());
 });

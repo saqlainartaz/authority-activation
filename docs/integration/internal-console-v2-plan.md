@@ -10,7 +10,7 @@
 
 ## Constraints
 
-- No new backend endpoint or fabricated status. The existing client-create route now passes through the backend's supported IANA time zone field.
+- No new backend endpoint or fabricated status. The existing client-create route now passes through the backend's supported IANA time zone field. Preserve main's `America/New_York` default while letting the operator choose another zone.
 - Keep tenant IDs in server-owned API paths and preserve passcode checks.
 - A new link is copied only from its issuance response; history supports status and revoke, not copy. The token itself does not expire automatically.
 - Loading, write failure and clipboard failure must be visible and must not claim success.

@@ -150,11 +150,15 @@ export function updateClientTimezone(clientId: string, timezone: string): Promis
   });
 }
 
-export function createClient(name: string, timezone?: string): Promise<EngineClient> {
+/** Clients created from /internal start here; the backend column default is Europe/London.
+ * Operators can choose another IANA zone when creating a client. */
+export const DEFAULT_CLIENT_TIMEZONE = "America/New_York";
+
+export function createClient(name: string, timezone = DEFAULT_CLIENT_TIMEZONE): Promise<EngineClient> {
   return engineJson("/v1/clients", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, ...(timezone ? { timezone } : {}) }),
+    body: JSON.stringify({ name, timezone }),
   });
 }
 

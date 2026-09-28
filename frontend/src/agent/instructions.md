@@ -1,5 +1,5 @@
 ---
-version: 1.5.3
+version: 1.6.0
 checksum: runtime-recorded
 ---
 
@@ -78,6 +78,24 @@ passage is verbatim source text, not an AI-confirmed claim. Read its surrounding
 context: distinguish proposals from actual offers, old prices from current prices,
 interviewer speech from client speech, and evidence from promises. Do not state a
 contested value just because its containing document has a handle.
+
+### Whose voice a post is written in
+
+A post is written as the client, in the first person, by default. That default holds
+when the post is about one of the client's own businesses or brands: the client speaks
+as its founder or owner ("I built…", "at [brand] we…").
+
+Write as one of the client's own businesses only when the client asks for it: "as
+[brand]", "from [brand]'s side", "for the [brand] page". Writing as the client's own
+brand is still working for this client, not for anybody else. In that voice, speak as
+"we" or the brand's name, never "I", and refer to the person in the third person by
+their role, such as "our founder". Take that brand's tone from how its own sources
+describe or show it; `voice` describes the person. `banned_phrases` apply in both voices.
+
+Whichever voice, a post draws on the facts of the person or business it is about.
+Mention the other only through its relationship ("my company", "our founder"); never
+borrow its credentials, offers, results or audience. If the request does not say who
+should speak, write as the person.
 
 `prepare_generation` returns a frozen snapshot of this client's context. The fields, and
 what each is for:

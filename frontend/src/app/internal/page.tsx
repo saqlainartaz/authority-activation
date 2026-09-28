@@ -286,7 +286,7 @@ function CreateWorkspace({
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [profession, setProfession] = useState("");
-  const [timezone, setTimezone] = useState("Europe/London");
+  const [timezone, setTimezone] = useState("America/New_York");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

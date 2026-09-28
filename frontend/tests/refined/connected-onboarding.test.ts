@@ -15,28 +15,28 @@ import {
   type Setup,
 } from "@/refined/setup-packets";
 
-const VERSION = "business-clarification/1.0.0";
+const VERSION = "business-clarification/2.0.0";
 const ids = [
-  "work_today",
-  "therapy_locations",
-  "practice_start_year",
-  "retreat_role",
-  "retreat_misunderstanding",
-  "anything_else",
+  "sixty_day_hustle_role",
+  "mawer_capital",
+  "content_focus",
+  "istv_voice",
+  "usable_figures",
+  "istv_turning_point",
 ] as const;
 const questions: OnboardingQuestion[] = ids.map((question_id, index) => ({
   question_id,
   question_version: VERSION,
   review_label: `Label ${index + 1}`,
   prompt: `Question ${index + 1}?`,
-  input_type: ["therapy_locations", "retreat_role"].includes(question_id)
+  input_type: ["mawer_capital", "istv_voice"].includes(question_id)
     ? "multi"
-    : ["work_today", "practice_start_year"].includes(question_id) ? "single" : "long",
+    : ["sixty_day_hustle_role", "content_focus"].includes(question_id) ? "single" : "long",
   required: index < 4,
-  choices: ["therapy_locations", "retreat_role"].includes(question_id)
+  choices: ["mawer_capital", "istv_voice"].includes(question_id)
     ? ["Choice A", "Choice B", "None"]
-    : ["work_today", "practice_start_year"].includes(question_id) ? ["First", "Second"] : [],
-  exclusive_choices: question_id === "therapy_locations" ? ["None"] : [],
+    : ["sixty_day_hustle_role", "content_focus"].includes(question_id) ? ["First", "Second"] : [],
+  exclusive_choices: question_id === "mawer_capital" ? ["None"] : [],
   max_text_chars: 2_000,
 }));
 
@@ -67,11 +67,11 @@ describe("connected onboarding projection", () => {
     const packet = connectedPackets(prefill())[1];
     expect(advancesOnChoice(packet, "Choice A")).toBe(false);
     const setup: Setup = { completed: false, answers: {
-      therapy_locations: { selected: ["Choice A", OTHER], text: "Another location" },
+      mawer_capital: { selected: ["Choice A", OTHER], text: "Another location" },
     } };
-    expect(reviewAnswer(packet, setup.answers.therapy_locations)).toBe("Choice A · Another location");
+    expect(reviewAnswer(packet, setup.answers.mawer_capital)).toBe("Choice A · Another location");
     expect(responsesFromSetup([packet], setup)).toEqual([{
-      question_id: "therapy_locations",
+      question_id: "mawer_capital",
       question_version: VERSION,
       selected: ["Choice A", OTHER],
       text: "Another location",
@@ -81,20 +81,20 @@ describe("connected onboarding projection", () => {
   it("requires the first four answers and allows the final two to be blank", () => {
     const packets = connectedPackets(prefill());
     const setup: Setup = { completed: false, answers: {
-      work_today: { selected: ["First"], text: "" },
-      therapy_locations: { selected: ["Choice A"], text: "" },
-      practice_start_year: { selected: ["Second"], text: "" },
-      retreat_role: { selected: ["Choice B"], text: "" },
+      sixty_day_hustle_role: { selected: ["First"], text: "" },
+      mawer_capital: { selected: ["Choice A"], text: "" },
+      content_focus: { selected: ["Second"], text: "" },
+      istv_voice: { selected: ["Choice B"], text: "" },
     } };
     expect(setupComplete(setup, packets)).toBe(true);
     expect(canContinue(packets[5], undefined)).toBe(true);
     expect(setupComplete({ ...setup, answers: {
       ...setup.answers,
-      anything_else: { selected: [], text: "" },
+      istv_turning_point: { selected: [], text: "" },
     } }, packets)).toBe(true);
     expect(setupComplete({ ...setup, answers: {
       ...setup.answers,
-      anything_else: { selected: [OTHER], text: "" },
+      istv_turning_point: { selected: [OTHER], text: "" },
     } }, packets)).toBe(false);
   });
 
@@ -115,7 +115,7 @@ describe("connected onboarding projection", () => {
     const current = prefill({
       questionnaire: { version: "business-dna/1.0.0", responses: [] },
       clarification_questionnaire: { version: VERSION, responses: [{
-        question_id: "therapy_locations",
+        question_id: "mawer_capital",
         question_version: VERSION,
         question: questions[1].prompt,
         answers: ["Choice A", "Another location"],
@@ -123,7 +123,7 @@ describe("connected onboarding projection", () => {
         ordinal: 0,
       }] },
     });
-    expect(setupFromPrefill(current).answers.therapy_locations).toEqual({
+    expect(setupFromPrefill(current).answers.mawer_capital).toEqual({
       selected: ["Choice A", OTHER], text: "Another location",
     });
   });
@@ -131,15 +131,15 @@ describe("connected onboarding projection", () => {
   it("emits answered pairs in order and omits blank optional packets", () => {
     const packets = connectedPackets(prefill());
     const setup: Setup = { completed: false, answers: {
-      work_today: { selected: ["First"], text: "" },
-      therapy_locations: { selected: ["Choice A", "Choice B"], text: "" },
-      practice_start_year: { selected: ["Second"], text: "" },
-      retreat_role: { selected: ["Choice B"], text: "" },
-      retreat_misunderstanding: { selected: [], text: "" },
-      anything_else: { selected: [], text: "One final detail." },
+      sixty_day_hustle_role: { selected: ["First"], text: "" },
+      mawer_capital: { selected: ["Choice A", "Choice B"], text: "" },
+      content_focus: { selected: ["Second"], text: "" },
+      istv_voice: { selected: ["Choice B"], text: "" },
+      usable_figures: { selected: [], text: "" },
+      istv_turning_point: { selected: [], text: "One final detail." },
     } };
     expect(responsesFromSetup(packets, setup).map((response) => response.question_id)).toEqual([
-      "work_today", "therapy_locations", "practice_start_year", "retreat_role", "anything_else",
+      "sixty_day_hustle_role", "mawer_capital", "content_focus", "istv_voice", "istv_turning_point",
     ]);
   });
 });

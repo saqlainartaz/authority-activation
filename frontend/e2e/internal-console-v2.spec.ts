@@ -94,7 +94,7 @@ test("new client creates the client and first person through the connected route
   await page.route("**/api/internal/clients", async (route) => {
     if (route.request().method() === "POST") {
       didCreateClient = true;
-      expect(route.request().postDataJSON()).toEqual({ name: "Cedar Works", timezone: "Europe/London" });
+      expect(route.request().postDataJSON()).toEqual({ name: "Cedar Works", timezone: "Europe/Warsaw" });
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(created) });
     } else {
       await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(didCreateClient ? [client, created] : [client]) });
@@ -109,6 +109,7 @@ test("new client creates the client and first person through the connected route
   await page.getByRole("button", { name: "Open workspace" }).click();
   await page.getByRole("button", { name: "Add client" }).click();
   await page.getByLabel("Client name").fill("Cedar Works");
+  await page.getByLabel("Time zone").fill("Europe/Warsaw");
   await page.getByLabel("Name", { exact: true }).fill("Taylor Cedar");
   await page.getByLabel("Email").fill("taylor@example.invalid");
   await page.getByRole("button", { name: "Create client and person" }).click();
