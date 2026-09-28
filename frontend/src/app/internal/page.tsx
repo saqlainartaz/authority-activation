@@ -2,12 +2,14 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
+  ArrowRight,
   BookOpenCheck,
   ChevronRight,
   FileText,
   KeyRound,
   LayoutDashboard,
-  LockKeyhole,
+  Menu,
   Plus,
   Search,
   ShieldAlert,
@@ -15,7 +17,10 @@ import {
   Users,
 } from "lucide-react";
 
-import { Avatar, Button, Card, Eyebrow, Field, LogoMark } from "@/components/ui/primitives";
+import { Button, Card, Eyebrow, Field, LogoMark } from "@/components/ui/primitives";
+import { Button as DesignButton } from "@/components/ui/button";
+import { Card as DesignCard, CardContent as DesignCardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LoadingRegion, Skeleton } from "@/components/ui/admin-skeleton";
 import type { EngineClient } from "@/lib/engine";
 import { ClientDetail, type InternalSection } from "./panels";
@@ -61,14 +66,6 @@ function LoadingClients() {
       </div>
     </LoadingRegion>
   );
-}
-
-function initials(name: string) {
-  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?";
-}
-
-function newestFirst(clients: Client[]) {
-  return [...clients].sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at));
 }
 
 function PasscodeGate({ onUnlock }: { onUnlock: (passcode: string) => void }) {
@@ -124,7 +121,9 @@ export default function InternalPage() {
   const [filter, setFilter] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [directoryError, setDirectoryError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [mobileMenu, setMobileMenu] = useState(false);
 
   const api = useCallback<InternalApi>(
     async <T,>(path: string, init: RequestInit = {}) => {
@@ -140,33 +139,25 @@ export default function InternalPage() {
     [passcode],
   );
 
-  const loadClients = useCallback(async (preferredId?: string) => {
-    if (!passcode) return [] as Client[];
-    const rows = newestFirst(await api<Client[]>("/api/internal/clients"));
-    setClients(rows);
-    const requested = new URL(window.location.href).searchParams.get("client");
-    setSelectedId((current) => preferredId ?? current ?? rows.find((row) => row.id === requested)?.id ?? rows[0]?.id ?? null);
-    return rows;
-  }, [api, passcode]);
-
   useEffect(() => {
     if (!passcode) return;
     let active = true;
     void api<Client[]>("/api/internal/clients")
       .then((unsortedRows) => {
         if (!active) return;
-        const rows = newestFirst(unsortedRows);
+        const rows = unsortedRows;
         const params = new URL(window.location.href).searchParams;
         const requestedClient = params.get("client");
         const requestedSection = params.get("module") as InternalSection | null;
-        setClients(rows);
-        setSelectedId((current) => current ?? rows.find((row) => row.id === requestedClient)?.id ?? rows[0]?.id ?? null);
+        setClients((current) => [...rows, ...(current ?? []).filter((existing) => !rows.some((row) => row.id === existing.id))]);
+        setDirectoryError(null);
+        setSelectedId((current) => current ?? rows.find((row) => row.id === requestedClient)?.id ?? null);
         if (requestedSection && SECTION_IDS.has(requestedSection)) setSection(requestedSection);
       })
       .catch((reason) => {
         if (!active) return;
-        setError(reason instanceof Error ? reason.message : "Unable to load clients.");
-        setClients([]);
+        setDirectoryError(reason instanceof Error ? reason.message : "Unable to load clients.");
+        setClients((current) => current ?? []);
       });
     return () => { active = false; };
   }, [api, passcode]);
@@ -174,7 +165,7 @@ export default function InternalPage() {
   const selected = clients?.find((client) => client.id === selectedId) ?? null;
   const shown = useMemo(() => {
     const needle = filter.trim().toLowerCase();
-    return (clients ?? []).filter((client) => !needle || client.name.toLowerCase().includes(needle));
+    return (clients ?? []).filter((client) => !needle || client.name.toLowerCase().includes(needle)).sort((left, right) => left.name.localeCompare(right.name));
   }, [clients, filter]);
   const activeSection = SECTIONS.find((candidate) => candidate.id === section) ?? SECTIONS[0];
 
@@ -185,11 +176,37 @@ export default function InternalPage() {
     setCreating(false);
     setError(null);
     setNotice(null);
+    setMobileMenu(false);
+  }
+
+  function backToClients() {
+    setSelectedId(null);
+    setCreating(false);
+    setSection("overview");
+    setMobileMenu(false);
+    setError(null);
+    setNotice(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("client");
+    url.searchParams.delete("module");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
   }
 
   function navigate(nextSection: InternalSection) {
     setSection(nextSection);
+    setMobileMenu(false);
     if (selectedId) replaceWorkspaceUrl(selectedId, nextSection);
+  }
+
+  async function retryDirectory() {
+    setClients(null);
+    setDirectoryError(null);
+    try {
+      setClients(await api<Client[]>("/api/internal/clients"));
+    } catch (reason) {
+      setClients([]);
+      setDirectoryError(reason instanceof Error ? reason.message : "Unable to load clients.");
+    }
   }
 
   function replaceWorkspaceUrl(clientId: string, nextSection: InternalSection) {
@@ -201,113 +218,75 @@ export default function InternalPage() {
 
   if (!passcode) return <PasscodeGate onUnlock={setPasscode} />;
 
+  const inClient = Boolean(selected && !creating);
+  const pageTitle = creating ? "Add client" : selected ? activeSection.label : "Clients";
+  const pageDescription = creating
+    ? "Create a workspace and its first contact."
+    : selected
+      ? ({
+          overview: `The work and client progress for ${selected.name}.`,
+          people: "Manage the people who can access this client workspace.",
+          sources: "Ingest material, inspect processing, and retain its origin.",
+          knowledge: "Search client knowledge and review extracted records.",
+          profile: "Build, review, and approve an exact voice profile version.",
+          access: "Create client login links and track their use and revocation.",
+          held: "Review held drafts before releasing them to the client.",
+        } as Record<InternalSection, string>)[section]
+      : "Select a client to manage their workspace.";
+
   return (
-    <div className="internal-shell min-h-screen bg-surface-3">
-      <aside className="internal-sidebar border-b border-line bg-surface">
-        <div className="internal-sidebar-inner flex h-full flex-col">
-          <div className="internal-brand flex items-center justify-between border-b border-line px-5 py-5">
-            <div className="flex items-center gap-3"><LogoMark size={34} /><div><p className="text-[16px] font-bold">Promo Partner</p><p className="text-[11px] font-medium tracking-[0.12em] text-muted uppercase">Operator</p></div></div>
-            <span title="Shared-passcode workspace"><LockKeyhole size={16} className="text-muted" /></span>
-          </div>
-
-          <div className="internal-client-tools border-b border-line p-4">
-            <Button size="sm" className="w-full" onClick={() => { setCreating(true); setSelectedId(null); setFilter(""); setError(null); setNotice(null); }}><Plus size={15} />Add client + person</Button>
-            <label className="mt-3 flex items-center gap-2 rounded-[9px] border border-line bg-surface-2 px-3 py-2.5">
-              <Search size={15} className="shrink-0 text-muted" />
-              <span className="sr-only">Search clients</span>
-              <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Find a client" className="min-w-0 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted" />
-            </label>
-          </div>
-
-          <div className="internal-client-list border-b border-line py-3">
-            <p className="px-5 pb-2 text-[10px] font-bold tracking-[0.16em] text-muted uppercase">Clients</p>
-            {clients === null ? <LoadingClients /> : shown.length === 0 ? <p className="px-5 py-6 text-center text-sm text-muted">{clients.length === 0 ? "No client workspaces yet." : "No clients match that search."}</p> : (
-              <ul className={`${selected ? "max-h-[72px]" : "max-h-[260px]"} space-y-1 overflow-y-auto px-3`}>
-                {shown.map((client) => (
-                  <li key={client.id}>
-                    <button type="button" onClick={() => chooseClient(client.id)} className={`flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors ${selectedId === client.id ? "bg-surface-3 text-ink" : "text-muted hover:bg-surface-2 hover:text-ink"}`}>
-                      <Avatar initials={initials(client.name)} size={34} />
-                      <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold">{client.name}</span><span className="block truncate text-[11px]">{client.timezone}</span></span>
-                      <ChevronRight size={15} className={selectedId === client.id ? "text-accent" : "text-muted"} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-          </div>
-
-          {selected ? (
-              <nav aria-label="Client modules" className="internal-module-nav min-h-0 flex-1 overflow-y-auto px-3 py-4">
-                <p className="px-2 pb-2 text-[10px] font-bold tracking-[0.16em] text-muted uppercase">Workspace</p>
-                <ul className="space-y-1">
-                  {SECTIONS.map((item) => {
-                    const Icon = item.icon;
-                    const active = item.id === section;
-                    return (
-                      <li key={item.id}>
-                        <button type="button" aria-current={active ? "page" : undefined} onClick={() => navigate(item.id)} className={`group flex w-full items-center gap-3 rounded-[9px] px-3 py-2 text-left transition-colors ${active ? "bg-accent/10 text-ink" : "text-muted hover:bg-surface-2 hover:text-ink"}`}>
-                          <Icon size={16} className={active ? "text-accent" : "text-muted group-hover:text-ink"} />
-                          <span className="text-sm font-semibold">{item.label}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </nav>
-            ) : <div className="min-h-0 flex-1" />}
-
-          <div className="internal-sidebar-footer border-t border-line px-5 py-2.5"><p className="text-[11px] font-semibold text-muted">Team-only · shared passcode</p></div>
+    <div className={`idc ${inClient ? "idc-client" : ""}`}>
+      <div className="idc-layout">
+        <aside className="idc-global" aria-label="Portfolio navigation">
+          <div className="idc-brand"><span className="idc-mark">PP</span><div><div className="idc-brand-name">Promo Partner</div><p className="idc-brand-sub">Operator console</p></div></div>
+          <nav aria-label="Main">
+            <button type="button" className="idc-nav" data-active={!creating} onClick={backToClients} aria-label="Clients"><Users /><span>Clients</span><small className="idc-nav-count">{clients?.length ?? 0}</small></button>
+          </nav>
+          <DesignButton variant="outline" size="sm" className="idc-mobile-menu" onClick={() => setMobileMenu(true)} aria-label="Open navigation"><Menu size={17} /></DesignButton>
+          <div className="idc-operator"><div className="idc-nav" aria-label="Operator access uses a shared passcode"><span className="idc-avatar">OP</span><span><strong>Operator access</strong><small>Shared passcode</small></span></div></div>
+        </aside>
+        {inClient && selected ? <aside className="idc-context" aria-label="Client workspace navigation">
+          <DesignButton variant="ghost" className="idc-back" onClick={backToClients}><ArrowLeft size={14} /> All clients</DesignButton>
+          <div className="idc-identity"><span className="idc-identity-mark">{selected.name[0]}</span><div><strong>{selected.name}</strong><p>{selected.status}</p><button type="button" onClick={backToClients}>Switch client</button></div></div>
+          {[{ label: "Client", links: SECTIONS.slice(0, 1) }, { label: "Prepare", links: SECTIONS.slice(1, 5) }, { label: "Operate", links: SECTIONS.slice(5) }].map((group) => <nav className="idc-context-group" aria-label={group.label} key={group.label}><p className="idc-nav-label">{group.label}</p>{group.links.map((item) => <button type="button" className="idc-nav" key={item.id} data-active={section === item.id} aria-current={section === item.id ? "page" : undefined} onClick={() => navigate(item.id)}>{item.label}</button>)}</nav>)}
+        </aside> : null}
+        <div className="idc-stage">
+          <header className="idc-top">
+            <div className="idc-breadcrumb">{inClient && selected ? <><button type="button" onClick={backToClients}>Clients</button><ChevronRight size={14} /><button type="button" onClick={() => navigate("overview")}>{selected.name}</button><ChevronRight size={14} /><b>{activeSection.label}</b></> : <b>{creating ? "New client" : "Clients"}</b>}</div>
+            <div className="idc-top-right">{inClient ? <DesignButton variant="outline" size="sm" className="idc-search-trigger" onClick={backToClients}><Search size={15} /><span>Find a client</span></DesignButton> : null}<span className="idc-avatar" aria-label="Operator access uses a shared passcode">OP</span></div>
+          </header>
+          <main className="idc-content">
+            {inClient && selected ? <label className="idc-field idc-mobile-section">Client section · {selected.name}<select className="idc-native-select" aria-label="Client section" value={section} onChange={(event) => navigate(event.target.value as InternalSection)}>{SECTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label> : null}
+            {error && error !== CLIENT_401_SENTENCE ? <p role="alert" className="idc-note bad">{error}</p> : null}
+            {!selected && !creating && directoryError ? <p role="alert" className="idc-note bad">{directoryError}</p> : null}
+            {notice ? <p role="status" className="idc-muted-panel" style={{ marginBottom: 20 }}>{notice}</p> : null}
+            {creating ? <div className="idc-form-screen"><div className="idc-pagehead"><div><h1>{pageTitle}</h1><p>{pageDescription}</p></div></div><CreateWorkspace api={api} onCancel={backToClients} onComplete={(client) => { setClients((rows) => [...(rows ?? []).filter((row) => row.id !== client.id), client]); setDirectoryError(null); setCreating(false); setSelectedId(client.id); setSection("overview"); replaceWorkspaceUrl(client.id, "overview"); setNotice("Workspace and first person created. Add source material next."); }} onPartial={(client, message) => { setClients((rows) => [...(rows ?? []).filter((row) => row.id !== client.id), client]); setDirectoryError(null); setCreating(false); setSelectedId(client.id); setSection("people"); replaceWorkspaceUrl(client.id, "people"); setError(message); }} /></div>
+            : selected ? <><div className="idc-pagehead"><div><p className="idc-eyebrow">Client workspace</p><h1>{pageTitle}</h1><p>{pageDescription}</p></div></div><ClientDetail key={selected.id} clientId={selected.id} api={api} section={section} onNavigate={navigate} /></>
+            : <div className="idc-directory-screen"><div className="idc-pagehead"><div><h1>Clients</h1><p>{pageDescription}</p></div><div className="idc-pageactions"><DesignButton onClick={() => { setCreating(true); setFilter(""); setError(null); setNotice(null); }}><Plus size={16} /> Add client</DesignButton></div></div><div className="idc-directory-search"><Search size={18} /><input className="idc-input" type="search" aria-label="Search clients" placeholder="Search clients" value={filter} onChange={(event) => setFilter(event.target.value)} /></div><div className="idc-directory-heading" aria-live="polite"><span>{clients === null ? "Loading clients" : directoryError ? "Directory unavailable" : filter.trim() ? `${shown.length} matching ${shown.length === 1 ? "client" : "clients"}` : `${clients.length} ${clients.length === 1 ? "client" : "clients"}`}</span></div><div className="idc-card">{clients === null ? <LoadingClients /> : directoryError ? <div className="idc-empty">Client directory could not be loaded.<div className="mt-4"><DesignButton variant="outline" size="sm" onClick={() => void retryDirectory()}>Try again</DesignButton></div></div> : shown.length ? shown.map((client) => <button type="button" className="idc-client-row" key={client.id} onClick={() => chooseClient(client.id)} aria-label={`Open ${client.name}`}><span className="idc-client-row-leading"><span className="idc-client-monogram">{client.name[0]}</span><span className="idc-client-row-text"><strong>{client.name}</strong><small title={client.timezone}>Time zone · {client.timezone.split("/").pop()?.replaceAll("_", " ") ?? client.timezone}</small></span></span><span className="idc-client-row-action">Open <ArrowRight size={16} /></span></button>) : <div className="idc-empty">{clients.length === 0 ? "No client workspaces yet." : "No clients match that name."}</div>}</div></div>}
+          </main>
         </div>
-      </aside>
-
-      <main className="internal-main min-w-0">
-        <header className="internal-main-header border-b border-line bg-surface/95 px-5 py-5 backdrop-blur sm:px-8">
-          {creating ? (
-            <div><Eyebrow>NEW WORKSPACE</Eyebrow><h1 className="mt-2 text-[28px] font-bold tracking-[-0.03em]">Prepare a client and their first person</h1></div>
-          ) : selected ? (
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div><p className="text-xs font-semibold text-muted">{selected.name} / {activeSection.label}</p><h1 className="mt-1 text-[28px] font-bold tracking-[-0.03em]">{activeSection.label}</h1><p className="mt-1 text-sm text-muted">{activeSection.short}</p></div>
-              <div className="internal-client-chip flex items-center gap-3 rounded-full border border-line bg-surface-2 py-1.5 pr-4 pl-1.5"><Avatar initials={initials(selected.name)} size={32} /><div><p className="max-w-48 truncate text-xs font-bold text-ink">{selected.name}</p><p className="text-[10px] text-muted">{selected.status}</p></div></div>
-            </div>
-          ) : (
-            <div><Eyebrow>OPERATOR CONSOLE</Eyebrow><h1 className="mt-2 text-[28px] font-bold tracking-[-0.03em]">Choose a client workspace</h1></div>
-          )}
-        </header>
-
-        <div className="internal-content mx-auto w-full max-w-[1180px] px-5 py-7 sm:px-8 sm:py-9">
-          {error && error !== CLIENT_401_SENTENCE ? <p role="alert" className="mb-6 rounded-[12px] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p> : null}
-          {notice ? <p role="status" className="mb-6 rounded-[12px] border border-line bg-surface px-4 py-3 text-sm text-ink">{notice}</p> : null}
-          {creating ? (
-            <CreateWorkspace api={api} loadClients={loadClients} onComplete={(clientId) => { setCreating(false); setSelectedId(clientId); setSection("overview"); replaceWorkspaceUrl(clientId, "overview"); setNotice("Workspace and first person created. Add source material next."); }} onPartial={(clientId, message) => { void loadClients(clientId); setCreating(false); setSelectedId(clientId); setSection("people"); replaceWorkspaceUrl(clientId, "people"); setError(message); }} />
-          ) : selected ? (
-            <ClientDetail clientId={selected.id} api={api} section={section} onNavigate={navigate} />
-          ) : clients?.length === 0 ? (
-            <EmptyWorkspace onCreate={() => setCreating(true)} />
-          ) : (
-            <Card className="grid min-h-[420px] place-items-center border-dashed p-8 text-center"><div><p className="text-[18px] font-bold">Select a client from the sidebar</p><p className="mt-2 text-sm text-muted">Their readiness, people, sources, knowledge, profile, access, and held work will appear here.</p></div></Card>
-          )}
-        </div>
-      </main>
+      </div>
+      <Dialog open={mobileMenu} onOpenChange={setMobileMenu}><DialogContent className="idc-dialog"><DialogHeader><DialogTitle>Navigate</DialogTitle><DialogDescription>Choose a destination in the operator console.</DialogDescription></DialogHeader><div className="idc-rows"><div className="idc-row"><div className="idc-row-main"><strong>Clients</strong></div><DesignButton variant="outline" size="sm" onClick={backToClients}>Open <ArrowRight size={14} /></DesignButton></div></div></DialogContent></Dialog>
     </div>
   );
 }
 
 function CreateWorkspace({
   api,
-  loadClients,
+  onCancel,
   onComplete,
   onPartial,
 }: {
   api: InternalApi;
-  loadClients: (preferredId?: string) => Promise<Client[]>;
-  onComplete: (clientId: string) => void;
-  onPartial: (clientId: string, message: string) => void;
+  onCancel: () => void;
+  onComplete: (client: Client) => void;
+  onPartial: (client: Client, message: string) => void;
 }) {
   const [clientName, setClientName] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [profession, setProfession] = useState("");
+  const [timezone, setTimezone] = useState("Europe/London");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -321,58 +300,29 @@ function CreateWorkspace({
       client = await api<Client>("/api/internal/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: clientName.trim() }),
+        body: JSON.stringify({ name: clientName.trim(), timezone: timezone.trim() }),
       });
       await api(`/api/internal/clients/${client.id}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), display_name: displayName.trim(), profession: profession.trim() || null }),
       });
-      await loadClients(client.id);
-      onComplete(client.id);
+      onComplete(client);
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "Unable to create this workspace.";
-      if (client) onPartial(client.id, `The client workspace was created, but the person was not: ${message} Finish adding them in People.`);
+      if (client) onPartial(client, `The client workspace was created, but the person was not: ${message} Finish adding them in People.`);
       else setError(message);
     } finally {
       setBusy(false);
     }
   }
 
-  const ready = clientName.trim() && displayName.trim() && email.trim();
+  const ready = clientName.trim() && displayName.trim() && email.trim() && timezone.trim();
 
-  return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-      <Card className="p-6 sm:p-8">
-        <div className="max-w-2xl"><Eyebrow>CLIENT + PERSON</Eyebrow><h2 className="mt-3 text-[24px] font-bold tracking-[-0.025em]">Create one usable workspace</h2><p className="mt-2 text-sm leading-6 text-muted">The client is the data boundary. The person is who signs in. This flow prepares both together so you do not have to hunt through separate modules.</p></div>
-        <form className="mt-7 grid gap-5 sm:grid-cols-2" onSubmit={create}>
-          <Field label="Client or company name" value={clientName} onChange={(event) => setClientName(event.target.value)} className="sm:col-span-2" />
-          <Field label="Person name" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
-          <Field label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-          <Field label="Profession (optional)" value={profession} onChange={(event) => setProfession(event.target.value)} className="sm:col-span-2" />
-          {error ? <p role="alert" className="text-sm text-danger sm:col-span-2">{error}</p> : null}
-          <div className="sm:col-span-2"><Button type="submit" disabled={busy || !ready}>{busy ? "Preparing workspace…" : "Create client + person"}</Button></div>
-        </form>
-      </Card>
-      <Card className="p-6">
-        <Eyebrow>WHAT HAPPENS NEXT</Eyebrow>
-        <ol className="mt-5 space-y-5">
-          {[
-            ["1", "Workspace", "Creates the isolated client record."],
-            ["2", "Person", "Adds the first real user identity."],
-            ["3", "Sources", "You upload the material that grounds generation."],
-            ["4", "Access", "You mint a login only when the workspace is ready."],
-          ].map(([number, title, detail]) => <li key={number} className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-line-2 text-xs font-bold text-muted">{number}</span><div><p className="text-sm font-bold text-ink">{title}</p><p className="mt-0.5 text-xs leading-5 text-muted">{detail}</p></div></li>)}
-        </ol>
-      </Card>
-    </div>
-  );
-}
-
-function EmptyWorkspace({ onCreate }: { onCreate: () => void }) {
-  return (
-    <Card className="grid min-h-[440px] place-items-center border-dashed p-8 text-center">
-      <div className="max-w-md"><div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent"><Plus size={21} /></div><h2 className="mt-5 text-[22px] font-bold">Prepare your first client workspace</h2><p className="mt-2 text-sm leading-6 text-muted">Create the client and first person together, then the dashboard guides you through sources, knowledge, voice, and access.</p><Button className="mt-6" onClick={onCreate}>Add client + person</Button></div>
-    </Card>
-  );
+  return <><DesignCard className="idc-card idc-card-pad"><DesignCardContent><form className="idc-form" onSubmit={create}>
+    <fieldset className="idc-form-section"><legend>Client</legend><label className="idc-field">Client name<input className="idc-input" required value={clientName} onChange={(event) => setClientName(event.target.value)} placeholder="Juniper Studio" /></label><label className="idc-field">Time zone<input className="idc-input" required list="idc-timezones" value={timezone} onChange={(event) => setTimezone(event.target.value)} /><span className="font-normal text-muted">Use the client&apos;s IANA time zone for scheduling.</span></label><datalist id="idc-timezones"><option value="Europe/London" /><option value="Europe/Warsaw" /><option value="America/New_York" /><option value="America/Chicago" /><option value="America/Los_Angeles" /><option value="Asia/Dubai" /><option value="Asia/Kolkata" /><option value="Asia/Singapore" /><option value="Australia/Sydney" /></datalist></fieldset>
+    <fieldset className="idc-form-section"><legend>First contact</legend><div className="idc-form-grid"><label className="idc-field">Name<input className="idc-input" required value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Full name" /></label><label className="idc-field">Email<input className="idc-input" type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@company.example" /></label></div><label className="idc-field">Profession (optional)<input className="idc-input" value={profession} onChange={(event) => setProfession(event.target.value)} /></label></fieldset>
+    {error ? <p role="alert" className="idc-note bad">{error}</p> : null}
+    <div className="idc-form-actions"><DesignButton type="button" variant="outline" onClick={onCancel}>Cancel</DesignButton><DesignButton type="submit" disabled={busy || !ready}>{busy ? "Creating…" : "Create client and person"}</DesignButton></div>
+  </form></DesignCardContent></DesignCard><div className="idc-form-note"><strong>If the first contact cannot be added</strong><p>The client remains in the directory. Open People to complete setup.</p></div></>;
 }

@@ -35,12 +35,10 @@
 // A token belongs to a PERSON, not to a client — `onboarding_tokens.user_id` is
 // NOT NULL behind a composite foreign key, and the issue route is
 // `POST /v1/clients/{client_id}/users/{user_id}/onboarding-token`. The console
-// sends only a `clientId` (it has a client picker and no person picker), so the
-// person is resolved here: `GET /v1/clients/{id}/users` answers OLDEST FIRST, and
-// the first row is the first person the operator prepared for this client. If
-// nobody has been prepared, the request is REFUSED and the refusal names the
-// missing step — a person has to exist before anybody can be handed a link
-// (ONBRD-01's precondition, `users.py`'s own opening paragraph).
+// sends a selected `userId`; this route verifies that person belongs to the
+// selected client before issuing. Callers that omit `userId` retain the oldest
+// person fallback for compatibility. If nobody has been prepared, the request
+// is refused and names the missing step (ONBRD-01's precondition).
 //
 // NOTHING IS FABRICATED TO GET PAST THAT REFUSAL. Creating the person here would
 // mean inventing an email address, and `uq_users_client_email` makes that invented
@@ -48,6 +46,7 @@
 // a link issued to a person who does not exist.
 
 import { checkInternalPasscode, unauthorized } from "@/lib/internal-auth";
+import { selectLinkRecipient } from "./recipient";
 import {
   forwardProductError,
   issueOnboardingTokenAsService,
@@ -78,7 +77,7 @@ function landingUrlFor(origin: string, purpose: OnboardingTokenPurpose, token: s
 export async function POST(request: Request) {
   if (!checkInternalPasscode(request)) return unauthorized();
   const body = await request.json();
-  const { clientId } = body;
+  const { clientId, userId } = body;
   if (!clientId || typeof clientId !== "string") {
     return Response.json({ error: "clientId required" }, { status: 422 });
   }
@@ -116,7 +115,11 @@ export async function POST(request: Request) {
     // into the URL below and nowhere else: not into a log, not into a variable
     // that outlives this function, not into an error message. See the annotation
     // on `issueOnboardingTokenAsService`.
-    const { token } = await issueOnboardingTokenAsService(clientId, users[0].id, purpose);
+    const recipientId = selectLinkRecipient(users, userId);
+    if (!recipientId) {
+      return Response.json({ error: "Selected person is not in this client workspace." }, { status: 404 });
+    }
+    const { token } = await issueOnboardingTokenAsService(clientId, recipientId, purpose);
     const origin = new URL(request.url).origin;
     return Response.json({ url: landingUrlFor(origin, purpose, token) });
   } catch (error) {

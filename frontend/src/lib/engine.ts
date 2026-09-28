@@ -150,11 +150,11 @@ export function updateClientTimezone(clientId: string, timezone: string): Promis
   });
 }
 
-export function createClient(name: string): Promise<EngineClient> {
+export function createClient(name: string, timezone?: string): Promise<EngineClient> {
   return engineJson("/v1/clients", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, ...(timezone ? { timezone } : {}) }),
   });
 }
 

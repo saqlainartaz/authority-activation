@@ -3,6 +3,16 @@
 Verified locally on 2026-09-14 and rechecked through 2026-09-22 (Europe/Warsaw). Nothing in this record is a
 deployment or live-provider claim.
 
+## Connected operator console v2 — local verification, 2026-09-28
+
+The approved v2 layout now runs at the production `/internal` route in the selected frontend checkout. The operator decision was to connect client screens first; named Accounts remain unavailable because the current operator gate is a shared passcode. No hosted rollout, production backend call, or email delivery was exercised.
+
+- `ALLOW_MISSING_ENGINE_FIXTURES=1 npm run check` passed: 22 design tests, 371 stack tests, 5 render tests, plus TypeScript and the stack guards. The flag is needed because this nested checkout has no `frontend/backend/` sibling; the two vendored schema checks did not compare Python fixtures in this run.
+- `npm run build` passed for the production Next.js build.
+- Ten production-server Chromium tests passed in `e2e/admin-design.spec.ts` and `e2e/internal-console-v2.spec.ts`: responsive navigation, client/person creation with time zone, source ingest and pipeline detail, knowledge review/search, selected-person link issuance, copy fallback, history/revocation, and confirmed held release. All API responses in these tests were intercepted synthetic fixtures. This verifies UI request shapes and state changes, not a live backend deployment.
+- Screenshots in `integration/screenshots/internal-console-v2-*.png` were visually inspected at desktop and phone widths. `git diff --check` passed.
+- Remaining contract gaps are recorded in `FEATURE-GAPS.md`: named operator accounts, operator-visible onboarding completion, source filenames in `DocumentOut`, and email delivery. The issued raw URL is displayed at creation only; the token itself has no automatic expiry.
+
 ## Local Library lifecycle follow-up — 2026-09-23
 
 - The Library preview has no “Open in workspace” control. It now offers Return to Draft for scheduled items and Delete for draft, approved, scheduled, or posted items. Delete confirms that ordinary Library removal retains text/image/history and does not remove an already-published LinkedIn post.

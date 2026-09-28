@@ -31,13 +31,13 @@ Evidence baseline: stakeholder frontend at initial revision `ec2f05f...`, previo
 | Calendar-led Home and Library statistics | Shared content/library/calendar/profile reads; Home selected-day agenda; Library Table/Board | Derived from backend results where present; `needs_reapproval` slots are audit history rather than active schedules | Integrated; no second calendar store or Library Calendar tab; absent usage/provider totals render neutral values |
 | Data export / password recovery email | No compatible operation/provider | — | Unsupported presentation retained |
 | Admin login gate | `INTERNAL_PASSCODE` checked server-side on every internal BFF request | No browser-readable server secret | Retained previous supported gate |
-| Admin People | clients, users, client summary endpoints | Backend client/user rows | Retained; list, create client + first person, inspect |
-| Admin Sources | internal client document list/upload/reprocess | Backend documents/jobs/raw store | Retained |
-| Admin Knowledge | atoms/search/decisions endpoints | Backend atoms and decision ledger | Retained |
-| Admin Voice profile | voice-profile read/write/approve endpoints | Versioned backend voice profile | Retained |
-| Admin Access | user invites and onboarding-token issue/revoke endpoints; BFF returns same-origin link | Backend token/user rows | Retained; link issuance, not email delivery |
-| Admin Held drafts | held queue and release endpoint | Backend held content and transitions | Retained |
-| Admin presentation | Isolated `/internal` shell around the unchanged module workflows | UI state only; no new backend capability | Redesigned in the approved client visual language; Chromium-verified at desktop, tablet, and phone widths with all module buttons retained |
+| Admin People | clients, users, client summary endpoints | Backend client/user rows | Connected v2 directory and contextual client rail; client creation includes first person and explicit IANA time zone; list-first People with add dialog |
+| Admin Sources | internal client document list/upload/reprocess/remove | Backend documents/jobs/raw store | Connected v2 list, add dialog, persisted pipeline detail and confirmed removal; list response does not include the source filename |
+| Admin Knowledge | atoms/search/decisions endpoints | Backend atoms and decision ledger | Connected v2 Review/Search tabs, source ID and locator where recorded, confirm and confirmed deprecate |
+| Admin Voice profile | voice-profile read/write/approve endpoints | Versioned backend voice profile | Connected v2 build, version detail and exact-version approval; full payload exposed for review |
+| Admin Access | person-specific onboarding-token issue/revoke endpoints; BFF returns same-origin link | Backend token/user rows | Connected v2 recipient selection, issuance-only URL/copy, history and revocation; no email delivery or historical URL recovery |
+| Admin Held drafts | held queue and release endpoint | Backend held content and transitions | Connected v2 list/detail and confirmed release |
+| Admin presentation | Isolated `/internal` shell around supported module workflows | UI state only; no new backend capability | Approved two-level client console on the production route; browser-verified at desktop, tablet, and phone widths using synthetic intercepted API responses |
 
 ## Verification coverage
 
@@ -45,7 +45,7 @@ Evidence baseline: stakeholder frontend at initial revision `ec2f05f...`, previo
 - `e2e/connected-application.spec.ts` covers the supported client/admin journey against the isolated Python service and disposable PostgreSQL data.
 - `e2e/connected-responsive-matrix.spec.ts` covers the connected Business DNA
   state at 390, 767, 768, 1,179, 1,180 and 1,440 px in light/dark themes.
-- `e2e/admin-design.spec.ts` uses intercepted synthetic responses to pin the redesigned production admin shell at 1,440, 1,000, and 390 px without touching a backend or provider.
+- `e2e/admin-design.spec.ts` and `e2e/internal-console-v2.spec.ts` use intercepted synthetic responses to verify the production operator shell at 1,440, 1,000, and 390 px plus client, person, source, knowledge, access and held-draft actions without touching a backend or provider.
 - `e2e/promo-partner-connected.spec.ts` covers four distinct channel drafts, image version history, scheduling/reapproval, Home/Library projection, Settings removals, and Home at 390, 767, 768, 1,179, 1,180 and 1,440 px in both themes.
 - The compatible backend's own complete suite is the authority for RLS, cross-tenant denial, provenance, append-only ledgers, job claims, auth, scheduling, and API wire behavior.
 - Live Anthropic/Voyage, real email, and hosted infrastructure were not exercised. LinkedIn external publishing was exercised only with the operator's personal test account in an isolated local runtime; see the root social-OAuth evidence record.

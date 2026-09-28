@@ -5,3 +5,4 @@ export default function InternalLayout({ children }: { children: React.ReactNode
   return <main className="internal-admin min-h-screen bg-surface-3 text-ink selection:bg-accent/25">{children}</main>;
 }
 import "./admin.css";
+import "./console.css";
