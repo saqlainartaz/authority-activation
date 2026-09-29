@@ -23,22 +23,20 @@ test('connected client and admin journeys use the isolated previous backend', as
     await expect(page.getByText('That passcode is not valid.', { exact: true })).toBeVisible();
     await page.getByLabel('Internal passcode').fill(adminPasscode);
     await page.getByRole('button', { name: 'Open workspace' }).click();
-    await expect(page.getByText(/Authority Activation Synthetic/).first()).toBeVisible();
-    for (const [button, heading] of [
-      ['People', 'People'], ['Sources', 'Documents'], ['Knowledge', 'Knowledge review'],
-      ['Voice profile', 'Voice profile'], ['Access', 'Issued login links'], ['Held drafts', 'Held drafts'],
-    ] as const) {
-      await page.getByRole('button', { name: new RegExp(`^${button}`) }).click();
-      await expect(page.getByRole('heading', { name: heading, exact: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Open Authority Activation Synthetic' }).click();
+    for (const section of ['People', 'Sources', 'Knowledge', 'Voice profile', 'Access', 'Held drafts'] as const) {
+      await page.locator('.idc-context').getByRole('button', { name: section, exact: true }).click();
+      await expect(page.getByRole('heading', { name: section, exact: true }).first()).toBeVisible();
     }
     await page.screenshot({ path: '../docs/integration/screenshots/admin-empty-held-desktop.png', fullPage: true });
 
-    await page.getByRole('button', { name: 'Add client + person' }).click();
-    await page.getByLabel('Client or company name').fill('Cross Tenant Synthetic');
-    await page.getByLabel('Person name').fill('Other Tenant Person');
+    await page.locator('.idc-context').getByRole('button', { name: 'All clients' }).click();
+    await page.getByRole('button', { name: 'Add client' }).click();
+    await page.getByLabel('Client name').fill('Cross Tenant Synthetic');
+    await page.getByLabel('Name', { exact: true }).fill('Other Tenant Person');
     await page.getByLabel('Email').fill(`other-${Date.now()}@example.com`);
     await page.getByLabel('Profession (optional)').fill('Consultant');
-    await page.getByRole('button', { name: 'Create client + person' }).click();
+    await page.getByRole('button', { name: 'Create client and person' }).click();
     await expect(page.getByText('Workspace and first person created. Add source material next.')).toBeVisible();
   });
 

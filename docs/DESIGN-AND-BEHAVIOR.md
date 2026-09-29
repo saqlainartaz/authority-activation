@@ -156,11 +156,11 @@ Invitation setup has an email and password field; the real system must obtain th
 
 ## Admin dashboard
 
-The operator dashboard retains Overview, People, Sources, Knowledge, Voice profile, Access, and Held drafts with their existing backend operations. Its revised shell uses the client product's system type, black primary actions, white cards, warm gray secondary surfaces, quiet borders, and restrained motion while remaining clearly labelled **Operator**.
+The owner-approved v2 operator console retains Overview, People, Sources, Knowledge, Voice profile, Access, and Held drafts with their backend operations. The production `/internal` route opens on a searchable Clients directory. Selecting a client reveals its contextual module navigation and an explicit route back to all clients. The visual language uses system type, restrained dark primary actions, white cards, quiet borders, generous spacing, and a clearly labelled operator surface.
 
-At 1,180 px and above, the operator shell uses a 238 px persistent client/module rail. Below 1,180 px, identity and client selection become compact rows and modules become a horizontally scrollable control rail above the work; the desktop sidebar must not consume most of a tablet or phone screen. At phone widths, controls stack without document-level horizontal overflow. Switching modules uses the existing short rise transition, and reduced-motion preference is respected.
+Above 1,180 px, the portfolio navigation becomes a narrow icon rail beside a 232 px client rail. At 1,180 px and below, client identity and selection move into compact top rows and a labelled module selector. At phone widths, controls stack without document-level horizontal overflow. Switching modules keeps the short rise transition, and reduced-motion preference is respected.
 
-The admin route owns an isolated stylesheet so these visual alignments do not leak admin utilities into the client workspace. Tailwind's source inventory must include `src/app/internal`; otherwise admin-only responsive grid utilities are absent from production output even when development type checks pass.
+The admin route owns `console.css` under `src/app/internal` so these styles do not leak into the client workspace. The old `admin.css` remains for the passcode gate and shared admin utility colors. Named operator Accounts are deferred until identity and audit attribution exist; the console labels its current shared-passcode access honestly. New clients start with `America/New_York` selected and the operator can enter another IANA time zone before creation.
 
 ## Onboarding
 
