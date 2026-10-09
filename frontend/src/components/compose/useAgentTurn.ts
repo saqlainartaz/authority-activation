@@ -41,6 +41,19 @@ export type AgentTurnState = {
   /** Client messages sent this run that the envelope does not carry yet,
    *  oldest first. The head is the one in flight (or next to fly). */
   echo: string[];
+  /** How many schedule cards this run has proposed. The card list refetches
+   *  when it moves, so a card appears as soon as the agent proposes it. */
+  proposed: number;
+  /** When the writing limit resets, if the latest turn's reservation said it is
+   *  at 80% or more (`usage.approaching`, Cycle 5 P1.6); null otherwise. Kept
+   *  across `turn.end` like `terminal`, so the composer can show it (P2.6). */
+  approachingResetsAt: string | null;
+  /** Which writing budget that is, when the backend named it (P2.6). */
+  approachingMeter: "writing_daily" | "writing_monthly" | null;
+  /** The latest turn said the session is near the compaction threshold
+   *  (`session.long`, Cycle 5 P4.4), so the composer suggests a new post.
+   *  Kept across `turn.end`, cleared when the next turn starts. */
+  sessionLong: boolean;
 };
 
 export const IDLE_TURN: AgentTurnState = {
@@ -49,6 +62,10 @@ export const IDLE_TURN: AgentTurnState = {
   text: "",
   terminal: null,
   echo: [],
+  proposed: 0,
+  approachingResetsAt: null,
+  approachingMeter: null,
+  sessionLong: false,
 };
 
 /** Pure, so every branch is testable without a network or a fake Response. */
@@ -66,6 +83,15 @@ export function foldEvent(state: AgentTurnState, event: AgentEvent): AgentTurnSt
       // An id and nothing else. The envelope refetch is what renders the card,
       // and it is triggered by the caller, not folded into state here.
       return state;
+    case "schedule.proposed":
+      // Also an id and nothing else: the card list reads the server's record.
+      return { ...state, proposed: state.proposed + 1 };
+    case "usage.approaching":
+      // A notice, not an outcome: the turn goes on. Recorded for the composer.
+      return { ...state, approachingResetsAt: event.resets_at, approachingMeter: event.meter ?? null };
+    case "session.long":
+      // Also a notice, not an outcome. Recorded for the composer.
+      return { ...state, sessionLong: true };
     case "turn.end":
       // CORRECTED (whole-branch review, Important 4). This used to claim
       // "the narration is a persisted `kind=agent` row by now" unqualified.
@@ -249,7 +275,11 @@ export function useAgentTurn({
         onSessionCreated(id);
       }
 
-      setTurn((state) => ({ ...state, status: "streaming", text: "", label: null, terminal: null }));
+      // A new turn's reservation says afresh whether the limit is near.
+      setTurn((state) => ({
+        ...state, status: "streaming", text: "", label: null, terminal: null, approachingResetsAt: null, approachingMeter: null,
+        sessionLong: false,
+      }));
 
       // A11: the browser mints ONE turn id; every tool's idempotency key derives
       // from it, server-side.

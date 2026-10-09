@@ -1,12 +1,13 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
   BookOpenCheck,
   ChevronRight,
   FileText,
+  Gauge,
   KeyRound,
   LayoutDashboard,
   Menu,
@@ -23,11 +24,12 @@ import { Card as DesignCard, CardContent as DesignCardContent } from "@/componen
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LoadingRegion, Skeleton } from "@/components/ui/admin-skeleton";
 import type { EngineClient } from "@/lib/engine";
+import { createInternalApi, failureFrom, type ApiFailure, type InternalApi } from "./internal-api";
 import { ClientDetail, type InternalSection } from "./panels";
+import { GlobalNav, MobileNavRows, type ConsoleView } from "./global-nav";
+import { SystemHealth } from "./system-health";
 
 type Client = EngineClient;
-
-type ApiFailure = Error & { status?: number };
 
 const CLIENT_401_SENTENCE = "This link has expired — ask us for a new one";
 
@@ -44,19 +46,14 @@ const SECTIONS: Array<{
   { id: "profile", label: "Voice profile", short: "Build and approve", icon: Sparkles },
   { id: "access", label: "Access", short: "Login links and revocation", icon: KeyRound },
   { id: "held", label: "Held drafts", short: "Operator intervention", icon: ShieldAlert },
+  // Cycle 5 P2.5: rehaul engine only. Under M1 the section is absent, not empty.
+  { id: "limits", label: "Limits", short: "Uploads, budgets and history", icon: Gauge },
 ];
 
-const SECTION_IDS = new Set<InternalSection>(SECTIONS.map((section) => section.id));
+// Sections that exist only when the deployment runs the rehaul engine.
+const REHAUL_ONLY = new Set<InternalSection>(["limits"]);
 
-function failureFrom(response: Response): Promise<ApiFailure> {
-  return response.json().catch(() => ({})).then((body: { error?: unknown; detail?: unknown }) => {
-    const error = new Error(
-      typeof body.error === "string" ? body.error : `Request failed (${response.status}).`,
-    ) as ApiFailure;
-    error.status = response.status;
-    return error;
-  });
-}
+const SECTION_IDS = new Set<InternalSection>(SECTIONS.map((section) => section.id));
 
 function LoadingClients() {
   return (
@@ -111,7 +108,7 @@ function PasscodeGate({ onUnlock }: { onUnlock: (passcode: string) => void }) {
   );
 }
 
-export type InternalApi = <T>(path: string, init?: RequestInit) => Promise<T>;
+export type { InternalApi };
 
 export default function InternalPage() {
   const [passcode, setPasscode] = useState<string | null>(null);
@@ -124,20 +121,25 @@ export default function InternalPage() {
   const [directoryError, setDirectoryError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [mobileMenu, setMobileMenu] = useState(false);
+  // Whether the deployment runs the rehaul engine. Unknown or unreadable counts
+  // as no: a rehaul-only section stays absent rather than showing empty.
+  const [rehaul, setRehaul] = useState(false);
+  // The global view: the client directory (and a client's workspace), or System
+  // health (Cycle 5 P3.3, rehaul engine only).
+  const [view, setView] = useState<ConsoleView>("clients");
 
-  const api = useCallback<InternalApi>(
-    async <T,>(path: string, init: RequestInit = {}) => {
-      const response = await fetch(path, {
-        ...init,
-        headers: { "x-internal-passcode": passcode ?? "", ...(init.headers ?? {}) },
-        cache: "no-store",
-      });
-      if (!response.ok) throw await failureFrom(response);
-      if (response.status === 204) return undefined as T;
-      return response.json() as Promise<T>;
-    },
-    [passcode],
-  );
+  const api = useMemo<InternalApi>(() => createInternalApi(passcode ?? ""), [passcode]);
+
+  useEffect(() => {
+    if (!passcode) return;
+    let active = true;
+    void api<{ knowledge_engine?: string }>("/api/internal/engine")
+      .then((answer) => { if (active) setRehaul(answer?.knowledge_engine === "ke"); })
+      .catch(() => { if (active) setRehaul(false); });
+    return () => { active = false; };
+    // Asked again on each client opened, so a transient failure does not hide
+    // rehaul-only sections for the rest of the session (review M4).
+  }, [api, passcode, selectedId]);
 
   useEffect(() => {
     if (!passcode) return;
@@ -153,6 +155,7 @@ export default function InternalPage() {
         setDirectoryError(null);
         setSelectedId((current) => current ?? rows.find((row) => row.id === requestedClient)?.id ?? null);
         if (requestedSection && SECTION_IDS.has(requestedSection)) setSection(requestedSection);
+        if (!requestedClient && params.get("view") === "health") setView("health");
       })
       .catch((reason) => {
         if (!active) return;
@@ -167,9 +170,13 @@ export default function InternalPage() {
     const needle = filter.trim().toLowerCase();
     return (clients ?? []).filter((client) => !needle || client.name.toLowerCase().includes(needle)).sort((left, right) => left.name.localeCompare(right.name));
   }, [clients, filter]);
-  const activeSection = SECTIONS.find((candidate) => candidate.id === section) ?? SECTIONS[0];
+  const sections = SECTIONS.filter((candidate) => rehaul || !REHAUL_ONLY.has(candidate.id));
+  // A rehaul-only section asked for (for example by URL) on M1 shows the overview.
+  const shownSection: InternalSection = sections.some((candidate) => candidate.id === section) ? section : "overview";
+  const activeSection = sections.find((candidate) => candidate.id === shownSection) ?? SECTIONS[0];
 
   function chooseClient(id: string) {
+    setView("clients");
     setSelectedId(id);
     setSection("overview");
     replaceWorkspaceUrl(id, "overview");
@@ -180,6 +187,7 @@ export default function InternalPage() {
   }
 
   function backToClients() {
+    setView("clients");
     setSelectedId(null);
     setCreating(false);
     setSection("overview");
@@ -189,7 +197,33 @@ export default function InternalPage() {
     const url = new URL(window.location.href);
     url.searchParams.delete("client");
     url.searchParams.delete("module");
+    url.searchParams.delete("view");
     window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`);
+  }
+
+  function openHealth() {
+    setView("health");
+    setSelectedId(null);
+    setCreating(false);
+    setMobileMenu(false);
+    setError(null);
+    setNotice(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("client");
+    url.searchParams.delete("module");
+    url.searchParams.set("view", "health");
+    window.history.replaceState(window.history.state, "", `${url.pathname}?${url.searchParams.toString()}`);
+  }
+
+  // A System health link: the client's Sources or Limits, opened in place.
+  function openClientSection(clientId: string, nextSection: InternalSection) {
+    setView("clients");
+    setCreating(false);
+    setSelectedId(clientId);
+    setSection(nextSection);
+    setError(null);
+    setNotice(null);
+    replaceWorkspaceUrl(clientId, nextSection);
   }
 
   function navigate(nextSection: InternalSection) {
@@ -213,12 +247,15 @@ export default function InternalPage() {
     const url = new URL(window.location.href);
     url.searchParams.set("client", clientId);
     url.searchParams.set("module", nextSection);
+    url.searchParams.delete("view");
     window.history.replaceState(window.history.state, "", `${url.pathname}?${url.searchParams.toString()}`);
   }
 
   if (!passcode) return <PasscodeGate onUnlock={setPasscode} />;
 
   const inClient = Boolean(selected && !creating);
+  // Rehaul only: under M1 (or while the engine is unknown) the directory shows instead.
+  const showHealth = rehaul && view === "health" && !creating && !selected;
   const pageTitle = creating ? "Add client" : selected ? activeSection.label : "Clients";
   const pageDescription = creating
     ? "Create a workspace and its first contact."
@@ -231,7 +268,8 @@ export default function InternalPage() {
           profile: "Build, review, and approve an exact voice profile version.",
           access: "Create client login links and track their use and revocation.",
           held: "Review held drafts before releasing them to the client.",
-        } as Record<InternalSection, string>)[section]
+          limits: "Monthly upload allowance, the Documents and Writing budgets, extra uploads, and every change made.",
+        } as Record<InternalSection, string>)[shownSection]
       : "Select a client to manage their workspace.";
 
   return (
@@ -239,34 +277,33 @@ export default function InternalPage() {
       <div className="idc-layout">
         <aside className="idc-global" aria-label="Portfolio navigation">
           <div className="idc-brand"><span className="idc-mark">PP</span><div><div className="idc-brand-name">Promo Partner</div><p className="idc-brand-sub">Operator console</p></div></div>
-          <nav aria-label="Main">
-            <button type="button" className="idc-nav" data-active={!creating} onClick={backToClients} aria-label="Clients"><Users /><span>Clients</span><small className="idc-nav-count">{clients?.length ?? 0}</small></button>
-          </nav>
+          <GlobalNav view={view} creating={creating} clientCount={clients?.length ?? 0} rehaul={rehaul} onClients={backToClients} onHealth={openHealth} />
           <DesignButton variant="outline" size="sm" className="idc-mobile-menu" onClick={() => setMobileMenu(true)} aria-label="Open navigation"><Menu size={17} /></DesignButton>
           <div className="idc-operator"><div className="idc-nav" aria-label="Operator access uses a shared passcode"><span className="idc-avatar">OP</span><span><strong>Operator access</strong><small>Shared passcode</small></span></div></div>
         </aside>
         {inClient && selected ? <aside className="idc-context" aria-label="Client workspace navigation">
           <DesignButton variant="ghost" className="idc-back" onClick={backToClients}><ArrowLeft size={14} /> All clients</DesignButton>
           <div className="idc-identity"><span className="idc-identity-mark">{selected.name[0]}</span><div><strong>{selected.name}</strong><p>{selected.status}</p><button type="button" onClick={backToClients}>Switch client</button></div></div>
-          {[{ label: "Client", links: SECTIONS.slice(0, 1) }, { label: "Prepare", links: SECTIONS.slice(1, 5) }, { label: "Operate", links: SECTIONS.slice(5) }].map((group) => <nav className="idc-context-group" aria-label={group.label} key={group.label}><p className="idc-nav-label">{group.label}</p>{group.links.map((item) => <button type="button" className="idc-nav" key={item.id} data-active={section === item.id} aria-current={section === item.id ? "page" : undefined} onClick={() => navigate(item.id)}>{item.label}</button>)}</nav>)}
+          {[{ label: "Client", links: sections.slice(0, 1) }, { label: "Prepare", links: sections.slice(1, 5) }, { label: "Operate", links: sections.slice(5) }].map((group) => <nav className="idc-context-group" aria-label={group.label} key={group.label}><p className="idc-nav-label">{group.label}</p>{group.links.map((item) => <button type="button" className="idc-nav" key={item.id} data-active={shownSection === item.id} aria-current={shownSection === item.id ? "page" : undefined} onClick={() => navigate(item.id)}>{item.label}</button>)}</nav>)}
         </aside> : null}
         <div className="idc-stage">
           <header className="idc-top">
-            <div className="idc-breadcrumb">{inClient && selected ? <><button type="button" onClick={backToClients}>Clients</button><ChevronRight size={14} /><button type="button" onClick={() => navigate("overview")}>{selected.name}</button><ChevronRight size={14} /><b>{activeSection.label}</b></> : <b>{creating ? "New client" : "Clients"}</b>}</div>
+            <div className="idc-breadcrumb">{inClient && selected ? <><button type="button" onClick={backToClients}>Clients</button><ChevronRight size={14} /><button type="button" onClick={() => navigate("overview")}>{selected.name}</button><ChevronRight size={14} /><b>{activeSection.label}</b></> : <b>{creating ? "New client" : showHealth ? "System health" : "Clients"}</b>}</div>
             <div className="idc-top-right">{inClient ? <DesignButton variant="outline" size="sm" className="idc-search-trigger" onClick={backToClients}><Search size={15} /><span>Find a client</span></DesignButton> : null}<span className="idc-avatar" aria-label="Operator access uses a shared passcode">OP</span></div>
           </header>
           <main className="idc-content">
-            {inClient && selected ? <label className="idc-field idc-mobile-section">Client section · {selected.name}<select className="idc-native-select" aria-label="Client section" value={section} onChange={(event) => navigate(event.target.value as InternalSection)}>{SECTIONS.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label> : null}
+            {inClient && selected ? <label className="idc-field idc-mobile-section">Client section · {selected.name}<select className="idc-native-select" aria-label="Client section" value={shownSection} onChange={(event) => navigate(event.target.value as InternalSection)}>{sections.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label> : null}
             {error && error !== CLIENT_401_SENTENCE ? <p role="alert" className="idc-note bad">{error}</p> : null}
             {!selected && !creating && directoryError ? <p role="alert" className="idc-note bad">{directoryError}</p> : null}
             {notice ? <p role="status" className="idc-muted-panel" style={{ marginBottom: 20 }}>{notice}</p> : null}
             {creating ? <div className="idc-form-screen"><div className="idc-pagehead"><div><h1>{pageTitle}</h1><p>{pageDescription}</p></div></div><CreateWorkspace api={api} onCancel={backToClients} onComplete={(client) => { setClients((rows) => [...(rows ?? []).filter((row) => row.id !== client.id), client]); setDirectoryError(null); setCreating(false); setSelectedId(client.id); setSection("overview"); replaceWorkspaceUrl(client.id, "overview"); setNotice("Workspace and first person created. Add source material next."); }} onPartial={(client, message) => { setClients((rows) => [...(rows ?? []).filter((row) => row.id !== client.id), client]); setDirectoryError(null); setCreating(false); setSelectedId(client.id); setSection("people"); replaceWorkspaceUrl(client.id, "people"); setError(message); }} /></div>
-            : selected ? <><div className="idc-pagehead"><div><p className="idc-eyebrow">Client workspace</p><h1>{pageTitle}</h1><p>{pageDescription}</p></div></div><ClientDetail key={selected.id} clientId={selected.id} api={api} section={section} onNavigate={navigate} /></>
+            : showHealth ? <div className="idc-health-screen"><div className="idc-pagehead"><div><h1>System health</h1><p>Workers, documents, waits, people needed and today&apos;s AI spend across every client. Read only.</p></div></div><SystemHealth api={api} clients={clients ?? []} onOpenClient={openClientSection} /></div>
+            : selected ? <><div className="idc-pagehead"><div><p className="idc-eyebrow">Client workspace</p><h1>{pageTitle}</h1><p>{pageDescription}</p></div></div><ClientDetail key={selected.id} clientId={selected.id} api={api} section={shownSection} onNavigate={navigate} rehaul={rehaul} /></>
             : <div className="idc-directory-screen"><div className="idc-pagehead"><div><h1>Clients</h1><p>{pageDescription}</p></div><div className="idc-pageactions"><DesignButton onClick={() => { setCreating(true); setFilter(""); setError(null); setNotice(null); }}><Plus size={16} /> Add client</DesignButton></div></div><div className="idc-directory-search"><Search size={18} /><input className="idc-input" type="search" aria-label="Search clients" placeholder="Search clients" value={filter} onChange={(event) => setFilter(event.target.value)} /></div><div className="idc-directory-heading" aria-live="polite"><span>{clients === null ? "Loading clients" : directoryError ? "Directory unavailable" : filter.trim() ? `${shown.length} matching ${shown.length === 1 ? "client" : "clients"}` : `${clients.length} ${clients.length === 1 ? "client" : "clients"}`}</span></div><div className="idc-card">{clients === null ? <LoadingClients /> : directoryError ? <div className="idc-empty">Client directory could not be loaded.<div className="mt-4"><DesignButton variant="outline" size="sm" onClick={() => void retryDirectory()}>Try again</DesignButton></div></div> : shown.length ? shown.map((client) => <button type="button" className="idc-client-row" key={client.id} onClick={() => chooseClient(client.id)} aria-label={`Open ${client.name}`}><span className="idc-client-row-leading"><span className="idc-client-monogram">{client.name[0]}</span><span className="idc-client-row-text"><strong>{client.name}</strong><small title={client.timezone}>Time zone · {client.timezone.split("/").pop()?.replaceAll("_", " ") ?? client.timezone}</small></span></span><span className="idc-client-row-action">Open <ArrowRight size={16} /></span></button>) : <div className="idc-empty">{clients.length === 0 ? "No client workspaces yet." : "No clients match that name."}</div>}</div></div>}
           </main>
         </div>
       </div>
-      <Dialog open={mobileMenu} onOpenChange={setMobileMenu}><DialogContent className="idc-dialog"><DialogHeader><DialogTitle>Navigate</DialogTitle><DialogDescription>Choose a destination in the operator console.</DialogDescription></DialogHeader><div className="idc-rows"><div className="idc-row"><div className="idc-row-main"><strong>Clients</strong></div><DesignButton variant="outline" size="sm" onClick={backToClients}>Open <ArrowRight size={14} /></DesignButton></div></div></DialogContent></Dialog>
+      <Dialog open={mobileMenu} onOpenChange={setMobileMenu}><DialogContent className="idc-dialog"><DialogHeader><DialogTitle>Navigate</DialogTitle><DialogDescription>Choose a destination in the operator console.</DialogDescription></DialogHeader><MobileNavRows rehaul={rehaul} onClients={backToClients} onHealth={openHealth} /></DialogContent></Dialog>
     </div>
   );
 }

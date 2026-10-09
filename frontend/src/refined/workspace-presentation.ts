@@ -38,6 +38,20 @@ export function showsDraft(
   return hasPersistedDraft || (isDemo && phase === 'streaming');
 }
 
+/**
+ * The new-post suggestion (Cycle 5, P4.4; spec 10A.6): shown when the latest
+ * turn said the session is near the compaction threshold, until the client
+ * dismisses it for this session. Never in the demo, whose turns are local.
+ */
+export function showsNewPostSuggestion(
+  isDemo: boolean,
+  sessionLong: boolean,
+  sessionId: string | null,
+  dismissedFor: string | null,
+): boolean {
+  return !isDemo && sessionLong && sessionId !== null && sessionId !== dismissedFor;
+}
+
 export function settledWorkspacePhase(hasPersistedDraft: boolean): WorkspacePhase {
   return hasPersistedDraft ? 'record' : 'empty';
 }

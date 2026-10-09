@@ -7,6 +7,15 @@ const base = (messages: DriverRequest["messages"]): DriverRequest => ({
   system: [], messages, tools: [], timeoutMs: 1000, onText: () => undefined,
 });
 
+/** A NATIVE tool result, as the loop now sends one. INPUT CORRECTED: these
+ *  tests hand-built the old `<tool-result tool="...">` text wrapper, a shape
+ *  the loop no longer produces. */
+const toolResult = (name: string, payload: unknown): DriverRequest["messages"][number] => ({
+  role: "user",
+  content: "",
+  toolResults: [{ toolUseId: `t-${name}`, name, content: JSON.stringify(payload), isError: false }],
+});
+
 describe("deterministic validation driver", () => {
   it("answers an identity question from the bounded client profile without treating it as generation evidence", async () => {
     const deltas: string[] = [];
@@ -33,7 +42,7 @@ describe("deterministic validation driver", () => {
       material: "",
     };
     const response = await deterministicDriver.runTurn({
-      ...base([{ role: "user", content: `<tool-result tool="prepare_generation">${JSON.stringify(prepared)}</tool-result>` }]),
+      ...base([toolResult("prepare_generation", prepared)]),
       onText: delta => deltas.push(delta),
     });
     expect(response.toolCalls).toEqual([]);
@@ -55,14 +64,14 @@ describe("deterministic validation driver", () => {
       status: "ready",
       material: "[M1] <material handle=\"M1\" type=\"proof_point\" trust=\"untrusted\">\nCustomers reported a forty percent reduction in escalated decisions.\n</material>",
     };
-    const afterPrepare = [...base([]).messages, { role: "user" as const, content: `<tool-result tool=\"prepare_generation\">${JSON.stringify(prepared)}</tool-result>` }];
+    const afterPrepare = [...base([]).messages, toolResult("prepare_generation", prepared)];
     const submit = await deterministicDriver.runTurn(base(afterPrepare));
     expect(submit.toolCalls[0].name).toBe("submit_draft");
     expect(submit.toolCalls[0].input).toMatchObject({ cited_atom_ids: [{ handle: "M1" }] });
 
     const deltas: string[] = [];
     const closing = await deterministicDriver.runTurn({
-      ...base([...afterPrepare, { role: "user", content: '<tool-result tool="submit_draft">{"outcome":"verified"}</tool-result>' }]),
+      ...base([...afterPrepare, toolResult("submit_draft", { outcome: "verified" })]),
       onText: delta => deltas.push(delta),
     });
     expect(closing.toolCalls).toEqual([]);

@@ -7,6 +7,7 @@ import {
   settledWorkspacePhase,
   showsConversation,
   showsDraft,
+  showsNewPostSuggestion,
 } from '@/refined/workspace-presentation';
 
 describe('workspace presentation states', () => {
@@ -73,5 +74,20 @@ describe('workspace presentation states', () => {
       [],
       'What should the post be about?',
     )).toHaveLength(1);
+  });
+});
+
+describe('the new-post suggestion (Cycle 5, P4.4)', () => {
+  it('shows when the latest turn said the session is long, until dismissed for that session', () => {
+    expect(showsNewPostSuggestion(false, true, 's1', null)).toBe(true);
+    expect(showsNewPostSuggestion(false, true, 's1', 's1')).toBe(false);
+    // A dismissal belongs to its session: the next long session shows it again.
+    expect(showsNewPostSuggestion(false, true, 's2', 's1')).toBe(true);
+  });
+
+  it('does not show when the session is not long, without a session, or in the demo', () => {
+    expect(showsNewPostSuggestion(false, false, 's1', null)).toBe(false);
+    expect(showsNewPostSuggestion(false, true, null, null)).toBe(false);
+    expect(showsNewPostSuggestion(true, true, 's1', null)).toBe(false);
   });
 });

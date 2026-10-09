@@ -94,6 +94,8 @@ async function mockConnectedPage(
   }]);
   await page.route('**/api/client/content-items', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[]}' }));
   await page.route('**/api/client/calendar', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"slots":[]}' }));
+  // The M1 questionnaire's spec: pin the engine (Cycle 5 P9.4 renders the inventory on the new engine).
+  await page.route('**/api/client/engine', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"knowledge_engine":"m1"}' }));
   await page.route('**/api/client/profile', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ identity: { display_name: 'Amina Yusuf', profession: 'Documentary producer', client_name: 'ISTV', timezone: 'Europe/London' }, document_count: 4 }) }));
   await page.route('**/api/client/onboarding', async route => {
     if (route.request().method() === 'GET') {
@@ -226,6 +228,8 @@ test('an expired profile read returns to sign-in', async ({ page }) => {
   await page.context().addCookies([{ name: 'aa_client_token', value: 'synthetic-local-token', url: 'http://localhost:3100', httpOnly: true, sameSite: 'Lax' }]);
   await page.route('**/api/client/content-items', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"items":[]}' }));
   await page.route('**/api/client/calendar', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"slots":[]}' }));
+  // The M1 questionnaire's spec: pin the engine (Cycle 5 P9.4 renders the inventory on the new engine).
+  await page.route('**/api/client/engine', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{"knowledge_engine":"m1"}' }));
   await page.route('**/api/client/profile', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ identity: { display_name: 'Amina Yusuf', profession: 'Producer', client_name: 'ISTV', timezone: 'Europe/London' }, document_count: 3 }) }));
   await page.route('**/api/client/onboarding', async route => {
     await page.context().clearCookies();

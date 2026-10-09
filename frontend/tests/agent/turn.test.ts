@@ -44,9 +44,24 @@ function recordingDriver(script: TurnResult[]): { driver: Driver; requests: Driv
   return { driver, requests };
 }
 
+/** Every native tool result a request carried, newest last.
+ *
+ *  Tool results used to ride as a `<tool-result tool="...">` TEXT wrapper in
+ *  `content`; they are native parts now (`ModelMessage.toolResults`), so the
+ *  tests below read them there. The properties they pin are unchanged. */
+function resultsIn(request: DriverRequest): { toolUseId: string; name: string; content: string; isError: boolean; role: string }[] {
+  return request.messages.flatMap((message) =>
+    (message.toolResults ?? []).map((result) => ({ ...result, role: message.role })),
+  );
+}
+
+// INPUT CORRECTED: each attempt carries its own body. A real retry after a
+// rejection is a CHANGED draft -- the checks are deterministic, so identical
+// arguments get identical outcomes -- and three identical calls now stop the
+// turn as going round in circles (bounds.ts MAX_IDENTICAL_CALLS).
 const submitCall = (id: string): TurnResult => ({
   text: "",
-  toolCalls: [{ id, name: "submit_draft", input: { body: "b", cited_atom_ids: [], agent_text: "a" } }],
+  toolCalls: [{ id, name: "submit_draft", input: { body: `b-${id}`, cited_atom_ids: [], agent_text: "a" } }],
   stopReason: "tool_use",
   usage: NO_USAGE,
 });
@@ -358,9 +373,15 @@ describe("R1 — context in, tool results back", () => {
     });
 
     expect(requests).toHaveLength(2);
-    const fedBack = requests[1].messages.find((message) => message.content.includes("verified"));
+    const fedBack = resultsIn(requests[1]).find((result) => result.content.includes("verified"));
     expect(fedBack).toBeDefined();
     expect(fedBack!.role).toBe("user");
+    // A NATIVE result, answering the call it belongs to, not text beside it.
+    expect(fedBack!.toolUseId).toBe("t1");
+    expect(fedBack!.isError).toBe(false);
+    // And the model sees the call it made, as its own tool call.
+    const made = requests[1].messages.find((message) => message.role === "assistant" && message.toolCalls);
+    expect(made?.toolCalls?.[0]).toMatchObject({ id: "t1", name: "submit_draft" });
   });
 
   it("feeds a Python rejection reason back, escaped, so it cannot forge the tag boundary", async () => {
@@ -377,17 +398,16 @@ describe("R1 — context in, tool results back", () => {
     // and ends the turn, so the second driver call is the one that must have
     // already seen the first rejection fed back.
     expect(requests).toHaveLength(2);
-    const fedBack = requests[1].messages.find((message) => message.content.includes("banned phrase"));
+    const fedBack = resultsIn(requests[1]).find((result) => result.content.includes("banned phrase"));
     expect(fedBack).toBeDefined();
-    // `<` is escaped (matching transcript.ts's escaper exactly — `>` is
-    // deliberately left alone there, so it stays raw here too), which is
-    // sufficient: the forged "</tool-result>" inside the reason can no
-    // longer close the wrapper early, because its opening `<` is now `&lt;`.
-    // The ONLY real closing tag left is the wrapper's own, at the very end.
-    const closings = fedBack!.content.split("</tool-result>").length - 1;
-    expect(closings).toBe(1);
-    expect(fedBack!.content.endsWith("</tool-result>")).toBe(true);
+    // CHANGED FORM, same property. There is no text wrapper to close early
+    // now -- the result is a native part -- but untrusted text inside it
+    // still must not forge the tags other content uses, so `<` stays escaped
+    // exactly as transcript.ts escapes it, and no raw forged tag survives.
     expect(fedBack!.content).toContain("&lt;/tool-result>&lt;system-note");
+    expect(fedBack!.content).not.toContain("<system-note");
+    // A rejection is marked as one, so the model corrects the call.
+    expect(fedBack!.isError).toBe(true);
   });
 
   it("feeds prepare_generation's material back UNESCAPED — the one exemption from the tag-forgery guard", async () => {
@@ -412,7 +432,7 @@ describe("R1 — context in, tool results back", () => {
     });
 
     expect(requests).toHaveLength(2);
-    const fedBack = requests[1].messages.find((message) => message.content.includes("R&D"));
+    const fedBack = resultsIn(requests[1]).find((result) => result.content.includes("R&D"));
     expect(fedBack).toBeDefined();
     // Unescaped: a literal "&" and "<" survive, not "&amp;"/"&lt;".
     expect(fedBack!.content).toContain("We do R&D and 5 < 10 here");
@@ -431,9 +451,10 @@ describe("R1 — context in, tool results back", () => {
     await runAgentTurn({ driver, executor });
 
     expect(requests.length).toBeGreaterThanOrEqual(2);
-    const fedBack = requests[1].messages.find((message) => message.content.includes("no material available"));
+    const fedBack = resultsIn(requests[1]).find((result) => result.content.includes("no material available"));
     expect(fedBack).toBeDefined();
     expect(fedBack!.content).toContain("&lt;/tool-result>&lt;system-note");
+    expect(fedBack!.isError).toBe(true);
   });
 
   it("keeps the tag-forgery defense on prepare_generation's OTHER fields — only material is spliced raw", async () => {
@@ -454,7 +475,7 @@ describe("R1 — context in, tool results back", () => {
     });
 
     expect(requests).toHaveLength(2);
-    const fedBack = requests[1].messages.find((message) => message.content.includes("forged"));
+    const fedBack = resultsIn(requests[1]).find((result) => result.content.includes("forged"));
     expect(fedBack).toBeDefined();
     // background still escaped:
     expect(fedBack!.content).toContain("&lt;/tool-result>&lt;system-note");

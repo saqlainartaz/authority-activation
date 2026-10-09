@@ -169,7 +169,7 @@ function normaliseForComparison(value: string): string {
 export function preflight(
   draft: ModelDraft,
   handles: HandleMap,
-  options: { minimumSpan?: number } = {},
+  options: { minimumSpan?: number; allowUnquoted?: boolean } = {},
 ): PreflightProblem[] {
   const minimumSpan = options.minimumSpan ?? DEFAULT_MINIMUM_SPAN;
   const problems: PreflightProblem[] = [];
@@ -191,19 +191,27 @@ export function preflight(
       continue;
     }
 
+    // **An unquoted citation is legal under c4, and was always refused here.**
+    // Contracts section 5: "a null quote permits attributed paraphrase, not
+    // weaker authorization". The payload builder already sends an empty span
+    // as a null quote, but this check ran first and failed it as too short,
+    // so the permitted path was unreachable; its only test called the builder.
+    // `allowUnquoted` is the c4 submit's; v1 always requires a quote. A quote
+    // that IS given is still checked in full below.
+    const unquoted = options.allowUnquoted === true && citation.quoted_span === "";
     // `checks.py:682-692`: both the floor and the containment test run on the
     // NORMALISED span, and containment is tested against the NORMALISED atom
     // text — never the raw one.
     const normalisedSpan = normaliseForComparison(citation.quoted_span);
     const normalisedAtomText = normaliseForComparison(atom.text);
 
-    if (!normalisedAtomText.includes(normalisedSpan)) {
+    if (!unquoted && !normalisedAtomText.includes(normalisedSpan)) {
       problems.push({
         kind: "span_not_in_atom",
         detail: `${citation.handle}: the quoted span is not a verbatim slice of that material`,
       });
     }
-    if (Array.from(normalisedSpan).length < minimumSpan) {
+    if (!unquoted && Array.from(normalisedSpan).length < minimumSpan) {
       problems.push({
         kind: "span_too_short",
         detail: `${citation.handle}: the quoted span is shorter than ${minimumSpan} characters`,

@@ -363,7 +363,10 @@ describe("item 3, through the real executor — a local pre-flight hold spends n
       {
         id,
         name: "submit_draft",
-        input: { body: "we doubled revenue", title: "Revenue lesson", cited_atom_ids: [{ handle: "M1", quoted_span: "we doubled revenue", claim_text: "we doubled revenue" }], agent_text: "here" },
+        // INPUT CORRECTED: each attempt's reply differs, so each is a distinct
+        // call. Three IDENTICAL calls now stop the turn as going round in
+        // circles (bounds.ts MAX_IDENTICAL_CALLS); a real retry is a changed call.
+        input: { body: "we doubled revenue", title: "Revenue lesson", cited_atom_ids: [{ handle: "M1", quoted_span: "we doubled revenue", claim_text: "we doubled revenue" }], agent_text: `here-${id}` },
       },
     ],
     stopReason: "tool_use",

@@ -19,6 +19,11 @@ import {
 import { useData } from './state';
 import { useNavigate } from './navigation';
 import type { SetupAnswer } from './setup-packets';
+// Cycle 5 P6.6: on the new engine the editor's controls are the shared question card's.
+import { QuestionControls, type CardDraft, type CardQuestion } from '@/components/questions/QuestionCard';
+import { usesQuestionStore } from './client-questions';
+// Cycle 5 P9.4: on the new engine the page is the knowledge inventory.
+import DnaInventory from './DnaInventory';
 
 function validField(field: BusinessDnaField, answer: SetupAnswer): boolean {
   if (!field.question) return true;
@@ -38,8 +43,47 @@ function AnswerLimit({ id, value, limit }: { id: string; value: string; limit: n
   </p>;
 }
 
+/** A Business DNA field as a shared-card question: single choice with "Something else", or long text. */
+export function dnaCardQuestion(field: BusinessDnaField): CardQuestion {
+  const single = field.question?.input_type === 'single';
+  return {
+    id: field.id, control: single ? 'single' : 'long', prompt: field.label, why: '',
+    options: single ? (field.question?.choices ?? []).map(choice => ({ id: choice, label: choice })) : [],
+    allow_alternative: single, allow_uncertain: false,
+  };
+}
+
+export function dnaDraft(answer: SetupAnswer | undefined): CardDraft {
+  const selected = answer?.selected[0] ?? null;
+  return {
+    option: selected && selected !== OTHER_VALUE ? selected : null, options: [], text: answer?.text ?? '',
+    alternative: selected === OTHER_VALUE, alternativeText: selected === OTHER_VALUE ? answer?.text ?? '' : '',
+  };
+}
+
+export function dnaAnswer(question: CardQuestion, draft: CardDraft): SetupAnswer {
+  if (question.control !== 'single') return { selected: [], text: draft.text };
+  if (draft.alternative) return { selected: [OTHER_VALUE], text: draft.alternativeText };
+  return { selected: draft.option ? [draft.option] : [], text: '' };
+}
+
+/** Which Business DNA renders: the inventory on the new engine (P9.4), the
+ *  questionnaire under M1, in the demo, or while the engine is unknown. */
+export function dnaViewFor(isDemo: boolean, engine: 'ke' | 'm1' | null | undefined): 'inventory' | 'questionnaire' {
+  return !isDemo && engine === 'ke' ? 'inventory' : 'questionnaire';
+}
+
 export default function BusinessDna({ embedded = false }: { embedded?: boolean }) {
   const d = useData();
+  return dnaViewFor(d.isDemo, d.engine) === 'inventory'
+    ? <DnaInventory embedded={embedded} />
+    : <M1BusinessDna embedded={embedded} />;
+}
+
+/** The M1 questionnaire view, unchanged (Cycle 5 P9.4 keeps it for `m1`). */
+export function M1BusinessDna({ embedded = false }: { embedded?: boolean }) {
+  const d = useData();
+  const cards = usesQuestionStore(d.isDemo, d.engine);
   const navigate = useNavigate();
   const navigateRef = useRef(navigate);
   navigateRef.current = navigate;
@@ -141,7 +185,7 @@ export default function BusinessDna({ embedded = false }: { embedded?: boolean }
         return <Card className="rf-dna-card" key={section.id}><CardContent>
           <div className="rf-dna-section-heading"><h3>{section.title}</h3>{!active && <Button variant="ghost" disabled={editing !== null || busy} onClick={() => begin(section)}><Pencil /> Edit</Button>}</div>
           <dl className="rf-dna-fields">{section.fields.map(field => <div key={field.id}><dt>{field.label}</dt><dd>
-            {!active || !field.editable ? field.value : field.question?.input_type === 'single' ? <div className="rf-dna-editor"><RadioGroup disabled={busy} aria-label={field.label} value={draft[field.id]?.selected[0] || ''} onValueChange={value => write(field.id, { selected: [String(value)], text: String(value) === OTHER_VALUE ? draft[field.id]?.text ?? '' : '' })}>{[...(field.question.choices ?? []), OTHER_VALUE].map(option => <label className="rf-dna-option" key={option}><Radio.Root className="rf-radio" value={option}><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option === OTHER_VALUE ? 'Something else' : option}</span></label>)}</RadioGroup>{field.required === false && <Button variant="ghost" disabled={busy} onClick={() => write(field.id, { selected: [], text: '' })}>Clear answer</Button>}{draft[field.id]?.selected[0] === OTHER_VALUE && <><Textarea disabled={busy} aria-label={`${field.label} custom answer`} aria-invalid={onboardingTextLength(draft[field.id]?.text ?? '') > field.question.max_text_chars || undefined} aria-describedby={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [OTHER_VALUE], text: event.target.value })} rows={3} /><AnswerLimit id={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} limit={field.question.max_text_chars} /></>}</div> : <div className="rf-dna-editor"><Textarea disabled={busy} aria-label={field.label} aria-invalid={onboardingTextLength(draft[field.id]?.text ?? '') > field.question!.max_text_chars || undefined} aria-describedby={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [], text: event.target.value })} rows={4} /><AnswerLimit id={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} limit={field.question!.max_text_chars} /></div>}
+            {!active || !field.editable ? field.value : cards && field.question ? <div className="rf-dna-editor"><QuestionControls question={dnaCardQuestion(field)} draft={dnaDraft(draft[field.id])} busy={busy} textLimit={field.question.max_text_chars} onDraft={next => write(field.id, dnaAnswer(dnaCardQuestion(field), next))} />{field.question.input_type === 'single' && field.required === false && <Button variant="ghost" disabled={busy} onClick={() => write(field.id, { selected: [], text: '' })}>Clear answer</Button>}{(field.question.input_type !== 'single' || draft[field.id]?.selected[0] === OTHER_VALUE) && <AnswerLimit id={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} limit={field.question.max_text_chars} />}</div> : field.question?.input_type === 'single' ? <div className="rf-dna-editor"><RadioGroup disabled={busy} aria-label={field.label} value={draft[field.id]?.selected[0] || ''} onValueChange={value => write(field.id, { selected: [String(value)], text: String(value) === OTHER_VALUE ? draft[field.id]?.text ?? '' : '' })}>{[...(field.question.choices ?? []), OTHER_VALUE].map(option => <label className="rf-dna-option" key={option}><Radio.Root className="rf-radio" value={option}><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option === OTHER_VALUE ? 'Something else' : option}</span></label>)}</RadioGroup>{field.required === false && <Button variant="ghost" disabled={busy} onClick={() => write(field.id, { selected: [], text: '' })}>Clear answer</Button>}{draft[field.id]?.selected[0] === OTHER_VALUE && <><Textarea disabled={busy} aria-label={`${field.label} custom answer`} aria-invalid={onboardingTextLength(draft[field.id]?.text ?? '') > field.question.max_text_chars || undefined} aria-describedby={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [OTHER_VALUE], text: event.target.value })} rows={3} /><AnswerLimit id={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} limit={field.question.max_text_chars} /></>}</div> : <div className="rf-dna-editor"><Textarea disabled={busy} aria-label={field.label} aria-invalid={onboardingTextLength(draft[field.id]?.text ?? '') > field.question!.max_text_chars || undefined} aria-describedby={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} onChange={event => write(field.id, { selected: [], text: event.target.value })} rows={4} /><AnswerLimit id={`rf-dna-limit-${field.id}`} value={draft[field.id]?.text ?? ''} limit={field.question!.max_text_chars} /></div>}
           </dd></div>)}</dl>
           {active && <div className="rf-dna-actions"><Button variant="ghost" disabled={busy} onClick={() => { setEditing(null); setError(''); }}>Cancel</Button><Button disabled={!canSave || busy} onClick={() => void save(section)}>{busy ? 'Saving…' : <>Save <Check /></>}</Button></div>}
         </CardContent></Card>;

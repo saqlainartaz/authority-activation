@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { assembleTranscript, excludingJustRecordedMessage, type TranscriptMessage } from "@/agent/transcript";
+import {
+  assembleTranscript,
+  excludingJustRecordedMessage,
+  justRecordedMessage,
+  type TranscriptMessage,
+} from "@/agent/transcript";
 
 function message(partial: Partial<TranscriptMessage>): TranscriptMessage {
   return { id: "m1", role: "user", kind: "task", body: "hello", ...partial };
@@ -300,5 +305,28 @@ describe("excludingJustRecordedMessage — item 1 of the Task 8 fix round", () =
 
     const occurrences = rendered.filter((content) => content.includes(clientMessage)).length;
     expect(occurrences).toBe(1);
+  });
+});
+
+describe("justRecordedMessage: which row this turn's handle comes from", () => {
+  it("is the LAST row, not the first with the same words", () => {
+    // Round 2's attribution finding. A client who says "yes" twice must have
+    // this turn's "yes" named, not the first one.
+    const messages = [
+      message({ id: "1", kind: "task", role: "user", body: "yes" }),
+      message({ id: "2", kind: "agent", role: "assistant", body: "Shall I shorten it?" }),
+      message({ id: "3", kind: "task", role: "user", body: "yes" }),
+    ];
+
+    expect(justRecordedMessage(messages, "yes")?.id).toBe("3");
+  });
+
+  it("is nothing when the last row is not this message", () => {
+    const messages = [
+      message({ id: "1", kind: "task", role: "user", body: "yes" }),
+      message({ id: "2", kind: "agent", role: "assistant", body: "Done." }),
+    ];
+
+    expect(justRecordedMessage(messages, "yes")).toBeUndefined();
   });
 });

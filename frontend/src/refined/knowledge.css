@@ -34,10 +34,41 @@
 .rf-source-open > b { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .rf-source-open small { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--muted-foreground); }
 .rf-source-open .rf-source-meta { flex: none; font-weight: 400; }
+/* Cycle 5 P2.7: a stale list says so on the list; a paused row links to Usage. */
+.rf-knowledge-stale { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 8px 0 0; font-size: 13px; color: var(--muted-foreground); }
+.rf-source-list li.rf-uploaded-source > .rf-source-usage { height: auto; margin: -10px 0 12px 38px; padding: 0; }
+.rf-upload-dialog .rf-view-usage { align-self: flex-start; height: auto; padding: 0; }
 @media (max-width: 767px) {
   .rf-knowledge > .rf-section-heading > button { min-height: 40px; }
   .rf-upload-dialog .rf-file-drop { padding: 24px 16px; }
   .rf-source-open { flex-wrap: wrap; gap: 5px 14px; }
   .rf-source-open > b { flex: 1; }
   .rf-source-open .rf-source-meta { width: 100%; padding-left: 38px; }
+}
+
+/* Cycle 5 P7.2: name search, business labels, empty states and the source popup. */
+.rf-knowledge .rf-documents-heading { flex-wrap: wrap; align-items: center; row-gap: 8px; }
+.rf-source-search { position: relative; display: flex; align-items: center; gap: 6px; flex: 0 1 320px; min-width: 0; margin-left: auto; }
+.rf-source-search > svg { position: absolute; left: 10px; width: 16px; height: 16px; color: var(--muted-foreground); pointer-events: none; }
+.rf-source-search input { min-width: 0; padding-left: 32px; }
+.rf-source-search > button { flex: none; }
+.rf-source-labels { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-weight: 400; }
+.rf-source-label { display: inline-block; max-width: 100%; padding: 1px 8px; border: 1px solid var(--border); border-radius: 999px; background: var(--muted); color: var(--foreground); font-size: 11px; font-weight: 500; line-height: 1.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rf-source-empty { padding: 28px 0; }
+.rf-source-peek { grid-template-columns: minmax(0, 1fr); width: 560px; height: auto; max-height: 88svh; }
+.rf-source-peek .rf-peek-info { grid-column: 1; border-left: 0; }
+.rf-source-peek [data-slot="dialog-footer"] { grid-column: 1; border-left: 0; }
+.rf-source-peek .rf-peek-property-value b { font-weight: 600; }
+.rf-source-peek .rf-source-use .rf-peek-property-value { align-items: center; gap: 10px; }
+.rf-source-peek .rf-source-reason { margin-top: 4px; }
+.rf-source-peek .rf-source-labels { margin-top: 0; }
+.rf-questions-inline { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
+.rf-questions-inline-title { margin: 0 0 10px; font-size: 13px; font-weight: 600; }
+.rf-source-question-error { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 14px 0 0; color: var(--muted-foreground); font-size: 13px; }
+@media (max-width: 767px) {
+  .rf-source-search { flex: 1 1 100%; margin-left: 0; }
+  .rf-source-peek { width: calc(100vw - 32px); max-width: calc(100vw - 32px); }
+  /* The dialog scrolls as one column: its parts keep their height, so the footer follows the question. */
+  .rf-source-peek > .rf-peek-info, .rf-source-peek > [data-slot="dialog-footer"] { flex-shrink: 0; }
+  .rf-source-open .rf-source-labels { padding-right: 4px; }
 }

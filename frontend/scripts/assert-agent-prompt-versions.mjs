@@ -83,6 +83,10 @@ const skillNames = fs
 
 const PROMPT_FILES = [
   "src/agent/instructions.md",
+  // Cycle 5, P4.3: the session-summary prompt, versioned like the rest.
+  "src/agent/prompts/session-summary.md",
+  // Cycle 5, P5.2: the voice preview's prompt.
+  "src/agent/prompts/voice-preview.md",
   ...skillNames.map((name) => `src/agent/skills/${name}/SKILL.md`),
 ];
 

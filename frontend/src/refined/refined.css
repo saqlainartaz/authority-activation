@@ -163,6 +163,26 @@ html[data-refined] {
 .rf-dna-actions button { min-height: 38px; }
 .rf-dna-actions button svg { width: 14px; height: 14px; }
 .rf-dna-state { margin: 0; color: var(--muted-foreground); line-height: 1.6; }
+/* Cycle 5 P9.4: the new engine's Business DNA inventory. */
+.rf-dna-items { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.rf-dna-items li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 8px; padding: 10px 0; border-top: 1px solid var(--border); line-height: 1.55; overflow-wrap: anywhere; }
+.rf-dna-items li > span:first-child { flex: 1 1 260px; min-width: 0; }
+.rf-dna-tag { display: inline-flex; align-items: center; padding: 1px 7px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted-foreground); font-size: 11px; line-height: 1.6; white-space: nowrap; }
+.rf-dna-identity { margin-bottom: 6px; }
+.rf-dna-identity p { margin: 0; line-height: 1.6; }
+.rf-dna-kind { margin-left: 6px; color: var(--muted-foreground); font-size: 13px; }
+.rf-dna-related { display: grid; gap: 4px; margin: 6px 0 0; padding: 0; list-style: none; color: var(--muted-foreground); font-size: 13px; }
+.rf-dna-link { padding: 0; border: 0; background: none; color: var(--foreground); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.rf-dna-more { margin-top: 6px; color: var(--muted-foreground); }
+.rf-dna-more svg { width: 14px; height: 14px; }
+.rf-dna-empty, .rf-dna-voice { display: grid; gap: 10px; justify-items: start; }
+.rf-dna-voice .rf-voice-sample { justify-self: stretch; }
+.rf-dna-note { margin: 0; color: var(--muted-foreground); font-size: 12px; }
+.rf-dna-building h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+.rf-dna-building-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.rf-dna-building-actions svg, .rf-dna-section-heading button svg { width: 14px; height: 14px; }
+.rf-dna-selector { max-width: 360px; }
+.rf-contribute.rf-contribute-inline { max-width: none; margin: 14px 0 0; }
 .rf-count { display: inline-flex; min-width: 19px; height: 18px; align-items: center; justify-content: center; padding: 0 4px; border-radius: 4px; background: #eeece8; color: #625e59; font-size: 10px; font-weight: 500; }
 .rf-questions-page > .rf-section-heading { justify-content: center; margin: 0 auto; }
 .rf-questions-page > .rf-section-description { text-align: center; max-width: 560px; margin: 8px auto 28px; line-height: 1.6; }
@@ -218,6 +238,31 @@ html[data-refined] {
 .rf-rule > button { flex: none; }
 .rf-rule-edit { color: #827b72; }
 .rf-guidance-editor-footer > label { display: flex; align-items: center; gap: 10px; margin-right: auto; font-size: 13px; }
+.rf-guidance { max-width: 760px; }
+.rf-guidance-empty { margin: 0 0 4px; font-size: 15px; font-weight: 600; }
+.rf-guidance-editor { min-height: 220px; font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+.rf-guidance-count { margin: 6px 0 0; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; color: #7a7772; }
+.rf-guidance-count[data-over] { color: var(--destructive); font-weight: 600; }
+.rf-guidance-note { margin: 6px 0 0; font-size: 12px; color: #6d6964; }
+.rf-guidance-stale, .rf-guidance-kept { display: grid; gap: 8px; justify-items: start; margin-top: 14px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; }
+.rf-guidance-stale p, .rf-guidance-kept p { margin: 0; }
+.rf-guidance-kept textarea { width: 100%; }
+.rf-guidance-actions { display: flex; gap: 8px; margin-top: 16px; }
+.rf-voice-card-slot:not(:empty) { margin-top: 28px; padding-top: 22px; border-top: 1px solid var(--border); }
+.rf-voice-card h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.rf-voice-card h4 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+.rf-voice-field { display: grid; gap: 6px; margin-top: 12px; font-size: 13px; }
+.rf-voice-select { max-width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); color: inherit; font-size: 14px; }
+.rf-voice-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.rf-voice-versions { display: grid; gap: 12px; margin-top: 16px; }
+.rf-voice-sample { display: grid; gap: 8px; align-content: start; padding: 14px; border: 1px dashed var(--border); border-radius: 10px; }
+.rf-voice-label { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0; font-size: 12px; color: #6d6964; }
+.rf-voice-starting { padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); font-weight: 600; }
+.rf-voice-text { margin: 0; font-size: 14px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rf-voice-message { display: grid; gap: 8px; justify-items: start; margin-top: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; }
+.rf-voice-message p { margin: 0; }
+.rf-voice-approaching, .rf-voice-saved { margin: 10px 0 0; font-size: 13px; }
+.rf-voice-adjust, .rf-voice-guidance { margin-top: 16px; }
 @media (hover: hover) and (pointer: fine) { .rf-rule-edit { opacity: 0; } .rf-rule:hover .rf-rule-edit, .rf-rule:focus-within .rf-rule-edit { opacity: 1; } }
 .rf-coverage { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; max-width: 1000px; margin: 26px 0; }
 .rf-coverage-card { box-shadow: none; background: #faf9f7; padding: 0; border: 1px solid var(--border); }
@@ -396,6 +441,8 @@ html[data-refined] {
   .rf-dna-card > [data-slot="card-content"] { padding: 18px; }
   .rf-dna-fields > div { grid-template-columns: minmax(0,1fr); gap: 6px; }
   .rf-dna-section-heading button, .rf-dna-actions button { min-height: 44px; }
+  .rf-dna-building-actions button, .rf-dna-more, .rf-dna-voice-actions button { min-height: 44px; }
+  .rf-dna-selector { max-width: none; }
   .rf-home-grid { grid-template-columns: minmax(0,1fr); gap: 22px; }
   .rf-summary { grid-column: 1; grid-row: auto; }
   .rf-greeting h2 { font-size: 22px; }
@@ -535,6 +582,20 @@ html[data-refined] {
 .rf-usage progress::-webkit-progress-bar { background: var(--muted); border-radius: 10px; }
 .rf-usage progress::-webkit-progress-value { background: #272522; border-radius: 10px; }
 .rf-usage small { color: var(--muted-foreground); }
+.rf-usage-ke { gap: 22px; padding-top: 6px; }
+.rf-usage-group { display: flex; flex-direction: column; gap: 16px; }
+.rf-usage-group h4 { margin: 0; color: var(--muted-foreground); font-size: 12px; font-weight: 600; }
+.rf-usage-group > small { margin-top: -10px; font-size: 13px; }
+.rf-usage-summary { font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.rf-usage-meter { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.rf-usage-meter-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.rf-usage-meter-head b { font-size: 14px; font-weight: 500; }
+.rf-usage-meter-head span { flex: none; font-size: 13px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+.rf-usage-meter small { font-size: 13px; }
+.rf-usage-meter[data-state="reached"] small, .rf-usage small[data-reached] { color: var(--foreground); font-weight: 500; }
+.rf-usage-message { margin: 0; font-size: 14px; color: var(--muted-foreground); }
+.rf-usage-notice { margin: 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; line-height: 1.5; color: var(--muted-foreground); background: var(--muted); }
+.rf-new-post-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .rf-data-card { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
 .rf-data-promise { display: flex; gap: 12px; padding: 18px; color: #265b43; background: #edf6ef; }
 .rf-data-promise svg { flex: none; }
@@ -619,4 +680,67 @@ html[data-refined] {
   .rf-conversation-scroll { padding: 20px 16px; }
   .rf-workspace-composer { padding: 0 16px max(12px, env(safe-area-inset-bottom)); }
   .rf-workspace-panel [data-slot="button-group"] { flex-wrap: wrap; gap: 6px; }
+}
+
+/* Schedule cards in the agent stream (c4). The plan is stated; the time editor
+   opens inside the card only when the client asks to change it. */
+.rf-schedule-card { border: 1px solid #e4ddd3; border-radius: 12px; padding: 14px 16px; background: #fffdf9; max-width: 520px; white-space: normal; }
+.rf-schedule-card__eyebrow { font-size: 12px; letter-spacing: .02em; color: #8a8278; margin: 0 0 4px; }
+.rf-schedule-card__title { font-weight: 600; color: #2f2a24; margin: 0 0 8px; }
+.rf-schedule-card__preview { margin: 0 0 12px; padding-left: 10px; border-left: 2px solid #e4ddd3; color: #625c54; font-size: 13px; max-height: 6.8em; overflow: hidden; }
+.rf-schedule-card__edit { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #8a8278; margin-bottom: 10px; }
+.rf-schedule-card__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.rf-schedule-card__actions button { border: 1px solid #d8d0c4; border-radius: 8px; padding: 6px 12px; background: #fff; cursor: pointer; }
+.rf-schedule-card__actions .rf-schedule-card__confirm { background: #2f2a24; color: #fff; border-color: #2f2a24; }
+.rf-schedule-card__error { color: #a3402c; font-size: 13px; margin: 0 0 8px; }
+.rf-schedule-card__note { color: #8a8278; font-size: 13px; margin: 0; }
+.rf-schedule-card__delivery { color: #5d564e; font-size: 13px; font-weight: 500; margin: 0; }
+.rf-schedule-card--done .rf-schedule-card__title { margin: 0; color: #2e6b3a; }
+.rf-schedule-card--stale { opacity: .75; }
+
+/* Cycle 5 P6.6: the shared question card (components/questions/QuestionCard.tsx), new engine only. */
+.rf-qcard { width: 100%; max-width: 640px; margin: 0 auto; padding: 24px 26px; border: 1px solid var(--border); border-radius: 14px; background: var(--card); color: var(--card-foreground); }
+.rf-qcard-position { margin: 0 0 10px; color: var(--muted-foreground); font-size: 12px; font-variant-numeric: tabular-nums; }
+.rf-qcard h2 { margin: 0 0 8px; font-size: 20px; line-height: 1.35; font-weight: 500; letter-spacing: -.01em; text-wrap: balance; outline: none; overflow-wrap: anywhere; }
+.rf-qcard-why { margin: 0 0 18px; color: var(--muted-foreground); font-size: 13px; line-height: 1.55; }
+.rf-qcard-why > span { font-weight: 600; color: var(--foreground); }
+.rf-qcard-control { display: flex; flex-direction: column; gap: 8px; }
+.rf-qcard-option { display: flex; align-items: flex-start; gap: 12px; min-height: 44px; padding: 11px 12px; border-radius: 9px; font-size: 15px; line-height: 1.45; cursor: pointer; overflow-wrap: anywhere; }
+.rf-qcard-option:hover { background: var(--muted); }
+.rf-qcard-option[data-selected] { background: var(--accent); }
+.rf-qcard-option .rf-radio, .rf-qcard-option [data-slot="checkbox"] { margin-top: 2px; }
+.rf-qcard-text, .rf-qcard-alternative { font-size: 16px; line-height: 1.6; }
+.rf-qcard-long { min-height: 160px; field-sizing: fixed; resize: vertical; }
+.rf-qcard-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 20px; }
+.rf-qcard-secondary { display: flex; flex-wrap: wrap; gap: 4px; }
+.rf-qcard-secondary button { min-height: 40px; color: var(--muted-foreground); }
+.rf-qcard-save { margin-left: auto; min-height: 40px; }
+.rf-qcard-changed { max-width: 640px; margin: 0 auto 16px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--muted); font-size: 14px; line-height: 1.55; }
+.rf-qcard-changed > p { margin: 4px 0 0; overflow-wrap: anywhere; }
+/* P6.8 (I-3): an answer saved but not applied yet, with its Try again. */
+.rf-qcard-notice { margin: 12px 0 0; padding: 12px 14px; border: 1px solid var(--border); border-left: 3px solid var(--destructive, #b42318); border-radius: 10px; background: var(--muted); font-size: 14px; line-height: 1.55; }
+.rf-qcard-notice > p { margin: 4px 0 0; overflow-wrap: anywhere; color: var(--muted-foreground); }
+/* P6.8 (I-4): "What would you like us to know?" */
+.rf-contribute { max-width: 640px; margin: 20px auto 0; border-radius: 14px; box-shadow: none; }
+.rf-contribute h3 { margin: 0 0 4px; font-size: 18px; font-weight: 500; }
+.rf-contribute textarea { margin-top: 12px; }
+.rf-contribute-kind { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 12px 0 0; padding: 0; border: 0; font-size: 14px; }
+.rf-contribute-kind label { display: inline-flex; align-items: center; gap: 6px; }
+.rf-contribute-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.rf-contribute-outcome, .rf-contribute-proposals { margin-top: 16px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--muted); font-size: 14px; line-height: 1.55; }
+.rf-contribute-outcome ul, .rf-contribute-proposals ul { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.rf-contribute-outcome p { margin: 4px 0 0; overflow-wrap: anywhere; }
+.rf-contribute-proposals li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.rf-contribute-proposals li > span { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.rf-qcard-state { max-width: 640px; margin: 0 auto; border-radius: 14px; box-shadow: none; text-align: center; }
+.rf-qcard-state h3 { margin: 0; font-size: 18px; font-weight: 500; }
+.rf-qcard-state p { margin: 8px auto 0; max-width: 420px; color: var(--muted-foreground); line-height: 1.6; }
+.rf-qcard-state button { margin-top: 16px; }
+.rf-onboarding-ke .rf-qcard { max-width: none; }
+.rf-onboarding-check { margin-top: 16px; }
+@media (max-width: 767px) {
+  .rf-qcard { padding: 18px 16px; }
+  .rf-qcard-actions { flex-direction: column-reverse; align-items: stretch; }
+  .rf-qcard-secondary { justify-content: space-between; }
+  .rf-qcard-save { margin-left: 0; min-height: 44px; }
 }

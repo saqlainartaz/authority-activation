@@ -83,7 +83,33 @@ describe('bounded client brief', () => {
     );
     expect(route.match(/await getOnboarding\(token\)/g)).toHaveLength(1);
     expect(route).toContain('readWorkspaceOverview(token, onboarding)');
+    // The PROPERTY, not the formatting. This asserted the call's exact source
+    // text and broke when C4 added the current turn's message handle as a
+    // fifth argument — a real change to the prompt, but not one this test is
+    // about. What it guards is that `turnContext` (the client brief and the
+    // gated workspace overview) reaches the turn, and that material is still
+    // passed empty here per Ruling R2.
+    expect(route).toMatch(/buildTurnMessages\(\s*\[\],/);
+    expect(route).toMatch(/buildTurnMessages\([^)]*turnContext/s);
+    // Main's whole-client source context (merged into C4 2026-09-25) is read
+    // and reaches the turn. CHANGED FORM, same property: the exact call text
+    // gained C4's handle argument, and under c4 the context is empty by design.
     expect(route).toContain('await readClientKnowledge(token)');
-    expect(route).toContain('buildTurnMessages([], transcript, clientMessage, turnContext, sourceContext)');
+    expect(route).toMatch(/buildTurnMessages\([^)]*sourceContext/s);
+  });
+});
+
+/** Read from source, the convention this file uses for the route. Main's
+ *  whole-client corpus is a second, UNFENCED copy of the client's knowledge;
+ *  under c4 knowledge reaches the model only through view-bound handles, so a
+ *  c4 turn is built without it (C4 merged main, 2026-09-25). */
+describe("a c4 turn gets no unfenced corpus", () => {
+  const route = fs.readFileSync(
+    path.join(process.cwd(), "src/app/api/client/chat/sessions/[sessionId]/agent/route.ts"),
+    "utf8",
+  );
+
+  it("builds the source context empty under c4", () => {
+    expect(route).toMatch(/profile\.contract === "c4" \? \[\] : \[await readClientKnowledge\(token\)\]/);
   });
 });

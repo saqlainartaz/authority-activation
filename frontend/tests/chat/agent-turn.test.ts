@@ -88,6 +88,14 @@ describe("refusedTurn", () => {
       text: "",
       terminal: { outcome: "refused", explanation: "Couldn't reach the writer. Nothing was saved — try again." },
       echo: ["write about the launch"],
+      // The run's schedule-card counter is carried, not reset: a refusal does
+      // not un-propose a card the server already recorded.
+      proposed: streaming.proposed,
+      // Carried too (Cycle 5, P1.6): a refusal does not make the limit less near.
+      approachingResetsAt: streaming.approachingResetsAt,
+      approachingMeter: streaming.approachingMeter,
+      // And the session is no shorter (Cycle 5, P4.4).
+      sessionLong: streaming.sessionLong,
     });
   });
 
@@ -101,5 +109,54 @@ describe("refusedTurn", () => {
       outcome: "refused",
       explanation: "Couldn't reach the writer. Nothing was saved — try again.",
     });
+  });
+});
+
+describe("the schedule card counter", () => {
+  it("moves on schedule.proposed, so the card list refetches at once", () => {
+    const next = foldEvent(IDLE_TURN, { type: "schedule.proposed", proposal_id: "p1" });
+
+    expect(next.proposed).toBe(IDLE_TURN.proposed + 1);
+  });
+});
+
+describe("the approaching notice (Cycle 5, P1.6)", () => {
+  it("starts empty", () => {
+    expect(IDLE_TURN.approachingResetsAt).toBeNull();
+  });
+
+  it("records when the writing limit resets on usage.approaching", () => {
+    const next = foldEvent(streaming, { type: "usage.approaching", resets_at: "2026-10-05T00:00:00+00:00" });
+
+    expect(next.approachingResetsAt).toBe("2026-10-05T00:00:00+00:00");
+    expect(next.status).toBe("streaming");
+  });
+
+  it("records which writing budget it is when the stream names it, and none otherwise (P2.6)", () => {
+    const named = foldEvent(streaming, { type: "usage.approaching", resets_at: "2026-11-01T00:00:00+00:00", meter: "writing_monthly" });
+    expect(named.approachingMeter).toBe("writing_monthly");
+    expect(IDLE_TURN.approachingMeter).toBeNull();
+    expect(foldEvent(named, { type: "usage.approaching", resets_at: "2026-10-05T00:00:00+00:00" }).approachingMeter).toBeNull();
+  });
+
+  it("keeps it across turn.end, so the composer can still show it", () => {
+    const near = foldEvent(streaming, { type: "usage.approaching", resets_at: "2026-10-05T00:00:00+00:00" });
+
+    expect(foldEvent(near, { type: "turn.end" }).approachingResetsAt).toBe("2026-10-05T00:00:00+00:00");
+  });
+});
+
+describe("the session-length notice (Cycle 5, P4.4)", () => {
+  it("starts off, and turns on at session.long while the turn goes on", () => {
+    expect(IDLE_TURN.sessionLong).toBe(false);
+    const next = foldEvent(streaming, { type: "session.long" });
+    expect(next.sessionLong).toBe(true);
+    expect(next.status).toBe("streaming");
+  });
+
+  it("stays on across turn.end, and is off for a turn that never says it", () => {
+    const long = foldEvent(foldEvent(streaming, { type: "session.long" }), { type: "turn.end" });
+    expect(long.sessionLong).toBe(true);
+    expect(foldEvent(foldEvent(streaming, { type: "message.delta", text: "hi" }), { type: "turn.end" }).sessionLong).toBe(false);
   });
 });

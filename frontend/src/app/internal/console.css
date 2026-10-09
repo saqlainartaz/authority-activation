@@ -261,3 +261,73 @@
   .idc-card [data-slot="card-header"] { padding:19px!important; }
 }
 @media(prefers-reduced-motion:reduce){.idc *, .idc *::before, .idc *::after { scroll-behavior:auto!important; animation-duration:.01ms!important; transition-duration:.01ms!important; }}
+/* Limits (Cycle 5 P2.5) */
+.idc-limits { display:grid; gap:20px; }
+.idc .idc-limits-card { padding:20px 21px; }
+.idc-limits-head h2 { font-size:18px; font-weight:650; letter-spacing:-.02em; }
+.idc-limits-head p { margin-top:4px; color:#626962; font-size:14px; }
+.idc-limits-facts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:16px; }
+.idc-limits-fact { border-radius:10px; background:#f4f6f2; padding:12px 14px; }
+.idc-limits-fact dt { color:#687168; font-size:12px; font-weight:650; }
+.idc-limits-fact dd { margin-top:4px; font-size:18px; font-weight:700; color:#323a33; }
+.idc-limits-form { margin-top:18px; }
+.idc-limits-form h3 { font-size:15px; font-weight:650; margin-top:18px; }
+.idc-limits-form .idc-form-grid { margin-top:12px; }
+.idc-limits-form .idc-form-actions { margin-top:14px; }
+.idc-limits-hint { color:#687168; font-size:13px; margin-top:4px; font-weight:400; }
+.idc-limits-check { display:flex; align-items:center; gap:8px; align-self:end; min-height:42px; font-weight:500; }
+.idc-limits-meters { display:grid; gap:14px; margin-top:16px; }
+.idc-limits-meter { border:1px solid var(--border); border-radius:10px; padding:14px 16px; }
+.idc-limits-meter-top { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.idc-limits-money { margin-top:4px; font-size:14px; color:#3f483f; }
+.idc-limits-bar { margin-top:10px; height:8px; border-radius:999px; background:#eceee9; overflow:hidden; }
+.idc-limits-bar span { display:block; height:100%; border-radius:999px; background:#4f7a5f; }
+.idc-limits-bar span[data-reached="true"] { background:#c8786e; }
+.idc-limits-bar-missing { margin-top:10px; font-size:14px; font-weight:650; color:#836128; }
+.idc-limits-notice { margin-top:12px; font-size:14px; border-radius:9px; padding:10px 14px; }
+.idc-limits-notice.ok { background:#e9f2ea; color:#2b6948; }
+.idc-limits-notice.warn { background:#f9f0df; color:#836128; }
+.idc-limits-notice.bad { background:#f9eae8; color:#a1453f; }
+.idc-limits-history .idc-row-main small { overflow-wrap:anywhere; }
+@media (max-width: 760px) {
+  .idc-limits-facts { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .idc .idc-limits-card { padding:16px; }
+}
+/* System health (Cycle 5 P3.3) */
+.idc-health { display:grid; gap:20px; min-width:0; }
+.idc-health-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.idc-health-observed { color:#3f483f; font-size:14px; font-weight:650; }
+.idc-health-stale { margin-bottom:0; }
+.idc .idc-health-section { padding:20px 21px; min-width:0; }
+.idc-health-section h2 { font-size:18px; font-weight:650; letter-spacing:-.02em; }
+.idc-health-summary { margin-top:10px; color:#626962; font-size:14px; }
+.idc-health-unavailable { margin-top:12px; border-radius:9px; padding:10px 14px; background:#f9f0df; color:#836128; font-size:14px; font-weight:650; }
+.idc-health-list { display:grid; gap:10px; margin-top:12px; list-style:none; padding:0; }
+.idc-health-item { border:1px solid var(--border); border-radius:10px; padding:12px 14px; min-width:0; }
+.idc-health-item[data-lane-warning="true"] { border-color:#eadfca; background:#fdfaf3; }
+.idc-health-item-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.idc-health-item-top strong { font-size:15px; font-weight:650; overflow-wrap:anywhere; }
+.idc-health-facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px 16px; margin-top:8px; }
+.idc-health-fact dt { color:#687168; font-size:12px; font-weight:650; }
+.idc-health-fact dd { margin-top:2px; font-size:14px; color:#323a33; overflow-wrap:anywhere; }
+.idc-health-counts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:12px; }
+.idc-health-counts .idc-health-fact { border-radius:10px; background:#f4f6f2; padding:12px 14px; }
+.idc-health-counts .idc-health-fact dd { font-size:20px; font-weight:700; }
+.idc-health-line { margin-top:6px; color:#687168; font-size:13px; overflow-wrap:anywhere; }
+.idc-health-uncertain { margin-top:8px; font-size:13px; font-weight:650; color:#836128; overflow-wrap:anywhere; }
+.idc-health-link { display:inline-block; margin-top:8px; font-size:14px; font-weight:650; color:#2b6948; text-decoration:underline; text-underline-offset:3px; }
+/* Ruling 93: Retry delete on a stuck Delete file row. */
+.idc-health-retry { display:flex; flex-direction:column; align-items:flex-start; gap:6px; margin-top:8px; }
+.idc-health-retry .idc-note { margin-bottom:0; padding:8px 12px; }
+.idc-health-marker { text-decoration:none; }
+.idc-health-replaced { margin-top:12px; }
+.idc-health-replaced summary { cursor:pointer; color:#5d665f; font-size:14px; font-weight:650; }
+.idc-health-group { margin-top:16px; }
+.idc-health-group-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.idc-health-group-head h3 { font-size:15px; font-weight:650; overflow-wrap:anywhere; }
+.idc-health-group-head .idc-health-link { margin-top:0; }
+@media (max-width: 760px) {
+  .idc .idc-health-section { padding:16px; }
+  .idc-health-counts { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .idc-health-facts { grid-template-columns:minmax(0,1fr); }
+}

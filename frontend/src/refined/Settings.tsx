@@ -13,6 +13,8 @@ import { useNavigate } from './navigation';
 import { useTheme, type Appearance } from './Theme';
 import { getJson } from '@/lib/api';
 import ChannelMark from './ChannelMark';
+import UsageSection, { WhatCountsRow } from './UsagePanel';
+import { usageSubtitle } from './usage-display';
 
 type Provider = { provider: 'linkedin'; configured: boolean; publishing_enabled: boolean; capabilities: string[] };
 type Account = { id: string; provider: 'linkedin'; display_name: string; token_expires_at: string; status: 'connected' | 'reauth_required' | 'revoked'; is_default: boolean; auto_publish_enabled: boolean };
@@ -23,7 +25,7 @@ const oauthMessages: Record<string, string> = {
   'session-expired': 'Your app session expired during connection. Sign in and try again.',
   failed: 'LinkedIn could not be connected. Please try again or contact support.',
 };
-const sections = [['account', 'Account', 'Name, headline, password, log out'], ['preferences', 'Preferences', 'Appearance, Library and time zone'], ['integrations', 'Integrations', 'Connect social accounts'], ['usage', 'Usage', 'Generations left this month'], ['data', 'Data', 'Export and manage your data']];
+const sectionsFor = (usage: string) => [['account', 'Account', 'Name, headline, password, log out'], ['preferences', 'Preferences', 'Appearance, Library and time zone'], ['integrations', 'Integrations', 'Connect social accounts'], ['usage', 'Usage', usage], ['data', 'Data', 'Export and manage your data']];
 
 function Integrations({ isDemo, result }: { isDemo: boolean; result?: string }) {
   const [provider, setProvider] = useState<Provider | null>(null);
@@ -85,12 +87,14 @@ function Integrations({ isDemo, result }: { isDemo: boolean; result?: string }) 
   </section>;
 }
 
-function Body({ onLogout, initialSection, linkedInResult }: { onLogout: () => void; initialSection?: string; linkedInResult?: string }) {
+function Body({ onLogout, initialSection, showInitialSection = false, linkedInResult }: { onLogout: () => void; initialSection?: string; showInitialSection?: boolean; linkedInResult?: string }) {
   const d = useData();
+  const sections = sectionsFor(usageSubtitle(d.isDemo, d.engine));
   const { appearance, setAppearance } = useTheme();
   const mobile = useMobile();
   const [section, setSection] = useState(initialSection || 'preferences');
-  const [showSection, setShowSection] = useState(false);
+  // On a phone, a section asked for by a link opens directly rather than the section list.
+  const [showSection, setShowSection] = useState(showInitialSection);
   const [profile, setProfile] = useState(d.profile);
   const [saved, setSaved] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -116,15 +120,15 @@ function Body({ onLogout, initialSection, linkedInResult }: { onLogout: () => vo
         <section className="rf-preference-group"><h4>Scheduling</h4><div className="rf-setting-row rf-timezone-row"><span><b>Time zone</b><small>Used to interpret new schedule dates. Existing slots keep the time zone recorded when they were scheduled.</small></span><Select value={d.timeZone} onValueChange={value => value && d.setTimeZone(value)}><SelectTrigger aria-label="Time zone"><SelectValue /></SelectTrigger><SelectContent>{['Europe/London', 'Europe/Warsaw', 'America/New_York', 'America/Los_Angeles', 'Asia/Dubai', 'Asia/Kolkata', 'Australia/Sydney', 'UTC'].map(zone => <SelectItem key={zone} value={zone}>{zone.replaceAll('_', ' ')}</SelectItem>)}</SelectContent></Select></div></section>
       </TabsContent>
       <TabsContent value="integrations"><Integrations isDemo={d.isDemo} result={linkedInResult} /></TabsContent>
-      <TabsContent value="usage">{d.isDemo ? <div className="rf-usage"><b>260</b><span>of 500 sample generations left this month</span><progress value={260} max={500} aria-label="Sample generations remaining" /><small>Demo usage · not supplied by a backend</small></div> : <div className="rf-usage"><b>—</b><span>Usage balance is not reported by the previous backend</span><small>No plan or quota has been invented.</small></div>}<div className="rf-setting-row"><span><b>What counts as a generation</b><small>Provider usage is recorded server-side when available; this backend exposes no client quota endpoint.</small></span></div></TabsContent>
+      <TabsContent value="usage">{d.isDemo ? <><div className="rf-usage"><b>260</b><span>of 500 sample generations left this month</span><progress value={260} max={500} aria-label="Sample generations remaining" /><small>Demo usage · not supplied by a backend</small></div><WhatCountsRow /></> : <UsageSection engine={d.engine} />}</TabsContent>
       <TabsContent value="data"><div className="rf-data-card"><div className="rf-data-promise"><ShieldCheck size={21} /><span><b>Never used to train anyone’s model</b><small>This preview keeps your changes on this device. No AI service is connected.</small></span></div><dl><div><dd>14</dd><dt>sample sources</dt></div><div><dd>{d.posts.length}</dd><dt>posts and drafts</dt></div><div><dd>Local</dd><dt>storage</dt></div></dl></div><div className="rf-setting-row"><span><b>Export everything</b><small>Download this preview’s posts, guidance, answers, profile, and preferences as JSON. Added documents are stored separately; download them from Knowledge.</small></span><Button variant="outline" onClick={d.exportData}>Export</Button></div><div className="rf-setting-row"><span><b>Delete all sources</b><small>Keeps your posts. Drafts go back to guesswork. Available when source storage is connected.</small></span><Button variant="outline" disabled>Delete sources</Button></div><div className="rf-setting-row"><span><b>Delete account</b><small>Removes everything permanently. No account is connected in this preview.</small></span><Button variant="outline" disabled>Delete account</Button></div></TabsContent>
       <p className="rf-local-note">{d.isDemo ? 'Demo settings are saved on this device.' : 'Time zone is connected. Writing preferences, profile editing, and guidance remain browser-local because the previous backend has no matching write routes.'}</p>
     </div>
   </Tabs>;
 }
-export default function Settings({ open, onOpenChange, initialSection, linkedInResult }: { open: boolean; onOpenChange: (open: boolean) => void; initialSection?: string; linkedInResult?: string }) {
+export default function Settings({ open, onOpenChange, initialSection, showInitialSection, linkedInResult }: { open: boolean; onOpenChange: (open: boolean) => void; initialSection?: string; showInitialSection?: boolean; linkedInResult?: string }) {
   const mobile = useMobile();
   const navigate = useNavigate();
   const logout = async () => { await fetch('/api/client-logout', { method: 'POST' }).catch(() => undefined); onOpenChange(false); navigate('/refined/signin', { replace: true }); };
-  return mobile ? <Drawer open={open} onOpenChange={onOpenChange} showSwipeHandle><DrawerContent className="rf-settings-mobile"><DrawerHeader><DrawerTitle>Settings</DrawerTitle><DrawerClose render={<Button variant="ghost" size="icon" aria-label="Close settings" className="ml-auto" />}><X /></DrawerClose><DrawerDescription className="sr-only">Account, preferences, integrations, usage and data.</DrawerDescription></DrawerHeader><Body onLogout={logout} initialSection={initialSection} linkedInResult={linkedInResult} /></DrawerContent></Drawer> : <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="rf-settings rf-settings-full"><DialogHeader><DialogTitle>Settings</DialogTitle><DialogDescription className="sr-only">Account, preferences, integrations, usage and data.</DialogDescription></DialogHeader><Body onLogout={logout} initialSection={initialSection} linkedInResult={linkedInResult} /></DialogContent></Dialog>;
+  return mobile ? <Drawer open={open} onOpenChange={onOpenChange} showSwipeHandle><DrawerContent className="rf-settings-mobile"><DrawerHeader><DrawerTitle>Settings</DrawerTitle><DrawerClose render={<Button variant="ghost" size="icon" aria-label="Close settings" className="ml-auto" />}><X /></DrawerClose><DrawerDescription className="sr-only">Account, preferences, integrations, usage and data.</DrawerDescription></DrawerHeader><Body onLogout={logout} initialSection={initialSection} showInitialSection={showInitialSection} linkedInResult={linkedInResult} /></DrawerContent></Drawer> : <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="rf-settings rf-settings-full"><DialogHeader><DialogTitle>Settings</DialogTitle><DialogDescription className="sr-only">Account, preferences, integrations, usage and data.</DialogDescription></DialogHeader><Body onLogout={logout} initialSection={initialSection} showInitialSection={showInitialSection} linkedInResult={linkedInResult} /></DialogContent></Dialog>;
 }

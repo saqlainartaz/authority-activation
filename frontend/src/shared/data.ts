@@ -102,6 +102,8 @@ export const COPY = {
   keep: 'Keep as draft',
   approve: 'Approve',
   newPost: 'New post',
+  // Cycle 5, P4.4 (spec 10A.6): when a session nears the compaction threshold.
+  newPostSuggestion: 'Starting a new post keeps your guidance and recent posts.',
   discardTitle: 'Start a new post?',
   discardBody: 'This draft has not been kept or approved. Starting a new post discards it, and the conversation with it.',
   endConversationBody: 'Starting a new post ends this conversation and opens a fresh one. This cannot be undone.',

@@ -62,13 +62,51 @@ export type TranscriptMessage = {
   body: string;
   /** Present only once Python projects it. See amendment 8. */
   command_kind?: string | null;
+  /** The server-issued handle for a client turn, `U{ordinal}`, or null.
+   *
+   *  **Issued by Python and rendered verbatim — never derived here.**
+   *  `use_task_material` takes one of these, and the ordinal it encodes
+   *  counts assistant and command rows too, so the third CLIENT turn is
+   *  typically `U5`. A second derivation in TypeScript would eventually
+   *  disagree and attribute a client's own words to the wrong turn. */
+  handle?: string | null;
 };
 
 export type ModelMessage = {
   role: "assistant" | "user";
+  /** The message's text. Empty on a message that only carries tool results. */
   content: string;
+  /** Assistant only: the tool calls this pass made, in the order it made them. */
+  toolCalls?: ToolCallPart[];
+  /** Assistant only: the provider's own content blocks for this pass, returned
+   *  UNCHANGED on the next call -- thinking blocks carry signatures the API
+   *  requires back verbatim, and re-deriving them would drop the reasoning. */
+  providerBlocks?: unknown[];
+  /** User only: one result per tool call of the preceding assistant message. */
+  toolResults?: ToolResultPart[];
   /** Stable client-source prefix; maps to an ephemeral provider cache marker. */
   cache?: boolean;
+};
+
+/** One tool call, as the model made it. */
+export type ToolCallPart = {
+  id: string;
+  name: string;
+  input: unknown;
+};
+
+/** One tool call's outcome, sent back as a NATIVE tool result.
+ *
+ *  **Data only.** Harness guidance does not belong here: Claude is trained to
+ *  treat instructions inside a tool result as possibly untrusted third-party
+ *  content (Anthropic, "Troubleshooting tool use"). Rules for using a tool live
+ *  in its description and in the instructions. */
+export type ToolResultPart = {
+  toolUseId: string;
+  name: string;
+  content: string;
+  /** A rejection or failure: the model should correct its call, not proceed. */
+  isError: boolean;
 };
 
 /**
@@ -91,7 +129,7 @@ const SKIPPED_COMMAND_KINDS = new Set(["show_sources"]);
 // `kind="..."` early and let the value inject a new attribute. `&` first, or
 // `<`/`"` escaped afterward would double-escape an `&` that came from one of
 // those substitutions.
-function escapeForAttribute(value: string): string {
+export function escapeForAttribute(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;");
 }
 
@@ -109,7 +147,17 @@ function render(item: TranscriptMessage): ModelMessage {
     return { role: "assistant", content: item.body };
   }
   if (item.kind === "task") {
-    return { role: "user", content: `<client-message>${escapeForBody(item.body)}</client-message>` };
+    // The handle is an ATTRIBUTE, not part of the body, so it cannot be
+    // confused with something the client wrote. Omitted entirely when Python
+    // did not issue one: an empty `handle=""` would be a handle the server
+    // refuses to resolve, offered to the model as if it were usable.
+    const handle = item.handle
+      ? ` handle="${escapeForAttribute(item.handle)}"`
+      : "";
+    return {
+      role: "user",
+      content: `<client-message${handle}>${escapeForBody(item.body)}</client-message>`,
+    };
   }
   if (item.kind === "clarification") {
     return { role: "user", content: `<server-question>${escapeForBody(item.body)}</server-question>` };
@@ -132,10 +180,23 @@ function render(item: TranscriptMessage): ModelMessage {
 }
 
 export function assembleTranscript(messages: TranscriptMessage[]): ModelMessage[] {
+  return assembleTranscriptEntries(messages).map((entry) => entry.message);
+}
+
+/** One stored row and the model message it renders as. */
+export type TranscriptEntry<T extends TranscriptMessage = TranscriptMessage> = { row: T; message: ModelMessage };
+
+/**
+ * `assembleTranscript`, keeping each message's stored row beside it (Cycle 5,
+ * P4.3). Compaction cuts the conversation at a message and records WHICH stored
+ * message its summary covers through, so it needs the row's id and kind, not
+ * only the rendered text. Same rows, same order, same rendering.
+ */
+export function assembleTranscriptEntries<T extends TranscriptMessage>(messages: T[]): TranscriptEntry<T>[] {
   return messages
     .filter((item) => item.body.trim().length > 0)
     .filter((item) => item.command_kind == null || !SKIPPED_COMMAND_KINDS.has(item.command_kind))
-    .map(render);
+    .map((row) => ({ row, message: render(row) }));
 }
 
 /**
@@ -169,4 +230,25 @@ export function excludingJustRecordedMessage<T extends { role: string; kind: str
     return messages.slice(0, -1);
   }
   return messages;
+}
+
+/**
+ * The row this turn just recorded: the LAST one, and only if it is this message.
+ *
+ * The same rule `excludingJustRecordedMessage` applies, and for the same
+ * reason. The route used to take the FIRST row with this body, so a repeated
+ * phrase ("yes", "sounds good") credited the client's words to an older
+ * turn's handle, and a fact used from this turn was attributed to the wrong
+ * message (round 2; the independent audit singled it out as affecting
+ * provenance). A last row that is not this message gives `undefined`: the turn
+ * is left unnameable rather than misnamed.
+ */
+export function justRecordedMessage<T extends { role: string; kind: string; body: string }>(
+  messages: T[],
+  clientMessage: string,
+): T | undefined {
+  const last = messages.at(-1);
+  return last && last.role === "user" && last.kind === "task" && last.body === clientMessage
+    ? last
+    : undefined;
 }

@@ -326,3 +326,39 @@ describe("preflight", () => {
     expect(problem.detail).toContain("M9");
   });
 });
+
+describe("an unquoted citation, which c4 permits", () => {
+  // Contracts section 5: "a null quote permits attributed paraphrase, not
+  // weaker authorization". The builder sent an empty span as a null quote,
+  // but preflight failed it first, so the permitted path never ran live.
+  const unquoted = draft({
+    cited_atom_ids: [
+      { handle: "M1", quoted_span: "", claim_text: "We launched the leadership programme in March 2026." },
+    ],
+  });
+
+  it("passes under c4", () => {
+    expect(preflight(unquoted, handles(), { allowUnquoted: true })).toEqual([]);
+  });
+
+  it("is still refused under v1, which always requires a quote", () => {
+    const kinds = preflight(unquoted, handles()).map((problem) => problem.kind);
+    expect(kinds).toContain("span_too_short");
+  });
+
+  it("does not excuse a quote that IS given and is not verbatim", () => {
+    const misquoted = draft({
+      cited_atom_ids: [
+        { handle: "M1", quoted_span: "launched something else entirely", claim_text: "We launched the leadership programme in March 2026." },
+      ],
+    });
+    const kinds = preflight(misquoted, handles(), { allowUnquoted: true }).map((problem) => problem.kind);
+    expect(kinds).toContain("span_not_in_atom");
+  });
+
+  it("does not excuse an unknown handle", () => {
+    const unknown = draft({ cited_atom_ids: [{ handle: "K9", quoted_span: "", claim_text: "We launched" }] });
+    const kinds = preflight(unknown, handles(), { allowUnquoted: true }).map((problem) => problem.kind);
+    expect(kinds).toContain("unknown_handle");
+  });
+});

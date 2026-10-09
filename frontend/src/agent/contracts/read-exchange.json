@@ -1,0 +1,134 @@
+{
+  "note": "One request and one result, in the bytes both languages must accept. Python validates these with pydantic; the frontend validates the identical file with zod. A divergence between the two mirrors shows up here rather than at runtime on a real turn.",
+  "request": {
+    "scope": {
+      "subjects": ["S1"],
+      "meaning_ids": ["offering.price"],
+      "time_mode": "current",
+      "purpose": "write a launch post"
+    },
+    "selector": {
+      "kind": "find",
+      "query": "membership pricing for people who left",
+      "source_handles": [],
+      "meaning_hints": ["offering.price"],
+      "breadth": "focused"
+    },
+    "cursor": null
+  },
+  "request_exact": {
+    "scope": {
+      "subjects": [],
+      "meaning_ids": [],
+      "time_mode": "any_eligible",
+      "purpose": "check the current price"
+    },
+    "selector": {
+      "kind": "exact",
+      "meaning_id": "offering.price",
+      "subject": null
+    },
+    "cursor": null
+  },
+  "request_orient": {
+    "scope": {
+      "subjects": [],
+      "meaning_ids": [],
+      "time_mode": "current",
+      "purpose": "orient before the first reply"
+    },
+    "selector": { "kind": "orient" },
+    "cursor": null
+  },
+  "request_inspect": {
+    "scope": {
+      "subjects": [],
+      "meaning_ids": [],
+      "time_mode": "current",
+      "purpose": "expand the exception"
+    },
+    "selector": { "kind": "inspect", "refs": ["E7"], "expand_context": true },
+    "cursor": null
+  },
+  "result": {
+    "schema": "c4-tool-1",
+    "read_view": "V1",
+    "receipt": "R1",
+    "items": [
+      {
+        "handle": "K1",
+        "payload": {
+          "kind": "knowledge",
+          "handle": "K1",
+          "meaning_id": "offering.price",
+          "subject_label": "Membership",
+          "reported_claimant_label": null,
+          "modality": "asserted",
+          "statement": "Membership costs 49.00 USD per month.",
+          "value": {
+            "kind": "quantity",
+            "amount": "49.00",
+            "currency": "USD",
+            "basis": "per month",
+            "raw": "49.00 USD per month"
+          },
+          "qualifications": ["introductory rate"],
+          "epistemic": "confirmed",
+          "temporal": "current_supported",
+          "unresolved": [],
+          "support_handles": ["E1"],
+          "conflict_handles": []
+        }
+      },
+      {
+        "handle": "E1",
+        "payload": {
+          "kind": "evidence",
+          "handle": "E1",
+          "source": { "handle": "S1", "label": "Pricing page, March" },
+          "excerpts": [
+            {
+              "location": { "target_id": "unit-3", "char_start": 120, "char_end": 168 },
+              "text": "Membership is 49 dollars a month for the first year.",
+              "projection": "P1"
+            }
+          ],
+          "context_handles": ["C1"],
+          "speaker_handle": null,
+          "speaker_label": null,
+          "tags": ["pricing"]
+        }
+      },
+      {
+        "handle": "C1",
+        "payload": {
+          "kind": "context",
+          "handle": "C1",
+          "relation": "qualification",
+          "structure_role": null,
+          "scope": "first year only",
+          "excerpts": []
+        }
+      }
+    ],
+    "sources": [
+      { "handle": "S1", "label": "Pricing page, March", "processing": "ready" },
+      { "handle": "S2", "label": "Founder interview", "processing": "pending" }
+    ],
+    "gaps": [],
+    "coverage": {
+      "extent": "selected",
+      "truncated": true,
+      "processing": "mixed",
+      "retrieval": "degraded",
+      "index_pending": false
+    },
+    "diagnostics": [
+      {
+        "code": "keyword_fallback",
+        "detail": "The embedding provider was unavailable, so only the keyword channel ran. A misspelled query may miss."
+      }
+    ],
+    "next_cursor": "page-2"
+  }
+}

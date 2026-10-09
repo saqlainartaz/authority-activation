@@ -1,0 +1,23 @@
+{
+  "price_table_version": "prices-placement-1",
+  "prices": {
+    "claude-opus-5": {
+      "input": 5000000,
+      "cache_write_5m": 6250000,
+      "cache_read": 500000,
+      "output": 25000000
+    },
+    "claude-sonnet-5": {
+      "input": 2000000,
+      "cache_write_5m": 2500000,
+      "cache_read": 200000,
+      "output": 10000000
+    },
+    "claude-haiku-4-5-20251001": {
+      "input": 1000000,
+      "cache_write_5m": 1250000,
+      "cache_read": 100000,
+      "output": 5000000
+    }
+  }
+}

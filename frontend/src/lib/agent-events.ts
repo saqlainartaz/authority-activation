@@ -32,8 +32,11 @@ export const EVENT_NAMES = [
   "message.delta",
   "activity",
   "draft.ready",
+  "schedule.proposed",
   "terminal",
   "turn.end",
+  "usage.approaching",
+  "session.long",
 ] as const;
 
 export type EventName = (typeof EVENT_NAMES)[number];
@@ -78,5 +81,20 @@ export type AgentEvent =
   | Event<"activity", { label: string }>
   /** An id and nothing else. The browser reloads the envelope. */
   | Event<"draft.ready", { variant_id: string }>
+  /** A schedule card to show. An id and nothing else, like draft.ready: the
+   *  browser reads the card from the server's record. */
+  | Event<"schedule.proposed", { proposal_id: string }>
   | Event<"terminal", { outcome: "held" | "refused"; explanation: string }>
-  | Event<"turn.end">;
+  | Event<"turn.end">
+  /** The writing limit is at 80% or more (Cycle 5 P1.6, spec 10A.3), and when
+   *  the binding approaching limit resets (ISO 8601, UTC). `meter` (added in
+   *  P2.6, Ruling 37) says which writing budget that is, so the composer can
+   *  name it. Absent from an older backend. Sent before the turn's content.
+   *  No semicolon in this comment: `check:agent-events` ends the union at the
+   *  first one outside brackets. */
+  | Event<"usage.approaching", { resets_at: string, meter?: "writing_daily" | "writing_monthly" }>
+  /** The session is near the compaction threshold (Cycle 5 P4.4, spec 10A.6):
+   *  the last model call's input was at or above 80% of it. The composer
+   *  suggests starting a new post. Sent before turn.end, under c4 only, and
+   *  only when near. It carries no figures, as the browser needs none. */
+  | Event<"session.long">;

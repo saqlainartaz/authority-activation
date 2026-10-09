@@ -15,9 +15,16 @@ import { toast } from 'sonner';
 import { useData } from './state';
 import Knowledge from './Knowledge';
 import BusinessDna from './BusinessDna';
+// Connected guidance is the saved server setting (P5.1, D06); the demo keeps its local rules.
+import GuidanceTab from './GuidancePanel';
 import { QUESTIONS, OTHER_ANSWER, getQuestionAnswer } from './questions';
 import type { ClientAtomDecided, ClientAtoms } from '@/lib/product';
 import { decisionBody, removeReviewed, reviewQueue, type ReviewQueueEntry } from './connected-training';
+// Cycle 5 P6.6: on the new engine the Questions tab reads the question store.
+import QuestionsPanel from './QuestionsPanel';
+import { usesQuestionStore } from './client-questions';
+// Cycle 5 P6.8 (review I-4): "What would you like us to know?" under the new engine.
+import ContributionBox from './ContributionBox';
 export { QUESTIONS } from './questions';
 
 export default function Training() {
@@ -38,6 +45,12 @@ export default function Training() {
   const [connectedError, setConnectedError] = useState('');
   const [decisionBusy, setDecisionBusy] = useState(false);
   const retryIntent = useRef<{ atomId: string; decision: 'confirm' | 'deprecate'; body: ReturnType<typeof decisionBody> } | null>(null);
+  // The new engine's questions (P6.6); under M1 the atom review below is unchanged.
+  const storeQuestions = usesQuestionStore(d.isDemo, d.engine);
+  const atomReview = !d.isDemo && !storeQuestions;
+  const [storeWaiting, setStoreWaiting] = useState(0);
+  // A contribution no longer creates questions (2026-10-08), so nothing bumps this.
+  const [storeRefresh] = useState(0);
   const rules = [...d.rules.filter(rule => rule.enabled), ...d.rules.filter(rule => !rule.enabled)];
   const unanswered = QUESTIONS.filter(q => !d.answers[q.id]);
   const q = unanswered[Math.min(index, unanswered.length - 1)];
@@ -45,12 +58,12 @@ export default function Training() {
   const response = q ? written[q.id] || '' : '';
   const answer = q ? getQuestionAnswer(q, selection, response) : null;
   const connectedQuestion = connectedQueue[Math.min(index, connectedQueue.length - 1)];
-  const waiting = d.isDemo ? unanswered.length : connectedQueue.length;
+  const waiting = d.isDemo ? unanswered.length : storeQuestions ? storeWaiting : connectedQueue.length;
   const choose = (value: string) => q && setSelected(s => ({ ...s, [q.id]: q.kind === 'multiple' ? selection.includes(value) ? selection.filter(v => v !== value) : [...selection, value] : [value] }));
   const write = (value: string) => q && setWritten(s => ({ ...s, [q.id]: value }));
 
   useEffect(() => {
-    if (d.isDemo) return;
+    if (!atomReview) return;
     let activeRequest = true;
     setConnectedReady(false);
     setConnectedError('');
@@ -76,7 +89,7 @@ export default function Training() {
       }
     });
     return () => { activeRequest = false; };
-  }, [d.isDemo]);
+  }, [atomReview]);
 
   async function decide(entry: ReviewQueueEntry, decision: 'confirm' | 'deprecate') {
     if (decisionBusy) return;
@@ -122,7 +135,7 @@ export default function Training() {
     <Tabs value={tab} onValueChange={value => setSearch({ tab: String(value) })} className="rf-training-tabs">
       <TabsList variant="line" className="rf-training-nav"><TabsTrigger value="questions">Questions {waiting > 0 && <span className="rf-count">{waiting}</span>}</TabsTrigger><TabsTrigger value="knowledge">Knowledge</TabsTrigger><TabsTrigger value="dna">Business DNA</TabsTrigger><TabsTrigger value="guidance">Guidance</TabsTrigger></TabsList>
       <TabsContent value="questions" className="rf-training-page rf-questions-page"><div className="rf-section-heading"><h2>Questions</h2>{waiting > 0 && <span>{waiting} waiting</span>}</div><p className="rf-section-description">Gaps the agent found in your material. Answer what you can; the rest stays here.</p>
-        {d.isDemo ? q ? <Card className="rf-question"><CardContent><p className="rf-question-position">{Math.min(index + 1, unanswered.length)} of {unanswered.length}</p><h3>{q.title}</h3><p className="rf-question-reason">{q.why}</p>
+        {storeQuestions ? <><QuestionsPanel onCount={setStoreWaiting} refresh={storeRefresh} /><ContributionBox /></> : d.isDemo ? q ? <Card className="rf-question"><CardContent><p className="rf-question-position">{Math.min(index + 1, unanswered.length)} of {unanswered.length}</p><h3>{q.title}</h3><p className="rf-question-reason">{q.why}</p>
           {'options' in q ? <>
             {q.kind === 'multiple' ? <div className="rf-options" role="group" aria-label={q.title}>{[...q.options, OTHER_ANSWER].map(option => <label key={option} className="rf-option" data-selected={selection.includes(option) || undefined}><Checkbox checked={selection.includes(option)} onCheckedChange={() => choose(option)} /><span>{option === OTHER_ANSWER ? 'Something else' : option}</span></label>)}</div> : <RadioGroup aria-label={q.title} value={selection[0] || ''} onValueChange={value => choose(String(value))} className="rf-options">{[...q.options, OTHER_ANSWER].map(option => <label key={option} className="rf-option" data-selected={selection.includes(option) || undefined}><Radio.Root value={option} className="rf-radio"><Radio.Indicator className="rf-radio-dot" /></Radio.Root><span>{option === OTHER_ANSWER ? 'Something else' : option}</span></label>)}</RadioGroup>}
             {selection.includes(OTHER_ANSWER) && <label className="rf-question-written rf-question-other" key={`${q.id}-other`}><span>Your answer</span><Textarea autoFocus value={response} onChange={event => write(event.target.value)} placeholder="The answer that fits, in your own words…" rows={3} /></label>}
@@ -134,11 +147,11 @@ export default function Training() {
         : connectedError && connectedQueue.length === 0 ? <Card className="rf-question rf-question-complete"><CardContent><h3>Questions unavailable</h3><p>We could not check your saved knowledge. Try this section again in a moment.</p></CardContent></Card>
         : connectedQuestion ? <Card className="rf-question"><CardContent><p className="rf-question-position">{Math.min(index + 1, connectedQueue.length)} of {connectedQueue.length}</p><h3>Does this sound right?</h3><p className="rf-question-reason">{connectedQuestion.label} · From {connectedQuestion.sourceLabel}</p><p className="rf-question-atom">{connectedQuestion.text}</p><div className="rf-question-decisions"><Button className="rf-question-save" disabled={decisionBusy} onClick={() => void decide(connectedQuestion, 'confirm')}>{decisionBusy ? 'Saving…' : <>Confirm <Check /></>}</Button>{connectedQuestion.canDeprecate && <Button variant="ghost" className="rf-question-reject" disabled={decisionBusy} onClick={() => void decide(connectedQuestion, 'deprecate')}>Not accurate</Button>}</div><div className="rf-question-footer"><Button variant="ghost" size="icon" className="rf-question-previous" disabled={index === 0 || decisionBusy} aria-label="Previous question" onClick={() => { setConnectedError(''); setIndex(i => i - 1); }}><ChevronLeft /></Button><span>{Math.min(index + 1, connectedQueue.length)} of {connectedQueue.length}</span><Button variant="ghost" size="icon" className="rf-question-next" disabled={index >= connectedQueue.length - 1 || decisionBusy} aria-label="Next question" onClick={() => { setConnectedError(''); setIndex(i => i + 1); }}><ChevronRight /></Button></div></CardContent></Card>
         : <Card className="rf-question rf-question-complete"><CardContent><div className="rf-complete-mark"><Check /></div><h3>You’re all caught up</h3><p>Your saved knowledge has no items waiting for review.</p></CardContent></Card>}
-        {!d.isDemo && connectedError && <p className="rf-auth-error" role="alert">{connectedError}</p>}
+        {atomReview && connectedError && <p className="rf-auth-error" role="alert">{connectedError}</p>}
       </TabsContent>
       <TabsContent value="knowledge" className="rf-training-page"><Knowledge /></TabsContent>
       <TabsContent value="dna" className="rf-training-page"><BusinessDna embedded /></TabsContent>
-      <TabsContent value="guidance" className="rf-training-page"><div className="rf-section-heading"><h2>Guidance</h2><span>{d.rules.filter(rule => rule.enabled).length} active</span><Button variant="outline" onClick={() => { setEditing('new'); setText(''); setActive(true); }}><Plus /> Add</Button></div><p className="rf-section-description">Sent to the agent every time it writes.</p><div className="rf-guidance-list">{rules.map((rule, position) => <div key={rule.id} className="rf-rule" data-disabled={!rule.enabled || undefined}><span className="rf-rule-number" aria-hidden="true">{rule.enabled ? position + 1 : '—'}</span><span className="rf-rule-text" title={rule.text}>{rule.text}</span><Switch checked={rule.enabled} onCheckedChange={enabled => d.setRule({ ...rule, enabled })} aria-label={`Enable: ${rule.text}`} /><Button variant="ghost" size="icon" className="rf-rule-edit" aria-label={`Edit: ${rule.text}`} onClick={() => { setEditing(rule.id); setText(rule.text); setActive(rule.enabled); }}><Pencil /></Button></div>)}</div></TabsContent>
+      <TabsContent value="guidance" className="rf-training-page">{d.isDemo ? <><div className="rf-section-heading"><h2>Guidance</h2><span>{d.rules.filter(rule => rule.enabled).length} active</span><Button variant="outline" onClick={() => { setEditing('new'); setText(''); setActive(true); }}><Plus /> Add</Button></div><p className="rf-section-description">Sent to the agent every time it writes.</p><div className="rf-guidance-list">{rules.map((rule, position) => <div key={rule.id} className="rf-rule" data-disabled={!rule.enabled || undefined}><span className="rf-rule-number" aria-hidden="true">{rule.enabled ? position + 1 : '—'}</span><span className="rf-rule-text" title={rule.text}>{rule.text}</span><Switch checked={rule.enabled} onCheckedChange={enabled => d.setRule({ ...rule, enabled })} aria-label={`Enable: ${rule.text}`} /><Button variant="ghost" size="icon" className="rf-rule-edit" aria-label={`Edit: ${rule.text}`} onClick={() => { setEditing(rule.id); setText(rule.text); setActive(rule.enabled); }}><Pencil /></Button></div>)}</div></> : <GuidanceTab />}</TabsContent>
     </Tabs>
     <Dialog open={editing !== null} onOpenChange={open => !open && setEditing(null)}><DialogContent className="rf-settings"><DialogHeader><DialogTitle>{editing === 'new' ? 'Add guidance' : 'Edit guidance'}</DialogTitle><DialogDescription>A clear rule to guide every draft.</DialogDescription></DialogHeader><Textarea autoFocus aria-label="Guidance" value={text} onChange={event => setText(event.target.value)} rows={4} /><DialogFooter className="rf-guidance-editor-footer"><label>Active<Switch checked={active} onCheckedChange={setActive} /></label><Button variant="ghost" onClick={() => setEditing(null)}>Cancel</Button><Button disabled={!text.trim()} onClick={() => { d.setRule({ id: editing === 'new' ? crypto.randomUUID() : editing!, text: text.trim(), enabled: active }); setEditing(null); toast.success('Guidance saved'); }}>Save guidance</Button></DialogFooter></DialogContent></Dialog>
   </>;

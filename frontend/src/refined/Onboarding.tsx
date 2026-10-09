@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { useNavigate } from './navigation';
 import { ArrowLeft, ArrowRight, Check, ChevronDown, FileText } from 'lucide-react';
 import { Radio } from '@base-ui/react/radio';
@@ -19,6 +19,8 @@ import {
   setupFromPrefill,
 } from './connected-onboarding';
 import { useData } from './state';
+import KeOnboarding from './KeOnboarding';
+import { usesQuestionStore, type KnowledgeEngineName } from './client-questions';
 import {
   PACKETS,
   OTHER,
@@ -48,7 +50,32 @@ function firstConnectedIndex(packets: readonly Packet[], setup: Setup): number {
   return required < 0 ? 0 : required;
 }
 
+/** Which onboarding renders: the new engine's question packet (P6.5), or the
+ *  M1 questionnaire, unchanged, under M1, in the demo, and when the engine
+ *  could not be read. */
+export function onboardingFor(isDemo: boolean, engine: KnowledgeEngineName | null): ReactElement {
+  return usesQuestionStore(isDemo, engine) ? <KeOnboarding /> : <M1Onboarding />;
+}
+
 export default function Onboarding() {
+  const d = useData();
+  // The onboarding page loads no workspace data, so it asks for the engine
+  // itself, before it fetches anything engine-specific (A47).
+  const [engine, setEngine] = useState<KnowledgeEngineName | null | undefined>(d.isDemo ? null : undefined);
+  useEffect(() => {
+    if (d.isDemo) return;
+    let active = true;
+    void fetch('/api/client/engine', { cache: 'no-store', headers: { Accept: 'application/json' } })
+      .then((response): Promise<{ knowledge_engine?: unknown }> | { knowledge_engine?: unknown } => response.ok ? response.json() : {})
+      .then(body => { if (active) setEngine(body.knowledge_engine === 'ke' || body.knowledge_engine === 'm1' ? body.knowledge_engine : null); })
+      .catch(() => { if (active) setEngine(null); });
+    return () => { active = false; };
+  }, [d.isDemo]);
+  if (engine === undefined) return <main className="rf-entry rf-onboarding"><header className="rf-onboarding-header"><EntryBrand /><span>Loading</span></header><div className="rf-onboarding-scroll"><section className="rf-onboarding-body"><p className="rf-onboarding-reason">Loading your setup…</p></section></div></main>;
+  return onboardingFor(d.isDemo, engine);
+}
+
+function M1Onboarding() {
   const d = useData();
   const navigate = useNavigate();
   const [connected, setConnected] = useState<{ prefill: OnboardingPrefill; packets: Packet[]; setup: Setup } | null>(null);
