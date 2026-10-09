@@ -22,5 +22,12 @@ export function buildConversationMessages(ws: Workspace, inlineDraft: boolean): 
       const lastUser = result.map(m => m.role).lastIndexOf('user');
       result.splice(lastUser + 1, 0, draft);
     }
+    // Schedule cards, oldest first, after the conversation. A superseded card
+    // is shown only as long as nothing replaced it on screen: the newer card is
+    // what the client acts on.
+    const cards = [...ws.proposals.proposals].reverse().filter(p => p.status !== 'superseded');
+    for (const proposal of cards) {
+      result.push({ id: `proposal:${proposal.id}`, role: 'assistant', content: [{ type: 'text', text: proposal.goes_out }] });
+    }
     return result;
 }

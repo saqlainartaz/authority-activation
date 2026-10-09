@@ -1,10 +1,14 @@
 import "server-only";
 
-import { buildDraftPayload, type ModelDraft } from "@/agent/contracts/draft";
+import {
+  buildDraftPayload,
+  buildDraftPayloadV2,
+  type ModelDraft,
+} from "@/agent/contracts/draft";
 import { derivedKey, type ToolContext } from "@/agent/lib/backend";
 import type { TurnUsage } from "@/agent/lib/driver";
 import { preflight, type PreflightProblem } from "@/agent/preflight";
-import { submitChatDraft } from "@/lib/product";
+import { createChatBasis, submitChatDraft } from "@/lib/product";
 
 /**
  * Submit a candidate draft for verification. Calls
@@ -45,6 +49,96 @@ import { submitChatDraft } from "@/lib/product";
  * now calls `submitChatDraft` (`lib/product.ts`), which sends both headers
  * via `clientJson`, with `context.token` threaded down through `ToolContext`.
  */
+/**
+ * P5, landed at P7. The `c4` branch: a basis, not a snapshot.
+ *
+ * **Two calls, and the order is the whole point.** The basis is minted
+ * FIRST, from the server's own view, and only then is the draft submitted
+ * against it. Submitting first and describing the basis afterwards would
+ * let the exposure set be written by the thing it is supposed to constrain.
+ *
+ * **Handles stay handles.** `buildDraftPayloadV2` does not substitute a
+ * uuid, because the server resolves each handle against the view that
+ * issued it. The v1 substitution exists because a snapshot has no handle
+ * namespace; a c4 view does.
+ *
+ * **Preflight still runs**, unchanged, so a citation the turn never held is
+ * caught locally and costs no round trip and no submit attempt.
+ */
+export async function submitDraftC4(
+  args: {
+    draft: ModelDraft;
+    agentText: string;
+    /** The Library title, as v1's `submitDraft` sends it. */
+    title?: string;
+    usage: TurnUsage;
+    perspectiveMode?: "personal" | "brand" | "neutral";
+    /** The server's own ids for who the turn writes as, from `context.v2`. */
+    perspectiveAuthorId?: string | null;
+    perspectiveBrandId?: string | null;
+    /** The selection this turn started with -- the compare-and-set value. */
+    expectedVariantId?: string | null;
+  },
+  context: ToolContext,
+  attempt = 1,
+): Promise<{
+  outcome: "verified" | "held";
+  variant_id?: string;
+  /** The session's variants after this submit, as the server numbers them.
+   *  How the executor names the new draft `D{variant_no}` without counting. */
+  variants?: { id: string; variant_no: number }[];
+  problems?: PreflightProblem[];
+  rejectionKind?: string;
+}> {
+  const problems = preflight(args.draft, context.handles, { allowUnquoted: true });
+  if (problems.length > 0) return { outcome: "held", problems };
+
+  const basis = await createChatBasis(context.token, context.sessionId, {
+    idempotency_key: derivedKey(context.turnId, "chat_basis", attempt),
+    perspective_mode: args.perspectiveMode ?? "neutral",
+    perspective_author_id: args.perspectiveAuthorId ?? null,
+    perspective_brand_id: args.perspectiveBrandId ?? null,
+  });
+
+  const payload = buildDraftPayloadV2(args.draft, context.handles, {
+    basisId: basis.basis_id,
+    agentText: args.agentText,
+    idempotencyKey: derivedKey(context.turnId, "submit_draft", attempt),
+    expectedVariantId: args.expectedVariantId,
+    title: args.title,
+  });
+
+  const response = await submitChatDraft(context.token, context.sessionId, payload);
+
+  // **A FENCED REFUSAL IS A REFUSAL.** The c4 path answers `refresh_required`
+  // with `reasons` and `affected_handles`; that used to fall through the
+  // success branch, so a draft that was NOT stored reached the model as a
+  // success with its reasons stripped — and the client was told their draft
+  // was ready. The second independent review found it in the demonstration's
+  // own withdrawal transcript, which I had read and not noticed.
+  if (response.payload.outcome !== "verified") {
+    const reasons = response.payload.reasons ?? [];
+    const affected = response.payload.affected_handles ?? [];
+    return {
+      outcome: "held",
+      // The reason and the stale handle both travel. "Held" with neither is
+      // a dead end for a model that has to decide what to re-read.
+      rejectionKind: response.payload.outcome,
+      problems: reasons.map((reason) => ({
+        kind: response.payload.outcome,
+        detail: affected.length > 0 ? `${reason} (${affected.join(", ")})` : reason,
+      })) as unknown as PreflightProblem[],
+    };
+  }
+
+  return {
+    outcome: "verified",
+    variant_id: response.payload.variant_id,
+    variants: response.variants,
+    rejectionKind: response.payload.rejection?.kind,
+  };
+}
+
 export async function submitDraft(
   args: { draft: ModelDraft; agentText: string; title: string; snapshotId: string; usage: TurnUsage },
   context: ToolContext,
@@ -86,8 +180,13 @@ export async function submitDraft(
     skill_versions: context.skillVersions,
   });
 
+  // v1 answers `verified | held` and nothing else. The shared result type is
+  // wider now because the c4 path needs `refresh_required`; narrowing here
+  // rather than casting means that if v1 ever grew a third outcome, it would
+  // be treated as a hold — not silently reported as a success, which is the
+  // failure this whole change is about.
   return {
-    outcome: response.payload.outcome,
+    outcome: response.payload.outcome === "verified" ? "verified" : "held",
     variant_id: response.payload.variant_id,
     rejectionKind: response.payload.rejection?.kind,
   };

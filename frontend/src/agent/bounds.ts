@@ -22,10 +22,65 @@ import "server-only";
  * conversation when it is said and a defect when it is not.
  */
 
+/**
+ * A model repeating the SAME call is not making progress, and every repeat
+ * spends the turn's working room on an answer it already has.
+ *
+ * Three in a row, with identical arguments, and the third is not run: the
+ * turn ends with its own sentence. OpenCode's `doom_loop` guard fires at the
+ * same count and OpenHands' stuck detector on the same shape. A retry with
+ * DIFFERENT arguments is a real second attempt and is never counted -- the
+ * streak resets on any change.
+ */
+export const MAX_IDENTICAL_CALLS = 3;
+
+export const REPEATED_CALL_EXPLANATION =
+  "I kept trying the same step without getting anywhere, so I've stopped rather than " +
+  "go round in circles. Tell me what to change, or point me at what you want, and I'll go again.";
+
+/**
+ * Cycle 5, P1.5 (spec 10A.2): how a C4 reply that reached its per-reply cap, or
+ * whose next call would exceed the per-call input bound, ends when it has not
+ * already submitted a draft. Written by the application, never by a model:
+ * asking a model to explain that it ran out of budget would be the call the
+ * cap exists to prevent.
+ */
+export const REPLY_CAP_EXPLANATION =
+  "This needs more work than one reply allows. Try a narrower request, or ask me to continue.";
+
 export type Limits = {
   maxToolCalls: number;
   maxSubmitDraftCalls: number;
   deadlineMs: number;
+  /** P7. The client-side half of `read_calls_per_turn`.
+   *
+   *  **Python enforces the real cap and this does not replace it.** The
+   *  server refuses a read past its own limit and the runtime cannot talk
+   *  it out of that. This bound exists so the loop stops ASKING once it is
+   *  out of room, rather than spending its remaining tool calls collecting
+   *  429s — and so the stop carries a sentence, which a 429 inside a tool
+   *  result does not.
+   *
+   *  It is deliberately the SAME number as the server's profile. A looser
+   *  one here would make the server the only thing stopping the loop; a
+   *  tighter one would silently cut reads the operator allowed. */
+  maxReadCalls: number;
+  /** P7. The assembled bytes one turn may put in front of the model.
+   *
+   *  Counted over what the runtime actually renders, not over what the
+   *  server returned: a result can be large and still contribute little
+   *  once projected. Zero means "not counted", which is what every caller
+   *  that does not track it gets. */
+  maxPackedBytes: number;
+  /** Cycle 5, P1.5. The per-reply cap in microdollars, from the C4
+   *  reservation (`reply_cap_microdollars`). The reply stops once its running
+   *  cost reaches it. ABSENT means no cap, which is the M1 (`context.v1`) path:
+   *  it has no reservation, and none is invented here. */
+  maxReplyCostMicrodollars?: number;
+  /** Cycle 5, P1.5. The largest estimated input, in tokens, one model call may
+   *  be sent with (`max_call_input_tokens`; `lib/reply-cap.ts` estimates it).
+   *  The reservation is derived from it. Absent on the M1 path. */
+  maxCallInputTokens?: number;
 };
 
 // E3, 2026-08-24: frozen. `DEFAULT_LIMITS.maxSubmitDraftCalls = 99` was
@@ -39,6 +94,12 @@ export const DEFAULT_LIMITS: Limits = Object.freeze({
    *  D-10's double call moved out of Python; the bound survives the move. */
   maxSubmitDraftCalls: 2,
   deadlineMs: 120_000,
+  /** `INITIAL_PROFILE.read_calls_per_turn`. Kept equal on purpose — see
+   *  the field's own comment. Not an approved value: plan section 6 lists
+   *  it as a proposal pending the operator's envelope. */
+  maxReadCalls: 6,
+  /** `INITIAL_PROFILE.broad_bytes`, for the same reason. */
+  maxPackedBytes: 48_000,
 });
 
 export type TurnState = {
@@ -46,11 +107,28 @@ export type TurnState = {
   submitDraftCalls: number;
   startedAt: number;
   now: number;
+  /** Optional so every existing caller keeps its exact behaviour: an
+   *  undefined counter is zero, and a turn that never reads is never
+   *  stopped for reading. */
+  readCalls?: number;
+  packedBytes?: number;
+  /** Cycle 5, P1.5. The reply's running cost so far, every pass priced at its
+   *  own model (`lib/reply-cap.ts`). `null` is UNKNOWN -- a pass reported no
+   *  usable cost -- and is treated as at the cap, because the cap can no longer
+   *  be shown to hold. Absent is zero. */
+  replyCostMicrodollars?: number | null;
 };
 
 export type StopVerdict = {
   stop: boolean;
-  reason: null | "tool_ceiling" | "submit_ceiling" | "deadline";
+  reason:
+    | null
+    | "tool_ceiling"
+    | "submit_ceiling"
+    | "deadline"
+    | "read_ceiling"
+    | "packed_ceiling"
+    | "reply_cap";
   explanation: string | null;
 };
 
@@ -102,6 +180,15 @@ export function shouldStop(state: TurnState, limits: Partial<Limits> = {}): Stop
         "me what to fix and I'll pick it back up.",
     };
   }
+  // AFTER the submit ceiling (the specific thing that failed, when both have
+  // tripped) and before every other limit: money is the bound the reservation
+  // was sized against. Only with a cap; the M1 path has none.
+  if (bounds.maxReplyCostMicrodollars !== undefined) {
+    const cost = state.replyCostMicrodollars === undefined ? 0 : state.replyCostMicrodollars;
+    if (cost === null || cost >= bounds.maxReplyCostMicrodollars) {
+      return { stop: true, reason: "reply_cap", explanation: REPLY_CAP_EXPLANATION };
+    }
+  }
   if (state.toolCalls >= bounds.maxToolCalls) {
     return {
       stop: true,
@@ -109,6 +196,29 @@ export function shouldStop(state: TurnState, limits: Partial<Limits> = {}): Stop
       explanation:
         "I've used up the working room for this turn without landing a draft. Narrow it " +
         "down for me — a single angle or a single claim — and I'll go again.",
+    };
+  }
+  // AFTER the submit ceiling and BEFORE the tool ceiling. A turn that has
+  // read all it may is not out of working room: C4-27 says it "may still
+  // submit", so stopping it under `tool_ceiling` — whose sentence says no
+  // draft was landed — would end a turn that was about to land one.
+  if ((state.readCalls ?? 0) >= bounds.maxReadCalls) {
+    return {
+      stop: true,
+      reason: "read_ceiling",
+      explanation:
+        "I've read as much of your knowledge as I can in one turn, so what I write next " +
+        "rests on what I already have rather than on everything there is. If it misses " +
+        "something you know is in there, point me at it and I'll go again.",
+    };
+  }
+  if ((state.packedBytes ?? 0) >= bounds.maxPackedBytes) {
+    return {
+      stop: true,
+      reason: "packed_ceiling",
+      explanation:
+        "I've gathered as much material as I can hold at once for this turn. Narrow it to " +
+        "the part that matters and I'll work from that instead.",
     };
   }
   if (state.now - state.startedAt >= bounds.deadlineMs) {

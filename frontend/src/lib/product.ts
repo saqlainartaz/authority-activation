@@ -1,3 +1,4 @@
+import type { DraftSubmissionV2 } from "@/agent/contracts/draft";
 // Server-only client for the product surface of the Content Engine (the
 // `product/` routers: onboarding, generation, decisions, schedule, campaigns,
 // the content library and the operator held queue).
@@ -24,6 +25,7 @@ import "server-only";
 
 import type { ContextV1 } from "@/agent/contracts/context";
 import type { SocialPlatform } from "@/shared/channels";
+import type { ClientUsage } from "@/lib/usage";
 
 const BASE = process.env.ENGINE_URL;
 const KEY = process.env.ENGINE_SERVICE_KEY;
@@ -42,16 +44,21 @@ const KEY = process.env.ENGINE_SERVICE_KEY;
  *
  * NOTE FOR THE BFF LAYER (plan 07A-04 owns this): `detail` may name internal
  * state. Decide per route what crosses to the browser — T-07A-03-05.
+ *
+ * `body` is the whole parsed error body (Cycle 5, P1.6): a limit refusal adds
+ * `limit` BESIDE `detail`, which `detail` alone would drop.
  */
 export class ProductHttpError extends Error {
   status: number;
   detail: unknown;
+  body: unknown;
 
-  constructor(message: string, status: number, detail: unknown) {
+  constructor(message: string, status: number, detail: unknown, body?: unknown) {
     super(message);
     this.name = "ProductHttpError";
     this.status = status;
     this.detail = detail;
+    this.body = body;
   }
 }
 
@@ -157,6 +164,25 @@ function sentenceFromDetail(detail: unknown): string | null {
   if (detail && typeof detail === "object") {
     const message = (detail as { message?: unknown }).message;
     if (typeof message === "string" && message.trim()) return message;
+
+    // **`{code, detail}` — the C4 product-tool failure shape.** Without this
+    // branch every typed refusal fell through to `fallbackSentence` and
+    // reached the model as "That didn't work (409)." — so "that text is not
+    // in the message you named", "say what this fact applies to, or leave it
+    // unset" and "that is not stated as a durable fact yet" were all the same
+    // opaque sentence, and the instructions that tell the model how to react
+    // to each could never fire. Found by the second independent review.
+    //
+    // The CODE is prefixed, not dropped: the model is told to branch on it,
+    // and a sentence without it leaves that branch to prose matching.
+    const record = detail as { code?: unknown; detail?: unknown };
+    if (
+      typeof record.code === "string" &&
+      typeof record.detail === "string" &&
+      record.detail.trim()
+    ) {
+      return `${record.code}: ${record.detail}`;
+    }
   }
   return null;
 }
@@ -239,12 +265,14 @@ export async function readJsonObject(request: Request): Promise<Record<string, u
 }
 
 /** Parse a FastAPI error body without ever letting the parse itself throw. */
-async function readError(res: Response): Promise<{ text: string; detail: unknown }> {
+async function readError(res: Response): Promise<{ text: string; detail: unknown; body: unknown }> {
   const text = await res.text().catch(() => "");
   let detail: unknown = undefined;
+  let body: unknown = undefined;
   if (text) {
     try {
       const parsed: unknown = JSON.parse(text);
+      body = parsed;
       if (parsed && typeof parsed === "object" && "detail" in parsed) {
         detail = (parsed as { detail: unknown }).detail;
       } else {
@@ -254,7 +282,7 @@ async function readError(res: Response): Promise<{ text: string; detail: unknown
       detail = text;
     }
   }
-  return { text, detail };
+  return { text, detail, body };
 }
 
 function refuseUnconfigured(): never {
@@ -302,11 +330,12 @@ async function clientFetch(
     cache: "no-store",
   });
   if (!res.ok) {
-    const { text, detail } = await readError(res);
+    const { text, detail, body } = await readError(res);
     throw new ProductHttpError(
       `product ${init.method ?? "GET"} ${path} -> ${res.status}: ${text}`,
       res.status,
       detail,
+      body,
     );
   }
   return res;
@@ -321,11 +350,12 @@ async function serviceFetch(path: string, init: RequestInit = {}): Promise<Respo
     cache: "no-store",
   });
   if (!res.ok) {
-    const { text, detail } = await readError(res);
+    const { text, detail, body } = await readError(res);
     throw new ProductHttpError(
       `product ${init.method ?? "GET"} ${path} -> ${res.status}: ${text}`,
       res.status,
       detail,
+      body,
     );
   }
   return res;
@@ -415,10 +445,328 @@ export type ScheduledSlot = {
  * return — a caller that needs "no session" as a distinct case reads the thrown
  * error's `.status`, the same way every other client-credential helper here
  * works. */
-export type Me = { client_id: string; user_id: string; onboarding_complete: boolean };
+export type Me = {
+  client_id: string;
+  user_id: string;
+  onboarding_complete: boolean;
+  /** 2026-09-28: which engine serves this client, from the backend's one switch
+   *  (`KE_ENGINE`). `ke` is the new knowledge engine; absent (an older backend)
+   *  or `m1` is M1. Server-authored, so a browser cannot choose it. */
+  knowledge_engine?: "m1" | "ke";
+  /** Cycle 5 P8.3 (D05): a signed-in session (true) or an onboarding link. Only a
+   *  signed-in member is offered Delete file; the backend refuses a link anyway. */
+  signed_in?: boolean;
+};
+
+/** Whether the new knowledge engine serves the holder of this identity. */
+export function usesKnowledgeEngine(me: Me): boolean {
+  return me.knowledge_engine === "ke";
+}
 
 export function getMe(token: string): Promise<Me> {
   return clientJson("/v1/me", token);
+}
+
+/** `GET /v1/usage` (Cycle 5 P2.3): the client's own usage, as fractions and
+ *  reset times, never dollars. Client credential; the client is derived from the
+ *  token, so nothing else is sent. `{"engine": "m1"}` under M1; a failed read is
+ *  `503 usage_unavailable`, thrown as `ProductHttpError` like every other status. */
+export function getUsage(token: string): Promise<ClientUsage> {
+  return clientJson("/v1/usage", token);
+}
+
+// ---- the question store and onboarding (Cycle 5 P6.2-P6.6; spec 4-5) --------
+//
+// `src/product/questions/api.py`. Client credential; the client is the token's
+// own and nothing from the browser names one. Rehaul only (404 `not_available`
+// under M1). An answer's `idempotency_key` is the browser's, forwarded as it
+// came: a key minted here would be new on every retry.
+
+export type ClientQuestionOut = {
+  id: string;
+  packet_id: string | null;
+  origin: string;
+  subject_ref: string;
+  issue_ref: Record<string, unknown> | null;
+  knowledge_revision: string;
+  control: "single" | "multiple" | "short" | "long";
+  prompt: string;
+  why: string;
+  options: Array<{ id: string; label: string }>;
+  allow_alternative: boolean;
+  allow_uncertain: boolean;
+  evidence_refs: Array<Record<string, unknown>>;
+  status: string;
+  created_at: string;
+  /** P6.8 (I-3): an answer saved but not applied yet; the retry re-sends this key and payload. */
+  pending_answer?: ClientPendingAnswerOut | null;
+};
+
+export type ClientPendingAnswerOut = {
+  id: string;
+  idempotency_key: string;
+  disposition: "answer" | "skip" | "unknown" | "defer";
+  payload: Record<string, unknown>;
+  application_state: "pending" | "failed";
+  what_changed: string;
+};
+
+export type ClientQuestionsOut = { surface: string; questions: ClientQuestionOut[] };
+
+export type ClientAnswerBody = {
+  idempotency_key: string;
+  disposition: "answer" | "skip" | "unknown" | "defer";
+  payload?: Record<string, unknown>;
+};
+
+export type ClientAnswerOut = {
+  id: string;
+  question_id: string;
+  disposition: ClientAnswerBody["disposition"];
+  payload: Record<string, unknown>;
+  application_state: "pending" | "applied" | "no_change" | "failed";
+  effects: Array<Record<string, unknown>>;
+  application_note: string | null;
+  what_changed: string;
+  question_status: string;
+  created_at: string;
+  replayed: boolean;
+};
+
+export type OnboardingStateOut = {
+  state: "preparing" | "generating" | "failed" | "ready" | "complete";
+  packet_id: string | null;
+  total: number;
+  remaining: number;
+};
+
+export function getClientQuestions(token: string, surface: string): Promise<ClientQuestionsOut> {
+  return clientJson(`/v1/questions?surface=${encodeURIComponent(surface)}`, token);
+}
+
+export function answerClientQuestion(token: string, questionId: string, body: ClientAnswerBody): Promise<ClientAnswerOut> {
+  return clientJson(`/v1/questions/${encodeURIComponent(questionId)}/answers`, token, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+export function getClientAnswer(token: string, answerId: string): Promise<ClientAnswerOut> {
+  return clientJson(`/v1/questions/answers/${encodeURIComponent(answerId)}`, token);
+}
+
+export function getOnboardingState(token: string): Promise<OnboardingStateOut> {
+  return clientJson("/v1/onboarding/state", token);
+}
+
+// ---- knowledge sources: business labels and "Use this source" (Cycle 5 P7.1, P7.2) ----
+//
+// `GET /v1/sources` gives the Knowledge list each source's business labels (the
+// visible managed profiles it is about) and its switch state, for every source
+// that has either; one not listed has no labels and is on at revision 0.
+// `GET`/`POST /v1/sources/{id}/lifecycle` read and change one source's switch:
+// the POST carries the browser's `intent_key` and the revision it last read.
+// The client is the credential's own; nothing here names one.
+
+export type SourceUseOut = {
+  document_id: string;
+  /** `deleting` from a recorded delete until its purge finishes, then `deleted` (P8.2). */
+  state: "on" | "off" | "pending" | "deleting" | "deleted";
+  requested: "on" | "off" | null;
+  revision: number;
+};
+
+export type SourceLabelOut = { label: string; kind: "person" | "organization" | "brand" };
+
+export type SourcesOut = { sources: Array<{ document_id: string; labels: SourceLabelOut[]; use: SourceUseOut }> };
+
+export type SourceLifecycleBody = {
+  intent_key: string;
+  /** `delete` (P8.2/P8.3): Delete file, for a signed-in member only. */
+  operation: "disable" | "re_enable" | "delete";
+  expected_lifecycle_revision: number;
+};
+
+export type SourceLifecycleOut = {
+  request: {
+    id: string;
+    operation: "disable" | "re_enable" | "delete";
+    lifecycle_revision: number;
+    request_state: "pending" | "complete" | "superseded" | "refused";
+    outcome: Record<string, unknown> | null;
+  };
+  source: SourceUseOut;
+  replayed: boolean;
+};
+
+export function getSourceOverview(token: string): Promise<SourcesOut> {
+  return clientJson("/v1/sources", token);
+}
+
+export function getSourceLifecycle(token: string, documentId: string): Promise<SourceUseOut> {
+  return clientJson(`/v1/sources/${encodeURIComponent(documentId)}/lifecycle`, token);
+}
+
+export function requestSourceLifecycle(
+  token: string, documentId: string, body: SourceLifecycleBody,
+): Promise<SourceLifecycleOut> {
+  return clientJson(`/v1/sources/${encodeURIComponent(documentId)}/lifecycle`, token, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+// ---- "What would you like us to know?" (Cycle 5 P6.3 backend; P6.8 surface, I-4) ----
+//
+// `POST /v1/contributions` records a note once per `intent_key` (the browser's,
+// forwarded as it came) and applies it as ONE item of the kind the client chose:
+// a fact about them or their business, or a proposed guidance line the client
+// adds themselves. No model call (the splitter was removed, 2026-10-08).
+// `GET /v1/contributions/proposals` lists the proposed lines (from contributions
+// and answered questions) not yet in the client's guidance. Nothing is saved
+// to guidance here.
+
+export type ContributionKind = "fact" | "writing";
+
+/** The Business DNA section a note was sent from (P9 fix round 1): a fact is filed there. */
+export type ContributionSection = "identity" | "audience" | "offers" | "positioning" | "proof";
+
+export type ContributionBody = { intent_key: string; text: string; kind: ContributionKind; section?: ContributionSection };
+
+export type ContributionOut = {
+  id: string;
+  text: string;
+  kind: ContributionKind;
+  section?: ContributionSection | null;
+  application_state: "pending" | "applied" | "no_change" | "failed";
+  pending_reason?: string | null;
+  effects: Array<Record<string, unknown>>;
+  application_note: string | null;
+  what_changed: string;
+  created_at: string;
+  replayed: boolean;
+};
+
+export type GuidanceProposalOut = {
+  instruction: string;
+  source: "contribution" | "answer";
+  source_id: string;
+  created_at: string;
+};
+
+export function contribute(token: string, body: ContributionBody): Promise<ContributionOut> {
+  return clientJson("/v1/contributions", token, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) });
+}
+
+export function getGuidanceProposals(token: string): Promise<{ proposals: GuidanceProposalOut[] }> {
+  return clientJson("/v1/contributions/proposals", token);
+}
+
+// ---- the saved writing guideline (Cycle 5 P5.1; spec 6, D06, A16) ----------
+//
+// `src/product/api/writing_settings.py`. Client credential; the client is the
+// token's own. ONE general text that writing uses for every voice (D06):
+// separate guidance per voice was removed as over-engineered, 2026-10-08, so
+// these calls carry no perspective.
+
+/** `GET`/`PUT /v1/clients/me/writing-settings`'s reply. */
+export type WritingSetting = {
+  perspective_mode: "personal" | "brand" | "neutral";
+  guideline_id: string;
+  revision: number;
+  text_digest: string;
+  text: string;
+};
+
+/** The body the BFF forwards: the text and the compare-and-set version the
+ *  editor read, both `null` for "there is none yet" and both set for a change.
+ *  A mismatch is `409 {code: "stale_revision", current_revision}`. Values are
+ *  forwarded as the browser sent them; the backend's model validates them. */
+export type WritingSettingPut = {
+  text: unknown;
+  expected_revision: unknown;
+  expected_guideline_id: unknown;
+};
+
+const WRITING_SETTINGS = "/v1/clients/me/writing-settings";
+
+/** The client's general guideline, or `null` when there is none. */
+export function getWritingSetting(token: string): Promise<WritingSetting | null> {
+  return clientJson(WRITING_SETTINGS, token);
+}
+
+export function putWritingSetting(token: string, body: WritingSettingPut): Promise<WritingSetting> {
+  return clientJson(WRITING_SETTINGS, token, {
+    method: "PUT",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+/** Clear. The version is required: a clear is compare-and-set like a save. */
+export function deleteWritingSetting(
+  token: string,
+  version: { expected_revision: string; expected_guideline_id: string },
+): Promise<{ cleared: boolean }> {
+  const query = new URLSearchParams({
+    expected_revision: version.expected_revision,
+    expected_guideline_id: version.expected_guideline_id,
+  }).toString();
+  return clientJson(`${WRITING_SETTINGS}?${query}`, token, { method: "DELETE" });
+}
+
+/** One permitted author or brand, as the backend offers it (`_options(...)`). */
+export type WritingPerspectiveOption = {
+  ref: { kind: string; id: string; revision: number };
+  label: string;
+};
+
+/** `GET /v1/clients/me/writing-perspectives` (P5.3, Ruling 68): who the client
+ *  may write as. General is always available and is not listed. */
+export function getWritingPerspectives(
+  token: string,
+): Promise<{ authors: WritingPerspectiveOption[]; brands: WritingPerspectiveOption[] }> {
+  return clientJson("/v1/clients/me/writing-perspectives", token);
+}
+
+// ---- Business DNA (Cycle 5 P9.3, spec 3; Ruling 88) -------------------------
+//
+// `GET /v1/profiles` lists the profiles this member may open (`visible_profiles`,
+// or the one account default `{"id": "account"}` when none is visible). `GET
+// /v1/profiles/{id}/dna` reads one: its current, eligible knowledge by section.
+// Permission is re-checked on every read: an id no longer permitted is `404
+// profile_not_found`. Client credential; read only; no model call.
+
+export type DnaProfileKind = "person" | "organization" | "brand" | "account";
+
+export type DnaProfile = { id: string; name: string; kind: DnaProfileKind };
+
+export type DnaSectionId = "identity" | "audience" | "offers" | "positioning" | "proof" | "voice";
+
+export type DnaItem = {
+  knowledge_id: string;
+  meaning_id: string;
+  statement: string;
+  modality: string;
+  reported_by: string | null;
+  interpretation: boolean;
+};
+
+export type DnaOut = {
+  profile: DnaProfile;
+  sections: Array<{ id: DnaSectionId; items: DnaItem[] }>;
+  relationships: Array<{ profile: DnaProfile; relation: string; direction: "outgoing" | "incoming" }>;
+  empty: boolean;
+};
+
+export function getProfiles(token: string): Promise<{ profiles: DnaProfile[] }> {
+  return clientJson("/v1/profiles", token);
+}
+
+export function getProfileDna(token: string, profileId: string): Promise<DnaOut> {
+  return clientJson(`/v1/profiles/${encodeURIComponent(profileId)}/dna`, token);
 }
 
 // ---- social accounts: server-side OAuth bridge ----------------------------
@@ -764,6 +1112,10 @@ export type ChatMessage = {
    *  because it is genuinely absent on non-`command` rows — Python sets it to
    *  `None` there, not `""`. */
   command_kind?: string | null;
+  /** C4 P6: the server-issued `U{ordinal}` handle for a client turn, or null
+   *  for anything else. Projected by `serialize_chat_session`; the runtime
+   *  renders it and never computes it. */
+  handle?: string | null;
 };
 
 export type ChatVariant = {
@@ -928,8 +1280,18 @@ export type ChatContextCreate = {
   operation: "generate" | "revise" | "resume";
   subject: string;
   retrieval_query: string;
-  selected_variant_id?: string;
   clarification?: string;
+  /** Which variant the client has selected, for a revise turn. Python resolves
+   *  it against the session and refuses anything not `verified`; sending it is
+   *  a request, never an assertion that it is usable. */
+  selected_variant_id?: string;
+  /** Which projection to return. Omitted means `context.v1`, so every existing
+   *  caller keeps its exact shape. An unknown value is rejected by the server
+   *  rather than degrading to v1 — there is no silent legacy fallback. */
+  contract?: "context.v1" | "context.v2";
+  /** Who the turn writes as. Ignored by `context.v1`. The server checks it
+   *  against the permitted set; naming a mode grants nothing. */
+  perspective_mode?: "personal" | "brand" | "neutral";
   idempotency_key: string;
 };
 
@@ -957,6 +1319,257 @@ export function createChatContext(
     headers: JSON_HEADERS,
     body: JSON.stringify(body),
   });
+}
+
+/**
+ * What `POST /v1/chat/sessions/{id}/reads` accepts (C4).
+ *
+ * `request` is the MODEL's request and carries no `read_view`: the server
+ * injects the session's view. The runtime supplies the idempotency key, so a
+ * transport retry returns the first read's handles rather than issuing a
+ * second set of labels for the same material.
+ */
+export type ChatReadCreate = {
+  request: {
+    scope: {
+      subjects: string[];
+      meaning_ids: string[];
+      time_mode: "current" | "historical" | "any_eligible";
+      purpose: string;
+    };
+    selector:
+      | { kind: "orient" }
+      | {
+          kind: "find";
+          query: string;
+          source_handles: string[];
+          meaning_hints: string[];
+          breadth: "focused" | "broad";
+        }
+      | { kind: "inspect"; refs: string[]; expand_context: boolean }
+      | { kind: "exact"; meaning_id: string; subject: string | null };
+    cursor: string | null;
+  };
+  idempotency_key: string;
+};
+
+/**
+ * Read authorized knowledge. Guarded by `require_onboarding_identity`, so it
+ * uses `clientJson` (both headers) for the same reason `createChatContext`
+ * does — the service-only credential carries no tenant and no actor.
+ */
+export function createChatRead(
+  token: string,
+  sessionId: string,
+  body: ChatReadCreate,
+): Promise<unknown> {
+  return clientJson(`/v1/chat/sessions/${encodeURIComponent(sessionId)}/reads`, token, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * `POST /v1/chat/sessions/{id}/basis` — freeze what this turn was built from.
+ *
+ * The runtime sends only a key and the perspective it was handed back in
+ * `context.v2`. It does NOT send the exposed handles: the server reads those
+ * from its own view, so a runtime cannot widen a basis by listing a handle
+ * it was never issued.
+ */
+export type ChatBasisCreate = {
+  idempotency_key: string;
+  perspective_mode?: "personal" | "brand" | "neutral";
+  perspective_author_id?: string | null;
+  perspective_brand_id?: string | null;
+  prior_draft?: Record<string, unknown> | null;
+};
+
+export async function createChatBasis(
+  token: string,
+  sessionId: string,
+  body: ChatBasisCreate,
+): Promise<{ basis_id: string; read_view: string; exposed_handles: string[] }> {
+  return clientJson(
+    `/v1/chat/sessions/${encodeURIComponent(sessionId)}/basis`,
+    token,
+    { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) },
+  ) as Promise<{ basis_id: string; read_view: string; exposed_handles: string[] }>;
+}
+
+/**
+ * `POST /v1/chat/sessions/{id}/turn-budget` — reserve, then settle once.
+ *
+ * Reserve refuses rather than shrinks: a turn whose worst case does not fit
+ * ends before any model call. Settling is the runtime's job at the TRUE end
+ * of the turn, never at submit, because the agent keeps working after
+ * `draft.ready` and releasing there would free money before real calls.
+ */
+export type ChatTurnBudgetCreate =
+  | { action: "reserve"; turn_id: string }
+  | {
+      action: "settle";
+      turn_id: string;
+      call_id: string;
+      outcome: "settled" | "uncertain" | "cancelled_unsent";
+      actual_microdollars?: number;
+      usage?: Record<string, unknown>;
+    };
+
+/** `POST /v1/voice/previews/{id}/turn-budget` (Cycle 5, P5.2, Ruling 68): a
+ *  voice preview's reserve and settle, on the Writing meters, through the same
+ *  backend code as a chat turn's. The body is the chat body without `turn_id`:
+ *  the preview id IS the generation's id. */
+export type VoiceBudgetCreate =
+  | { action: "reserve" }
+  | {
+      action: "settle";
+      call_id: string;
+      outcome: "settled" | "uncertain" | "cancelled_unsent";
+      actual_microdollars?: number;
+      usage?: Record<string, unknown>;
+    };
+
+export async function postVoiceBudget(
+  token: string,
+  previewId: string,
+  body: VoiceBudgetCreate,
+): Promise<unknown> {
+  return clientJson(`/v1/voice/previews/${encodeURIComponent(previewId)}/turn-budget`, token, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+/** `POST /v1/voice/previews/{id}/reads` (Ruling 68): one read through the
+ *  preview's own view. Same body and answer as `createChatRead`. */
+export function createVoiceRead(token: string, previewId: string, body: ChatReadCreate): Promise<unknown> {
+  return clientJson(`/v1/voice/previews/${encodeURIComponent(previewId)}/reads`, token, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function postTurnBudget(
+  token: string,
+  sessionId: string,
+  body: ChatTurnBudgetCreate,
+): Promise<unknown> {
+  return clientJson(
+    `/v1/chat/sessions/${encodeURIComponent(sessionId)}/turn-budget`,
+    token,
+    { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) },
+  );
+}
+
+/**
+ * `GET`/`PUT /v1/chat/sessions/{id}/summary` — a writing session's stored
+ * compaction summary (Cycle 5, P4.3). The agent route is the only caller.
+ *
+ * `GET` answers `{ summary, backoff }`, each `null` when absent. `PUT` is compare-and-set:
+ * `expected_revision` is the revision read (`null` for none yet), and a stale
+ * one is a 409 that changes nothing. Both carry the client credential: the
+ * summary is the tenant's own conversation, digested.
+ */
+export type ChatSessionSummaryPut = {
+  expected_revision: number | null;
+  covers_through_message_id: string;
+  summary_text: string;
+  client_excerpts_verbatim: string;
+  excerpts_through_message_id: string | null;
+};
+
+/** P4.6 (review M-5): one failed summary, for the agent's back-off. `GET`
+ *  returns `{ summary, backoff }`, each null when absent. */
+export type ChatSessionSummaryFailure = {
+  failed_at_client_messages: number;
+  reason: "summary_failed" | "summary_malformed" | "summary_not_stored";
+};
+
+export async function postChatSessionSummaryFailure(
+  token: string,
+  sessionId: string,
+  body: ChatSessionSummaryFailure,
+): Promise<unknown> {
+  return clientJson(`/v1/chat/sessions/${encodeURIComponent(sessionId)}/summary/failures`, token, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getChatSessionSummary(token: string, sessionId: string): Promise<unknown> {
+  return clientJson(`/v1/chat/sessions/${encodeURIComponent(sessionId)}/summary`, token);
+}
+
+export async function putChatSessionSummary(
+  token: string,
+  sessionId: string,
+  body: ChatSessionSummaryPut,
+): Promise<unknown> {
+  return clientJson(`/v1/chat/sessions/${encodeURIComponent(sessionId)}/summary`, token, {
+    method: "PUT",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * `GET /v1/chat/sessions/{id}/history` — bounded prior writing.
+ *
+ * A GET, because it writes nothing: no view, no handle, no receipt. History
+ * is not a read of knowledge, and giving it the read route's idempotency
+ * machinery would imply it were one.
+ */
+export type ChatHistoryQuery = { query: string; cursor: string | null };
+
+export async function listRecentContent(
+  token: string,
+  sessionId: string,
+  params: ChatHistoryQuery,
+): Promise<unknown> {
+  const search = new URLSearchParams({ query: params.query });
+  if (params.cursor !== null) {
+    search.set("cursor", params.cursor);
+  }
+  return clientJson(
+    `/v1/chat/sessions/${encodeURIComponent(sessionId)}/history?${search.toString()}`,
+    token,
+  );
+}
+
+/**
+ * `POST /v1/chat/sessions/{id}/task-material` — use a client fact, or
+ * propose it.
+ *
+ * `request` carries no tenant, no session and no task scope: the server
+ * derives all three. A field the model could fill is a field it could fill
+ * with someone else's.
+ */
+export type ChatTaskMaterialCreate = {
+  request: {
+    action: "use_for_task" | "propose_save";
+    message: string;
+    text: string;
+    subject: string | null;
+    applicability: string | null;
+  };
+  idempotency_key: string;
+};
+
+export async function createTaskMaterial(
+  token: string,
+  sessionId: string,
+  body: ChatTaskMaterialCreate,
+): Promise<unknown> {
+  return clientJson(
+    `/v1/chat/sessions/${encodeURIComponent(sessionId)}/task-material`,
+    token,
+    { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) },
+  );
 }
 
 /** One citation as `POST /v1/chat/sessions/{id}/drafts` accepts it — the
@@ -996,10 +1609,24 @@ export type ChatDraftSubmitCreate = {
  *  never at this response's own top level. `submit-draft.ts` unwraps this
  *  itself; see that file's own docstring for the defect this shape fixed. */
 export type ChatDraftSubmitResult = {
+  /** `RuntimeSessionOut.variants` -- present on every response from this
+   *  route. Typed now because the c4 runtime names drafts by `variant_no`. */
+  variants?: RuntimeVariant[];
   payload: {
-    outcome: "verified" | "held";
+    // `refresh_required` is the c4 fence's refusal, and it crosses this wire.
+    // Typing it as `verified | held` is what let a refusal be read as a
+    // success: TypeScript believed a shape Python does not send, so a draft
+    // that was not stored reached the model — and the client — as a ready
+    // draft. Found by an independent review, in the demonstration's own
+    // withdrawal transcript.
+    outcome: "verified" | "held" | "refresh_required";
     variant_id?: string;
     rejection?: { kind: string };
+    /** Why the fence refused, and which handles went stale. Present on a
+     *  non-verified c4 outcome; v1 says the same thing with `rejection`. */
+    reasons?: string[];
+    affected_handles?: string[];
+    candidate_body?: string;
   };
 };
 
@@ -1013,10 +1640,14 @@ export type ChatDraftSubmitResult = {
  * `require_onboarding_identity` (`chat.py:1345`), and `submit-draft.ts` used
  * to call `engineJson` here too.
  */
+// The SAME route serves both payloads: Python discriminates on `schema`,
+// where a legacy body with no `schema` at all defaults to `draft.v1`. One
+// function rather than two, because two would be two places that know the
+// path, the headers and the envelope shape.
 export function submitChatDraft(
   token: string,
   sessionId: string,
-  body: ChatDraftSubmitCreate,
+  body: ChatDraftSubmitCreate | DraftSubmissionV2,
 ): Promise<ChatDraftSubmitResult> {
   return clientJson(`/v1/chat/sessions/${encodeURIComponent(sessionId)}/drafts`, token, {
     method: "POST",
@@ -1470,6 +2101,82 @@ export function scheduleContentItem(
     method: "POST",
     headers: JSON_HEADERS,
     body: JSON.stringify(body),
+  });
+}
+
+// ---- schedule proposals (c4) -----------------------------------------------
+
+/** A proposed time for this conversation's post, as the server records it.
+ *  The card renders from this; the model is never given the id. */
+/** How a post reaches its channel, from the server's own publishing state. */
+export type ProposalDelivery = {
+  channel: "linkedin" | "instagram" | "x" | "facebook";
+  /** automatic: it posts itself. manual: the client posts it. connect_first:
+   *  it could post itself once the account is connected. */
+  mode: "automatic" | "manual" | "connect_first";
+  /** The line the card shows, e.g. "LinkedIn: goes out automatically". */
+  line: string;
+};
+
+export type ScheduleProposal = {
+  id: string;
+  /** schedule: a time on the calendar. post_now: publish on confirmation. */
+  kind: "schedule" | "post_now";
+  status: "pending" | "confirmed" | "declined" | "superseded" | "expired";
+  slot_at: string;
+  slot_zone: string;
+  /** "Friday 3 October 2026, 09:00 (Europe/London)" -- in the client's zone. */
+  goes_out: string;
+  /** The same time as a local "YYYY-MM-DDTHH:mm", for the card's time editor. */
+  when_local: string;
+  /** What the agent proposed, kept beside any time the client changed it to. */
+  proposed_goes_out: string;
+  preview: string;
+  expires_at: string;
+  delivery: ProposalDelivery;
+};
+
+const proposalsPath = (sessionId: string) =>
+  `/v1/chat/sessions/${encodeURIComponent(sessionId)}/schedule-proposals`;
+
+/** The agent proposes. Nothing is scheduled until the client confirms. */
+export function proposeSchedule(
+  token: string,
+  sessionId: string,
+  body: { when: string; idempotency_key: string } | { kind: "post_now"; idempotency_key: string },
+): Promise<ScheduleProposal> {
+  return clientJson(proposalsPath(sessionId), token, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+export function listScheduleProposals(token: string, sessionId: string): Promise<ScheduleProposal[]> {
+  return clientJson(proposalsPath(sessionId), token);
+}
+
+/** The client's click, optionally with a changed local time from the card. */
+export function confirmScheduleProposal(
+  token: string,
+  sessionId: string,
+  proposalId: string,
+  body: { when?: string },
+): Promise<ScheduleProposal> {
+  return clientJson(`${proposalsPath(sessionId)}/${encodeURIComponent(proposalId)}/confirm`, token, {
+    method: "POST",
+    headers: JSON_HEADERS,
+    body: JSON.stringify(body),
+  });
+}
+
+export function declineScheduleProposal(
+  token: string,
+  sessionId: string,
+  proposalId: string,
+): Promise<ScheduleProposal> {
+  return clientJson(`${proposalsPath(sessionId)}/${encodeURIComponent(proposalId)}/decline`, token, {
+    method: "POST",
   });
 }
 

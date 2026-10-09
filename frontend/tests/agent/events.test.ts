@@ -8,10 +8,36 @@ import { EVENT_NAMES } from "@/agent/events";
 import { PROFILES, resolveProfile, TOOL_NAMES } from "@/agent/profile";
 
 describe("the event union", () => {
-  it("names exactly the five events §5.3 specifies", () => {
+  it("names exactly the five events §5.3 specifies, plus the schedule card and the approaching notice", () => {
+    // CHANGED EXPECTATION, deliberately: `schedule.proposed` is added for the
+    // propose-then-confirm card (operator ruling, 2026-09-24). The closed set
+    // stays closed -- a sixth name must be added here, on purpose.
+    // CHANGED EXPECTATION, deliberately (Cycle 5, P1.6): `usage.approaching`
+    // tells the composer the writing limit is at 80% and when it resets.
+    // CHANGED EXPECTATION, deliberately (Cycle 5, P4.4): `session.long` tells
+    // the composer the session is near the compaction threshold.
     expect([...EVENT_NAMES].sort()).toEqual([
-      "activity", "draft.ready", "message.delta", "terminal", "turn.end",
+      "activity", "draft.ready", "message.delta", "schedule.proposed", "session.long", "terminal", "turn.end",
+      "usage.approaching",
     ]);
+  });
+
+  it("gives usage.approaching a reset time and nothing else", () => {
+    const event: AgentEvent = { type: "usage.approaching", resets_at: "2026-10-05T00:00:00+00:00" };
+    expect(Object.keys(event).sort()).toEqual(["resets_at", "type"]);
+  });
+
+  it("gives session.long nothing but its name", () => {
+    // The browser needs no figures to suggest a new post, so none travel.
+    const event: AgentEvent = { type: "session.long" };
+    expect(Object.keys(event)).toEqual(["type"]);
+  });
+
+  it("gives schedule.proposed an id and nowhere to put a card", () => {
+    // The same reason as draft.ready: the card is read from the server's
+    // record, so nothing the model wrote can become what the client confirms.
+    const event: AgentEvent = { type: "schedule.proposed", proposal_id: "p" };
+    expect(Object.keys(event).sort()).toEqual(["proposal_id", "type"]);
   });
 
   it("gives draft.ready an id and nowhere to put a body", () => {
@@ -59,11 +85,29 @@ describe("the event union", () => {
 });
 
 describe("the capability-profile registry", () => {
-  it("has exactly the four supported social platforms", () => {
-    expect(Object.keys(PROFILES)).toEqual(["linkedin", "instagram", "x", "facebook"]);
-    expect(Object.values(PROFILES).map(profile => profile.skill)).toEqual([
-      "linkedin-post", "instagram-post", "x-post", "facebook-post",
+  it("holds exactly the profiles this cycle sanctions: four platforms, each v1 and c4", () => {
+    // A4: the seam, not the general agent. Additional platforms become further
+    // entries rather than rewrites, which is the whole point of a registry.
+    //
+    // Main added Instagram, X and Facebook beside LinkedIn; C4 gives each a
+    // SECOND FROZEN profile carrying the c4 contract, and every v1 entry is
+    // untouched, so a retained session keeps the exact prompt, tool set and
+    // submission contract it was written against. D8 requires those three to
+    // switch together behind one explicit version.
+    expect(Object.keys(PROFILES)).toEqual([
+      "linkedin", "linkedin-c4", "instagram", "x", "facebook", "instagram-c4", "x-c4", "facebook-c4",
     ]);
+    expect(Object.values(PROFILES).map(profile => profile.skill)).toEqual([
+      "linkedin-post", "linkedin-post", "instagram-post", "x-post", "facebook-post",
+      "instagram-post", "x-post", "facebook-post",
+    ]);
+  });
+
+  it("leaves the v1 profile byte-identical", () => {
+    // The half of the invariant that actually protects retained sessions.
+    expect(PROFILES.linkedin.contract).toBe("context.v1");
+    expect(PROFILES.linkedin.tools).toEqual(TOOL_NAMES);
+    expect(PROFILES.linkedin.tools).not.toContain("read_knowledge");
   });
 
   it("resolves the platform deterministically, never by asking the model", () => {
@@ -98,9 +142,20 @@ describe("the capability-profile registry", () => {
       // Type-legal, per `Record<string, CapabilityProfile>`'s index
       // signature — no `@ts-expect-error` needed, which is exactly the
       // problem: the compiler does not see this as a mistake.
-      PROFILES.threads = { platform: "threads", skill: "threads-post", tools: [] };
+      PROFILES.threads = {
+        platform: "threads",
+        skill: "threads-post",
+        tools: [],
+        contract: "context.v1",
+      };
     }).toThrow(TypeError);
-    expect(Object.keys(PROFILES)).toEqual(["linkedin", "instagram", "x", "facebook"]);
+    // Four platforms, each a v1 entry and a c4 entry (main's channels merged
+    // into C4 2026-09-25). The property this test guards -- that another
+    // cannot be added silently -- is unchanged, and the assertion below is what
+    // forces the next addition to be deliberate too.
+    expect(Object.keys(PROFILES)).toEqual([
+      "linkedin", "linkedin-c4", "instagram", "x", "facebook", "instagram-c4", "x-c4", "facebook-c4",
+    ]);
   });
 });
 

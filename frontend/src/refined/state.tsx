@@ -5,6 +5,7 @@ import { POSTS, FULL, paraText, type Post, type Version } from '@/shared/data';
 import { channelFromAssetKind } from '@/shared/channels';
 import { restoreSetup, setupComplete, type Setup, type SetupAnswer } from './setup-packets';
 import { parseLibraryDisplay, type LibraryView } from './library-display';
+import { clearGuidance, loadGuidance, saveGuidance, type GuidanceResult, type SavedGuidance } from './guidance';
 
 export type SavedPost = Post & {
   body: string;
@@ -21,6 +22,10 @@ export type SavedPostMedia = { media_id: string; media_type: 'image/jpeg' | 'ima
 export type Rule = { id: string; text: string; enabled: boolean };
 type Profile = { name: string; headline: string };
 type Connection = 'demo' | 'loading' | 'connected' | 'error';
+/** The saved writing guidance as the server holds it (P5.1). Connected mode only:
+ *  the demo keeps its local `rules`. Never seeded from anything but the server. */
+export type GuidanceServer = { status: 'loading' | 'ready' | 'error'; saved: SavedGuidance | null; message: string | null };
+const GUIDANCE_LOADING: GuidanceServer = { status: 'loading', saved: null, message: null };
 type Data = { posts: SavedPost[]; answers: Record<string, string[]>; onboarding: Setup; rules: Rule[]; preferences: boolean[]; timeZone: string; profile: Profile; sourceCount: number };
 type LibraryItem = { content_item_id: string; asset_kind: string; display_title?: string | null; state: string | null; latest_version_id: string | null; created_at: string };
 type VersionEntry = { content_version_id: string; body: string; created_at: string; media?: SavedPostMedia | null };
@@ -63,12 +68,26 @@ async function getJson<T>(path: string): Promise<T> {
 function displayDate(value: string): string { return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(new Date(value)); }
 function statusFor(state: string | null, scheduled: boolean): Post['status'] { if (state === 'posted') return 'posted'; if (scheduled) return 'scheduled'; return state === 'approved' ? 'approved' : 'draft'; }
 
-async function loadPosts(): Promise<{ posts: SavedPost[]; profile: ProfileEnvelope; zone: string }> {
-  const [library, calendar, profile, publications] = await Promise.all([
+export type KnowledgeEngine = 'ke' | 'm1';
+
+/** Which engine serves this client (`GET /api/client/engine`, from `/v1/me`), so a
+ *  screen can decide before it fetches anything engine-specific (A47). Null when
+ *  it could not be read: such a screen then shows nothing new. */
+async function loadEngine(): Promise<{ engine: KnowledgeEngine | null; signedIn: boolean }> {
+  try {
+    const { knowledge_engine: engine, signed_in: signedIn } = await getJson<{ knowledge_engine?: unknown; signed_in?: unknown }>('/api/client/engine');
+    // P8.3: only a signed-in session is offered Delete file (a link never is).
+    return { engine: engine === 'ke' || engine === 'm1' ? engine : null, signedIn: signedIn === true };
+  } catch { return { engine: null, signedIn: false }; }
+}
+
+async function loadPosts(): Promise<{ posts: SavedPost[]; profile: ProfileEnvelope; zone: string; engine: KnowledgeEngine | null; signedIn: boolean }> {
+  const [library, calendar, profile, publications, { engine, signedIn }] = await Promise.all([
     getJson<{ items: LibraryItem[] }>('/api/client/content-items'),
     getJson<CalendarEnvelope>('/api/client/calendar'),
     getJson<ProfileEnvelope>('/api/client/profile'),
     getJson<PublicationEnvelope[]>('/api/client/social/publications').catch(() => []),
+    loadEngine(),
   ]);
   const histories = await Promise.all(library.items.map(item => item.latest_version_id ? getJson<VersionHistory>(`/api/client/content-items/${encodeURIComponent(item.content_item_id)}/versions`) : Promise.resolve({ versions: [] })));
   const posts = library.items.flatMap((item, index): SavedPost[] => {
@@ -92,19 +111,40 @@ async function loadPosts(): Promise<{ posts: SavedPost[]; profile: ProfileEnvelo
       version: { paras: body.split(/\r?\n\r?\n/).map(text => ({ g: '', segs: [{ t: text }] })), sources: [], count: `${body.length} / 3,000` },
     }];
   });
-  return { posts, profile, zone: profile.identity.timezone };
+  return { posts, profile, zone: profile.identity.timezone, engine, signedIn };
 }
 
 function useDataValue() {
   const pathname = usePathname();
   const [data, setData] = useState<Data>(() => DEMO ? restoreDemo() : EMPTY);
+  const [engine, setEngine] = useState<KnowledgeEngine | null>(null);
+  const [signedIn, setSignedIn] = useState(false);
   const [libraryDisplay, setLibraryDisplay] = useState(restoreLibraryDisplay);
   const [connection, setConnection] = useState<Connection>(DEMO ? 'demo' : 'loading');
   const connectedDataLoaded = useRef(DEMO);
+  const [guidance, setGuidance] = useState<GuidanceServer>(GUIDANCE_LOADING);
+  // Only a server answer that names a version moves this state. A stale or
+  // failed save changes nothing: the version this browser holds stays the one it
+  // read until Reload, and the editor keeps the typed text and its own error.
+  const settleGuidance = useCallback((result: GuidanceResult) => {
+    if (result.kind === 'saved') setGuidance({ status: 'ready', saved: result.saved, message: null });
+    return result;
+  }, []);
+  const reloadGuidance = useCallback(async () => {
+    const result = await loadGuidance();
+    if (result.kind === 'saved') setGuidance({ status: 'ready', saved: result.saved, message: null });
+    else if (result.kind !== 'stale') {
+      const message = result.kind === 'error' ? result.message : 'Sign in again to see your guidance.';
+      setGuidance(current => ({ ...current, status: current.status === 'ready' ? 'ready' : 'error', message }));
+    }
+    return result;
+  }, []);
   const refreshPosts = useCallback(async () => {
     if (DEMO) return;
     try {
       const loaded = await loadPosts();
+      setEngine(loaded.engine);
+      setSignedIn(loaded.signedIn);
       setData(current => ({ ...current, posts: loaded.posts, timeZone: loaded.zone, sourceCount: loaded.profile.document_count, profile: { name: loaded.profile.identity.display_name, headline: loaded.profile.identity.profession || loaded.profile.identity.client_name } }));
       setConnection('connected');
     } catch (reason) { setConnection('error'); throw reason; }
@@ -117,6 +157,7 @@ function useDataValue() {
     if (/\/refined\/(signin|invite|onboarding)$/.test(pathname)) {
       connectedDataLoaded.current = false;
       setData(EMPTY);
+      setGuidance(GUIDANCE_LOADING);
       setConnection('loading');
       return;
     }
@@ -126,11 +167,16 @@ function useDataValue() {
       connectedDataLoaded.current = false;
       toast.error(reason instanceof Error ? reason.message : 'Could not load your workspace.');
     });
-  }, [pathname, refreshPosts]);
+    void reloadGuidance();
+  }, [pathname, refreshPosts, reloadGuidance]);
   const localOnly = useCallback((message: string) => { toast.info(DEMO ? message : `${message} This remains local because the previous backend has no matching operation.`); }, []);
 
   return useMemo(() => ({
-    ...data, connection, isDemo: DEMO, refreshPosts,
+    ...data, connection, isDemo: DEMO, engine, signedIn, refreshPosts,
+    guidance, reloadGuidance,
+    /** Save over the version the editor read (`base`), never over a newer one. */
+    saveGuidance: async (draft: string, base: SavedGuidance | null) => settleGuidance(await saveGuidance(draft, base)),
+    clearGuidance: async (base: SavedGuidance) => settleGuidance(await clearGuidance(base)),
     libraryView: libraryDisplay.view, compactRows: libraryDisplay.compactRows,
     setLibraryView: (view: LibraryView) => setLibraryDisplay(current => ({ ...current, view })),
     setCompactRows: (compactRows: boolean) => setLibraryDisplay(current => ({ ...current, compactRows })),
@@ -148,9 +194,10 @@ function useDataValue() {
     savePostLocal: (post: SavedPost) => setData(d => ({ ...d, posts: d.posts.some(p => p.id === post.id) ? d.posts.map(p => p.id === post.id ? post : p) : [...d.posts, post] })),
     removePostLocal: (postId: SavedPost['id']) => setData(d => ({ ...d, posts: d.posts.filter(post => post.id !== postId) })),
     answer: (id: string, value: string[]) => { setData(d => ({ ...d, answers: { ...d.answers, [id]: value } })); if (!DEMO) localOnly('Training answers are kept in this browser session only.'); },
-    setRule: (rule: Rule) => { setData(d => ({ ...d, rules: d.rules.some(r => r.id === rule.id) ? d.rules.map(r => r.id === rule.id ? rule : r) : [...d.rules, rule] })); if (!DEMO) localOnly('Guidance is kept in this browser session only.'); },
+    /** The demo's local rules. Connected guidance is the saved server setting above. */
+    setRule: (rule: Rule) => setData(d => ({ ...d, rules: d.rules.some(r => r.id === rule.id) ? d.rules.map(r => r.id === rule.id ? rule : r) : [...d.rules, rule] })),
     setPreference: (i: number, checked: boolean) => { setData(d => ({ ...d, preferences: d.preferences.map((v, j) => i === j ? checked : v) })); if (!DEMO) localOnly('This preference is kept in this browser session only.'); },
-  }), [connection, data, libraryDisplay, localOnly, refreshPosts]);
+  }), [connection, data, engine, guidance, libraryDisplay, localOnly, refreshPosts, reloadGuidance, settleGuidance, signedIn]);
 }
 
 const Context = createContext<ReturnType<typeof useDataValue> | null>(null);

@@ -203,3 +203,55 @@ describe("prepareGeneration — sends the client credential, not the service one
     });
   });
 });
+
+/**
+ * C4 merged main (2026-09-25): both lineages send the client's selected draft
+ * to the context route, under different rules. v1 keeps main's -- only on a
+ * revise -- and c4 keeps C4's -- every operation. Written as ONE key, because
+ * two keys in one object literal silently overwrote the first.
+ */
+describe("which operations carry the selected draft", () => {
+  const selected = "77777777-7777-4777-8777-777777777777";
+  const withSelection: ToolContext = {
+    sessionId: "session-1", turnId: "turn-1", selectedVariantId: selected,
+    handles: new Map(), token: "t", skillVersions: [],
+  };
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.stubEnv("ENGINE_URL", "https://engine.example");
+    vi.stubEnv("ENGINE_SERVICE_KEY", "test-key");
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  async function sent(operation: "generate" | "revise", runtime: Record<string, unknown> = {}) {
+    let body = "";
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init?: RequestInit) => {
+      body = String(init?.body ?? "");
+      return new Response(JSON.stringify({
+        contract_version: "context.v1", snapshot_id: "s", platform: "linkedin", status: "ready",
+        question: null, subject: null, task: "t",
+        voice: { tone: [], audience: null, do_phrases: [], avoid_phrases: [] },
+        material: [], background: [], banned_phrases: [], gaps: [], conflicts: [],
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }));
+    const { prepareGeneration } = await import("@/agent/tools/prepare-generation");
+    await prepareGeneration({ message: "m", operation, subject: "s", retrieval_query: "q" }, withSelection, 1, runtime);
+    return JSON.parse(body) as Record<string, unknown>;
+  }
+
+  it("v1 sends it on a revise", async () => {
+    expect((await sent("revise")).selected_variant_id).toBe(selected);
+  });
+
+  it("v1 does not send it on a new piece", async () => {
+    expect(await sent("generate")).not.toHaveProperty("selected_variant_id");
+  });
+
+  it("c4 sends it on every operation", async () => {
+    expect((await sent("generate", { selectedVariantId: selected, contract: "context.v2" })).selected_variant_id).toBe(selected);
+  });
+});

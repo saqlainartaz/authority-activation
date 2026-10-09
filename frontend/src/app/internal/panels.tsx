@@ -14,6 +14,8 @@ import { computeGroundingGap } from "@/lib/grounding-gap";
 import type { InternalApi } from "./page";
 import { DocumentsPanel } from "./documents-panel";
 import HeldPanel from "./held-panel";
+import { LimitsPanel } from "./limits-panel";
+import { OnboardingReadyPanel } from "./onboarding-ready";
 import { PeoplePanel, PrepareOnboardingCard } from "./people-panel";
 import { SearchPanel } from "./search-panel";
 import { TokensPanel } from "./tokens-panel";
@@ -25,7 +27,8 @@ export type InternalSection =
   | "knowledge"
   | "profile"
   | "access"
-  | "held";
+  | "held"
+  | "limits";
 
 type Summary = {
   atom_counts: Record<string, number>;
@@ -440,11 +443,14 @@ export function ClientDetail({
   api,
   section,
   onNavigate,
+  rehaul = false,
 }: {
   clientId: string;
   api: InternalApi;
   section: InternalSection;
   onNavigate: (section: InternalSection) => void;
+  /** The deployment runs the rehaul engine (`/api/internal/engine`); false while unknown. */
+  rehaul?: boolean;
 }) {
   const [refreshToken, setRefreshToken] = useState(0);
   const [recipientId, setRecipientId] = useState("");
@@ -454,12 +460,15 @@ export function ClientDetail({
   return (
     <div key={`${clientId}:${section}`} className="rise">
       {section === "overview" ? <OverviewPanel clientId={clientId} api={api} refreshToken={refreshToken} onNavigate={onNavigate} /> : null}
+      {/* Cycle 5 P6.5: Ready to onboard, on the new engine only. */}
+      {section === "overview" && rehaul ? <div className="idc-overview-onboarding"><OnboardingReadyPanel clientId={clientId} api={api} /></div> : null}
       {section === "people" ? <PeoplePanel clientId={clientId} api={api} onChanged={changed} onCreateAccessLink={(personId) => { setRecipientId(personId); onNavigate("access"); }} /> : null}
-      {section === "sources" ? <DocumentsPanel clientId={clientId} api={api} onChanged={changed} /> : null}
+      {section === "sources" ? <DocumentsPanel clientId={clientId} api={api} onChanged={changed} knowledgeEngine={rehaul} /> : null}
       {section === "knowledge" ? <div className="idc-compact-screen"><div className="idc-tabs" role="tablist" aria-label="Knowledge views"><button type="button" role="tab" aria-selected={knowledgeTab === "review"} className="idc-tab" data-active={knowledgeTab === "review"} onClick={() => setKnowledgeTab("review")}>Review knowledge</button><button type="button" role="tab" aria-selected={knowledgeTab === "search"} className="idc-tab" data-active={knowledgeTab === "search"} onClick={() => setKnowledgeTab("search")}>Search corpus</button></div>{knowledgeTab === "review" ? <AtomsPanel clientId={clientId} api={api} onChanged={changed} /> : <SearchPanel clientId={clientId} api={api} />}</div> : null}
       {section === "profile" ? <VoiceProfilePanel clientId={clientId} api={api} onChanged={changed} /> : null}
       {section === "access" ? <div className="space-y-5"><div className="idc-grid-2"><LoginLinkPanel clientId={clientId} api={api} recipientId={recipientId} onIssued={changed} /><DesignCard className="idc-card idc-access-guide"><DesignCardHeader><h2 className="text-lg font-semibold">How access works</h2><DesignCardDescription>Each link is for one selected person and one purpose.</DesignCardDescription></DesignCardHeader><DesignCardContent className="space-y-4 text-sm leading-6 text-muted"><p>Choose a recipient and generate the link. Copy it now: its full URL appears only once.</p><p>The person opens it to continue their client access flow. You can check issued links below and revoke a link that should no longer work.</p><p>Links listed below do not expose their original URL.</p></DesignCardContent></DesignCard></div><TokensPanel key={refreshToken} clientId={clientId} api={api} /></div> : null}
       {section === "held" ? <HeldPanel clientId={clientId} api={api} onChanged={changed} /> : null}
+      {section === "limits" ? <LimitsPanel clientId={clientId} api={api} /> : null}
     </div>
   );
 }

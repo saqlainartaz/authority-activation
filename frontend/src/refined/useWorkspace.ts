@@ -5,17 +5,20 @@ import { useData, type SavedPostMedia } from './state';
 import { toast as notify } from 'sonner';
 import { PACKETS, packetAnswer } from './setup-packets';
 import { useChatSession } from '@/components/compose/useChatSession';
+import { useScheduleProposals } from './useScheduleProposals';
 import { getJson, postJson } from '@/lib/api';
 import {
   assembleWorkspaceConversation,
   settledWorkspacePhase,
   showsDraft,
+  showsNewPostSuggestion,
   type WorkspaceConversationMessage,
   type WorkspacePhase,
 } from './workspace-presentation';
 import { versionFromBody, versionFromReceipt, versionFromVariant, versionWithEditedBody, type ReceiptClaim } from './evidence';
 import { CHANNELS, CHANNEL_KEYS, DEFAULT_CHANNEL, channelsForGeneration, type SocialPlatform } from '@/shared/channels';
 import { rescheduleSlotInstant } from './schedule-zone';
+import { approachingCopy } from '@/lib/limit-refusal';
 
 type Msg = WorkspaceConversationMessage | { who: 't'; n: number };
 type State = { composer: string; phase: WorkspacePhase; thread: Msg[]; variant: 'full' | 'short'; version: Version; pos: number; formats: Channel[]; fmt: Channel; view: 'write' | 'preview'; status: Status; settled: boolean; lens: boolean; typing: boolean; hasRecord: boolean; title: string; id: number | string; when?: string; date?: string; media: SavedPostMedia | null; mediaTouched: boolean; mediaUploading: boolean };
@@ -59,6 +62,12 @@ export function useWorkspace() {
   const facebookChat = useChatSession(initialChannel.current === 'fb' ? initialSession.current : null, 'facebook');
   const chats = { li: linkedInChat, ig: instagramChat, x: xChat, fb: facebookChat } as const;
   const chat = chats[s.fmt];
+  // The schedule cards, from the server's record for THIS channel's session;
+  // refetched when the agent proposes one or the conversation moves.
+  const proposals = useScheduleProposals(
+    chat.session?.session.id ?? null,
+    `${chat.proposed}:${chat.session?.messages.length ?? 0}`,
+  );
   const timer = useRef<number | undefined>(undefined);
   const delay = useRef<number | undefined>(undefined);
   const lastServerVariant = useRef<Partial<Record<Channel, string>>>({});
@@ -67,6 +76,8 @@ export function useWorkspace() {
   const draftsByChannel = useRef<Partial<Record<Channel, ChannelDraft>>>({});
   const manualFormat = useRef<Channel | null>(null);
   const [batchRevision, setBatchRevision] = useState(0);
+  // The session the client dismissed the new-post suggestion for (P4.4).
+  const [newPostDismissedFor, setNewPostDismissedFor] = useState<string | null>(null);
   const chatPhaseKind = chat.phase.kind;
   const chatPhaseText = chat.phase.kind === 'working' ? chat.phase.text : '';
   const chatEchoKey = chat.echo.join('\u0000');
@@ -545,14 +556,23 @@ export function useWorkspace() {
         : chat.phase.kind === 'unknown'
           ? 'This conversation could not be restored. Refresh the page or start a new post.'
           : null;
+  // Spec 10A.3: at 80% of a writing budget the composer says so, and when it
+  // resets. Cleared when the next turn starts. Never under the demo or M1, whose
+  // turns carry no such event.
+  const usageNotice = !d.isDemo && chat.approachingResetsAt ? approachingCopy(chat.approachingResetsAt, chat.approachingMeter) : null;
+  // Spec 10A.6: near the compaction threshold the composer suggests a new post,
+  // until dismissed for this session. Never under the demo or M1.
+  const newPostSuggested = showsNewPostSuggestion(d.isDemo, chat.sessionLong, chat.activeSessionId, newPostDismissedFor);
+  const dismissNewPostSuggestion = () => setNewPostDismissedFor(chat.activeSessionId);
   return {
-    ...s, visible, total, showDraft, agentActivity, agentNotice, xPosts: params.has('post') ? s.version.paras.map(p => ({ t: paraText(p), n: `${paraText(p).length} / 280` })) : XPOSTS, paragraphsDone: visible.done.length + (visible.partial ? 1 : 0), progress: total ? Math.min(100, s.pos / total * 100) : 0,
+    ...s, visible, total, showDraft, agentActivity, agentNotice, usageNotice, newPostSuggested, dismissNewPostSuggestion, xPosts: params.has('post') ? s.version.paras.map(p => ({ t: paraText(p), n: `${paraText(p).length} / 280` })) : XPOSTS, paragraphsDone: visible.done.length + (visible.partial ? 1 : 0), progress: total ? Math.min(100, s.pos / total * 100) : 0,
     evidence: s.version.sources.length ? `${s.version.sources.length} sources retained` : `${sourced} of ${claims.length} claims sourced`, evidenceShort: s.version.sources.length ? `${s.version.sources.length} sources` : claims.length ? `${sourced} of ${claims.length} claims sourced` : 'Your writing', hasEvidenceClaims: claims.length > 0,
     lastAgent: [...s.thread].reverse().find((m): m is Extract<Msg, { who: 'a' }> => m.who === 'a'), toast: undefined as string | undefined,
     canSend: d.isDemo || chat.canSend,
     send, askChange, stop, keep: () => save('draft'), approve: (when?: string, date?: string, time?: string) => save(when ? 'scheduled' : 'approved', when, date, time),
     attachImage, removeImage, setMediaAlt,
     startNewPost, openRecord: () => patch({ phase: 'record', hasRecord: true }),
+    proposals,
     setComposer: (composer: string) => patch({ composer }), setFmt: selectFormat, setView: (view: 'write' | 'preview') => patch({ view }), toggleLens: () => patch({ lens: !s.lens }),
     rename: async (title: string) => {
       const next = title.trim().slice(0, 100);

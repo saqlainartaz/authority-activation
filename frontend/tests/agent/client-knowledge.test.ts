@@ -27,7 +27,9 @@ describe('whole-client source context', () => {
     product.getClientKnowledgeContext.mockResolvedValue({ status: 'available', documents: [{ text: 'Example Studio' }] });
     const corpus = await readClientKnowledge('token');
     const { messages } = buildTurnMessages([], [{ role: 'assistant', content: 'Earlier conversation' }],
-      'Who do we serve?', [{ role: 'user', content: '<client-profile>Saved DNA</client-profile>' }], [corpus]);
+      // INPUT CORRECTED (C4 merged main): the current turn's message handle is
+      // the fifth argument; the source context moved to sixth.
+      'Who do we serve?', [{ role: 'user', content: '<client-profile>Saved DNA</client-profile>' }], null, [corpus]);
     expect(messages[0]).toBe(corpus);
     expect(messages.at(-2)?.content).toContain('Saved DNA');
     expect(messages.at(-1)?.content).toContain('Who do we serve?');

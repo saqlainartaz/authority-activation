@@ -62,8 +62,16 @@ export type TurnUsage = {
 export type TurnResult = {
   text: string;
   toolCalls: ProviderToolCall[];
+  /** The provider's raw content blocks for this pass, to be sent back
+   *  unchanged (see `ModelMessage.providerBlocks`). Absent from a scripted
+   *  driver, which has none; the loop then rebuilds text and tool calls. */
+  providerBlocks?: unknown[];
   stopReason: "tool_use" | "end_turn" | "max_tokens" | "other";
   usage: TurnUsage;
+  /** The model this pass ran on (Cycle 5, P1.5), so each pass is priced at its
+   *  own rates. Absent from a scripted driver; the runtime's default model
+   *  (`pricing.ts`, `DEFAULT_WRITER_MODEL`) is then assumed. */
+  model?: string;
 };
 
 /** A tool as the runtime holds it, before any provider shapes it. */
@@ -94,6 +102,18 @@ export type DriverRequest = {
    *  the caller — see §5.8: `timeout × (maxRetries + 1)` could otherwise exceed
    *  the turn deadline and silently become the real bound. */
   timeoutMs: number;
+  /** Index of the last message of the earlier conversation, or absent. The
+   *  driver marks it as a prompt-cache boundary, and the newest message too.
+   *  Only the system prefix used to be cached, so the whole chat was re-sent
+   *  at full price on every pass of every turn. */
+  cacheThrough?: number | null;
+  /** The model for THIS call, when it is not the agent's own (Cycle 5, P4.3:
+   *  the session summary runs on a smaller model inside the same turn, through
+   *  the same metered driver). Absent: the driver's configured model. */
+  model?: string;
+  /** An output ceiling below the driver's own, for a call that needs less.
+   *  Never raises it: the reservation assumes no call writes more. */
+  maxTokens?: number;
 };
 
 export interface Driver {

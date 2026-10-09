@@ -1,10 +1,22 @@
 import "server-only";
 
-import { DEFAULT_LIMITS, shouldStop, type Limits, type TurnState } from "@/agent/bounds";
+import {
+  DEFAULT_LIMITS,
+  MAX_IDENTICAL_CALLS,
+  REPEATED_CALL_EXPLANATION,
+  REPLY_CAP_EXPLANATION,
+  shouldStop,
+  type Limits,
+  type TurnState,
+} from "@/agent/bounds";
 import type { AgentEvent } from "@/agent/events";
-import type { Driver, SystemBlock, ToolSpec, TurnUsage } from "@/agent/lib/driver";
+import { isTracedToolName } from "@/agent/profile";
+import type { Driver, SystemBlock, ToolSpec, TurnResult, TurnUsage } from "@/agent/lib/driver";
+import type { WriterPrices } from "@/agent/lib/pricing";
+import { compactBeforeCall } from "@/agent/lib/compaction";
+import { createReplyMeter, requestChars } from "@/agent/lib/reply-cap";
 import type { PreflightProblem } from "@/agent/preflight";
-import { escapeForBody, type ModelMessage } from "@/agent/transcript";
+import { escapeForBody, type ModelMessage, type ToolResultPart } from "@/agent/transcript";
 
 /**
  * §5.1's loop, §5.4's bounds and §5.5's failure policy, in one place.
@@ -129,7 +141,17 @@ import { escapeForBody, type ModelMessage } from "@/agent/transcript";
  * process should ever set this to `false`.
  */
 export type ToolExecution =
-  | { kind: "ok"; result: Record<string, unknown> }
+  /** `result` is MODEL-FACING: `describeExecution` JSON-stringifies it
+   *  straight into the tool-result message. `runtime` is not — it is for
+   *  values this loop must act on and a model must never be handed.
+   *
+   *  It exists because of one: a stored draft's `variant_id`. `draft.ready`
+   *  carries that uuid to the BROWSER, which is correct and necessary; under
+   *  c4 the model is told `D1` instead, because a uuid in a prompt is the
+   *  thing this cycle exists to prevent. Before this field the two rode the
+   *  same object, so projecting one silently stopped the other — the client
+   *  would have lost its draft and no test would have said so. */
+  | { kind: "ok"; result: Record<string, unknown>; runtime?: { variantId?: string; proposalId?: string } }
   | { kind: "rejected"; reason: string; reachedPython?: boolean }
   | { kind: "failed"; reason: string; reachedPython?: boolean };
 
@@ -151,6 +173,10 @@ export type RunTurnOptions = {
    *  working copy of this array as passes proceed; it never mutates the
    *  array the caller passed in. */
   messages?: ModelMessage[];
+  /** The prompt-cache boundary in `messages`: the last message of the
+   *  earlier conversation (`buildTurnMessages().cacheThrough`). Passed to the
+   *  driver unchanged on every pass; appended messages come after it. */
+  cacheThrough?: number | null;
   /** Test seam: pre-flight verdicts per submit attempt, newest first. Absent in
    *  production, where `src/agent/lib/executor.ts`'s real executor runs the
    *  real `preflight` — one layer deeper than this loop ever sees, which is
@@ -169,9 +195,59 @@ export type RunTurnOptions = {
    * `activity`, `draft.ready` and `terminal` had no equivalent hook at all).
    */
   onEvent?: (event: AgentEvent) => void;
+  /** Cycle 5, P1.5: the prices to hold the per-reply cap with, from the C4
+   *  reservation. Used only when `limits` carries a cap or an input bound;
+   *  absent, the runtime's own copy of the same table (`pricing.ts`). */
+  prices?: WriterPrices;
+  /** Cycle 5, P4.3: what this reply already spent before the loop (the session
+   *  summary, `compaction.ts`), counted against the per-reply cap from the
+   *  first pass. Used only when the reply is capped. */
+  spentMicrodollars?: number;
 };
 
-export type TurnOutcome = { events: AgentEvent[]; usage: TurnUsage };
+export type TurnOutcome = { events: AgentEvent[]; usage: TurnUsage; trace: TurnTrace };
+
+/**
+ * What one turn DID, for observability and the evaluation that comes later.
+ *
+ * Every harness studied records this (Codex's tool_decision / tool_result
+ * events, OpenHands' traces, Claude Code's cache-miss reporting: "monitor
+ * cache hit rate like uptime"), and without it a run can say THAT a turn went
+ * badly but not WHY. **No content, ever:** no message text, no tool arguments,
+ * no tool results -- names, counts, outcomes, durations and tokens only, so a
+ * trace can be logged and kept without becoming a second copy of client data.
+ */
+export type TurnTrace = {
+  /** `model` when the driver named it (P1.5), so a pass can be priced at its own rates. */
+  passes: { stopReason: TurnResult["stopReason"]; toolCalls: number; usage: TurnUsage; model?: string }[];
+  tools: {
+    name: string;
+    outcome: "ok" | "rejected" | "failed" | "not_run";
+    /** Whether the call reached the backend; null when the executor did not say. */
+    reachedBackend: boolean | null;
+    ms: number;
+  }[];
+  /** How the turn ended: a natural reply, or which limit stopped it. */
+  end: { kind: "reply" | "limit"; reason: string | null };
+  totals: TurnUsage & {
+    /** Cached input over all input, when the provider reported every figure. */
+    cacheHitRate: number | null;
+  };
+  durationMs: number;
+};
+
+/** A tool name the model returned is the model's text: logged only when it is
+ *  a name the code itself wrote, so no client words reach the log through it. */
+function tracedName(name: string): string {
+  return isTracedToolName(name) ? name : "unknown";
+}
+
+function cacheHitRate(usage: TurnUsage): number | null {
+  const { inputTokens, cacheReadInputTokens, cacheCreationInputTokens } = usage;
+  if (inputTokens === null || cacheReadInputTokens === null || cacheCreationInputTokens === null) return null;
+  const total = inputTokens + cacheReadInputTokens + cacheCreationInputTokens;
+  return total > 0 ? cacheReadInputTokens / total : null;
+}
 
 const ZERO: TurnUsage = {
   inputTokens: null,
@@ -206,8 +282,15 @@ function accumulate(total: TurnUsage, next: TurnUsage): TurnUsage {
  *  its own attribute values. `body` arrives ALREADY prepared by
  *  `toolResultBody` below — this function does no escaping decisions of its
  *  own any more. */
-function toolResultMessage(name: string, body: string): ModelMessage {
-  return { role: "user", content: `<tool-result tool="${name}">${body}</tool-result>` };
+/** One native tool result. See `ToolResultPart`: data only, `isError` on a
+ *  rejection or failure. The body keeps the same escaping it always had --
+ *  untrusted text inside it still must not forge the tags other content uses. */
+function toolResultPart(
+  call: { id: string; name: string },
+  body: string,
+  isError: boolean,
+): ToolResultPart {
+  return { toolUseId: call.id, name: call.name, content: body, isError };
 }
 
 function describeExecution(execution: ToolExecution): string {
@@ -303,17 +386,71 @@ export async function runAgentTurn(options: RunTurnOptions): Promise<TurnOutcome
   };
 
   const pending = [...(options.preflightProblems ?? [])];
+  // The identical-call streak, across passes: the last call's name and
+  // arguments, and how many times in a row it has been made.
+  let lastCall: string | null = null;
+  let streak = 0;
+  // The previous call's reported usage: what step 1 of compaction measures.
+  let lastPassUsage: TurnUsage | null = null;
+  const trace: Omit<TurnTrace, "totals" | "durationMs"> = {
+    passes: [],
+    tools: [],
+    end: { kind: "reply", reason: null },
+  };
   const system = options.system ?? [];
+  const tools = options.tools ?? [];
   // R1: a working copy. The caller's array is never mutated.
-  const messages: ModelMessage[] = [...(options.messages ?? [])];
+  let messages: ModelMessage[] = [...(options.messages ?? [])];
+
+  // Cycle 5, P1.5: the per-reply cap and the per-call input bound, only when
+  // the reservation set them (C4). The M1 path passes neither and meters nothing.
+  const replyMeter =
+    limits.maxReplyCostMicrodollars !== undefined || limits.maxCallInputTokens !== undefined
+      ? createReplyMeter(options.prices, options.spentMicrodollars ?? 0)
+      : null;
+  // Whether this reply has already handed the client a draft. A reply stopped
+  // by its cap after that has done its job, and ends as a normal reply would.
+  let draftSubmitted = false;
+
+  /** A reply out of budget: a normal end after a draft, else the application's
+   *  honest sentence. Either way no further call is sent, and the route
+   *  settles at what ran (P1.4). */
+  function finishOverBudget(reason: "reply_cap" | "call_input_cap"): void {
+    if (!draftSubmitted) {
+      emit({ type: "terminal", outcome: "held", explanation: REPLY_CAP_EXPLANATION });
+    }
+    trace.end = { kind: "limit", reason };
+  }
 
   for (;;) {
     state.now = clock();
+    if (replyMeter) state.replyCostMicrodollars = replyMeter.cost();
     const verdict = shouldStop(state, limits);
+    if (verdict.reason === "reply_cap") {
+      finishOverBudget("reply_cap");
+      break;
+    }
     if (verdict.stop) {
       // EVERY stop carries its explanation. bounds.ts computed both; ending the
       // turn without saying why is the failure this branch exists to prevent.
       emit({ type: "terminal", outcome: "held", explanation: verdict.explanation ?? "" });
+      trace.end = { kind: "limit", reason: verdict.reason };
+      break;
+    }
+
+    // Cycle 5, P4.3, step 1: over the compaction threshold, older knowledge
+    // results are cleared BEFORE the input estimate, so a reply that has grown
+    // shrinks what it sends rather than stop (`compaction.ts`).
+    messages = compactBeforeCall(messages, lastPassUsage);
+    // Cycle 5, P1.5: a call larger than the per-call input bound is never sent.
+    // The reservation assumed none is, so sending one could cross it.
+    const sentChars = replyMeter ? requestChars(system, messages, tools) : 0;
+    if (
+      replyMeter &&
+      limits.maxCallInputTokens !== undefined &&
+      replyMeter.estimate(sentChars) > limits.maxCallInputTokens
+    ) {
+      finishOverBudget("call_input_cap");
       break;
     }
 
@@ -331,17 +468,36 @@ export async function runAgentTurn(options: RunTurnOptions): Promise<TurnOutcome
     const result = await options.driver.runTurn({
       system,
       messages,
-      tools: options.tools ?? [],
+      tools,
       onText: (delta) => emit({ type: "message.delta", text: delta }),
       timeoutMs: remainingMs,
+      cacheThrough: options.cacheThrough ?? null,
     });
     usage = accumulate(usage, result.usage);
+    lastPassUsage = result.usage ?? null;
+    replyMeter?.record(sentChars, result.model, result.usage);
+    trace.passes.push({
+      stopReason: result.stopReason,
+      toolCalls: result.toolCalls.length,
+      usage: result.usage,
+      ...(result.model ? { model: result.model } : {}),
+    });
 
     // R1: the model's own visible text becomes what it "said" on this pass,
     // exactly as `transcript.ts`'s `agent` branch treats a stored row — raw,
     // because it is the runtime's own record of the model's words, not
     // untrusted input needing a delimiter.
-    if (result.text) messages.push({ role: "assistant", content: result.text });
+    //
+    // With its tool calls and the provider's own blocks: the next pass must
+    // see the calls it made, and its thinking, not only their results.
+    if (result.text || result.toolCalls.length > 0) {
+      messages.push({
+        role: "assistant",
+        content: result.text,
+        ...(result.toolCalls.length > 0 ? { toolCalls: result.toolCalls } : {}),
+        ...(result.providerBlocks ? { providerBlocks: result.providerBlocks } : {}),
+      });
+    }
 
     if (result.toolCalls.length === 0) {
       // I1 (final whole-branch review): NO re-emit here. `onText` above
@@ -357,7 +513,21 @@ export async function runAgentTurn(options: RunTurnOptions): Promise<TurnOutcome
     }
 
     let landed = false;
+    // Every result of this pass goes back in ONE user message, as the API
+    // requires for parallel calls: one `tool_result` per `tool_use`.
+    const results: ToolResultPart[] = [];
     for (const call of result.toolCalls) {
+      const signature = `${call.name} ${JSON.stringify(call.input ?? null)}`;
+      streak = signature === lastCall ? streak + 1 : 1;
+      lastCall = signature;
+      if (streak >= MAX_IDENTICAL_CALLS) {
+        // Not run: its answer is the one the model already has twice over.
+        emit({ type: "terminal", outcome: "held", explanation: REPEATED_CALL_EXPLANATION });
+        trace.tools.push({ name: tracedName(call.name), outcome: "not_run", reachedBackend: false, ms: 0 });
+        trace.end = { kind: "limit", reason: "repeated_call" };
+        landed = true;
+        break;
+      }
       state.toolCalls += 1;
 
       if (call.name === "submit_draft") {
@@ -370,9 +540,10 @@ export async function runAgentTurn(options: RunTurnOptions): Promise<TurnOutcome
           emit({ type: "activity", label: "Checking the citations" });
           // R1: fed back so the model can correct it — the same detail a
           // real preflight() call would have produced.
-          messages.push(
-            toolResultMessage(call.name, escapeForBody(problems.map((problem) => problem.detail).join("; "))),
+          results.push(
+            toolResultPart(call, escapeForBody(problems.map((problem) => problem.detail).join("; ")), true),
           );
+          trace.tools.push({ name: tracedName(call.name), outcome: "rejected", reachedBackend: false, ms: 0 });
           continue;
         }
         // NOTE: `state.submitDraftCalls` is NO LONGER incremented here. See
@@ -383,11 +554,18 @@ export async function runAgentTurn(options: RunTurnOptions): Promise<TurnOutcome
       }
 
       emit({ type: "activity", label: labelFor(call.name) });
+      const startedCall = clock();
       const execution = await options.executor(call.name, call.input);
+      trace.tools.push({
+        name: tracedName(call.name),
+        outcome: execution.kind,
+        reachedBackend: execution.kind === "ok" ? true : (execution.reachedPython ?? null),
+        ms: clock() - startedCall,
+      });
       // R1: every outcome — ok, rejected, or failed — is fed back. A rejection
       // the model never sees is a rejection it cannot correct, and correcting
       // it is the entire point of §5.5's one silent retry.
-      messages.push(toolResultMessage(call.name, toolResultBody(call.name, execution)));
+      results.push(toolResultPart(call, toolResultBody(call.name, execution), execution.kind !== "ok"));
 
       // Item 3: count the attempt only now, and only if it actually reached
       // Python. A `submit_draft` call the executor can PROVE never left the
@@ -398,10 +576,19 @@ export async function runAgentTurn(options: RunTurnOptions): Promise<TurnOutcome
         state.submitDraftCalls += 1;
       }
 
+      if (execution.kind === "ok" && (call.name === "propose_schedule" || call.name === "propose_post_now") && execution.runtime?.proposalId) {
+        // The card, for the browser. The model got the time as text; the id
+        // never reaches it.
+        emit({ type: "schedule.proposed", proposal_id: execution.runtime.proposalId });
+      }
+
       if (execution.kind === "ok" && call.name === "submit_draft") {
-        const variantId = execution.result.variant_id;
+        // `runtime` first: under c4 `result` carries the draft HANDLE, and
+        // the browser needs the real id. v1 still answers on `result`.
+        const variantId = execution.runtime?.variantId ?? execution.result.variant_id;
         if (typeof variantId === "string") {
           emit({ type: "draft.ready", variant_id: variantId });
+          draftSubmitted = true;
           // R5: no `landed = true` here. draft.ready is not terminal — the
           // loop keeps going so the model sees the submit result and gets one
           // more pass to close out naturally, which lands on the no-tool-calls
@@ -466,16 +653,22 @@ export async function runAgentTurn(options: RunTurnOptions): Promise<TurnOutcome
         state.submitDraftCalls >= limits.maxSubmitDraftCalls
       ) {
         emit({ type: "terminal", outcome: "held", explanation: execution.reason });
+        trace.end = { kind: "limit", reason: "submit_ceiling" };
         landed = true;
         break;
       }
     }
 
+    if (results.length > 0) messages.push({ role: "user", content: "", toolResults: results });
     if (landed) break;
   }
 
   emit({ type: "turn.end" });
-  return { events, usage };
+  return {
+    events,
+    usage,
+    trace: { ...trace, totals: { ...usage, cacheHitRate: cacheHitRate(usage) }, durationMs: clock() - state.startedAt },
+  };
 }
 
 function labelFor(toolName: string): string {
@@ -484,5 +677,7 @@ function labelFor(toolName: string): string {
   if (toolName === "get_variant_sources") return "Fetching the receipts";
   if (toolName === "propose_durable_fact") return "Noting that for your knowledge base";
   if (toolName === "schedule") return "Putting it on the calendar";
+  if (toolName === "propose_schedule") return "Preparing a time for you to confirm";
+  if (toolName === "propose_post_now") return "Preparing the post for you to confirm";
   return "Working";
 }

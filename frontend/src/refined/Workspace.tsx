@@ -17,6 +17,7 @@ import { useWorkspace, type Workspace as WS } from './useWorkspace';
 import Schedule from './Schedule';
 import { scheduleZone } from './schedule-zone';
 import AgentThread from './AgentThread';
+import ComposerNotices from './ComposerNotices';
 import PageHeading from './PageHeading';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -211,7 +212,7 @@ function Composer({ ws, placeholder, channels, onChannels, initialText, selected
   );
 }
 
-function Thread({ ws, inlineDraft = false, draft }: { ws: WS; inlineDraft?: boolean; draft?: ReactNode }) {
+function Thread({ ws, inlineDraft = false, draft, onNewPost }: { ws: WS; inlineDraft?: boolean; draft?: ReactNode; onNewPost?: () => void }) {
   const progress = ws.agentActivity
     || (ws.phase === 'streaming'
       ? ws.showDraft ? COPY.writing(ws.paragraphsDone, ws.version.paras.length) : 'Responding'
@@ -222,7 +223,7 @@ function Thread({ ws, inlineDraft = false, draft }: { ws: WS; inlineDraft?: bool
       {progress && <Badge variant="outline" className="w-fit animate-pulse font-normal text-muted-foreground">{progress}{progress.endsWith('…') ? '' : '…'}</Badge>}
       {ws.phase === 'reading' && <Card><CardContent className="space-y-2.5 p-4"><Skeleton className="h-3 w-2/5" /><Skeleton className="h-3 w-3/4" /><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-2/3" /></CardContent></Card>}
       {ws.typing && !progress && <div className="flex gap-1 px-2 py-2"><span className="size-1.5 animate-bounce rounded-full bg-muted-foreground" /><span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:.15s]" /><span className="size-1.5 animate-bounce rounded-full bg-muted-foreground [animation-delay:.3s]" /></div>}
-      {ws.agentNotice && <Card role="alert"><CardContent className="p-4 text-sm text-muted-foreground">{ws.agentNotice}</CardContent></Card>}
+      <ComposerNotices usageNotice={ws.usageNotice} agentNotice={ws.agentNotice} newPost={ws.newPostSuggested && onNewPost ? { onStart: onNewPost, onDismiss: ws.dismissNewPostSuggestion } : null} />
     </div>
   );
 }
@@ -364,7 +365,7 @@ export default function Workspace() {
     <div className="flex min-h-0 flex-1 flex-col">
       {!conversation ? <Fresh ws={ws} mobile={mobile} /> : (
         <>
-          <div ref={conversationScroll.ref} className="rf-conversation-scroll flex min-h-0 flex-1 flex-col overflow-auto px-6 py-5"><div className="mx-auto w-full max-w-[680px]"><Thread ws={ws} inlineDraft={!twoPane} draft={!twoPane ? <InlineDraft ws={ws} onRename={() => { setTitle(ws.title); setRename(true); }} /> : undefined} /></div></div>
+          <div ref={conversationScroll.ref} className="rf-conversation-scroll flex min-h-0 flex-1 flex-col overflow-auto px-6 py-5"><div className="mx-auto w-full max-w-[680px]"><Thread ws={ws} inlineDraft={!twoPane} onNewPost={tryNew} draft={!twoPane ? <InlineDraft ws={ws} onRename={() => { setTitle(ws.title); setRename(true); }} /> : undefined} /></div></div>
           <div className="rf-workspace-composer flex-none px-6 pb-5"><div className="mx-auto max-w-[680px]">
             <div className="rf-conversation-jumps" role="group" aria-label="Conversation navigation">
               {!twoPane && hasRecord && ws.phase === 'record' && !ws.typing

@@ -1,0 +1,779 @@
+{
+  "$comment": "Generated from content_engine.ke.retrieval.schemas at C4 P1. Do not hand-edit: regenerate from Python. The cross-language test in both repositories reads this file and the same fixture bytes.",
+  "ModelReadRequest": {
+    "$defs": {
+      "FindSelector": {
+        "additionalProperties": false,
+        "properties": {
+          "breadth": {
+            "enum": [
+              "focused",
+              "broad"
+            ],
+            "title": "Breadth",
+            "type": "string"
+          },
+          "kind": {
+            "const": "find",
+            "title": "Kind",
+            "type": "string"
+          },
+          "meaning_hints": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Meaning Hints",
+            "type": "array"
+          },
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "source_handles": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Source Handles",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "query",
+          "source_handles",
+          "meaning_hints",
+          "breadth"
+        ],
+        "title": "FindSelector",
+        "type": "object"
+      },
+      "InspectSelector": {
+        "additionalProperties": false,
+        "properties": {
+          "expand_context": {
+            "title": "Expand Context",
+            "type": "boolean"
+          },
+          "kind": {
+            "const": "inspect",
+            "title": "Kind",
+            "type": "string"
+          },
+          "refs": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Refs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "refs",
+          "expand_context"
+        ],
+        "title": "InspectSelector",
+        "type": "object"
+      },
+      "ModelExactSelector": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "exact",
+            "title": "Kind",
+            "type": "string"
+          },
+          "meaning_id": {
+            "minLength": 1,
+            "title": "Meaning Id",
+            "type": "string"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          }
+        },
+        "required": [
+          "kind",
+          "meaning_id",
+          "subject"
+        ],
+        "title": "ModelExactSelector",
+        "type": "object"
+      },
+      "ModelScope": {
+        "additionalProperties": false,
+        "description": "`ReadScope` with subjects as handles. The model chooses no raw ref.",
+        "properties": {
+          "meaning_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Meaning Ids",
+            "type": "array"
+          },
+          "purpose": {
+            "minLength": 1,
+            "title": "Purpose",
+            "type": "string"
+          },
+          "subjects": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Subjects",
+            "type": "array"
+          },
+          "time_mode": {
+            "enum": [
+              "current",
+              "historical",
+              "any_eligible"
+            ],
+            "title": "Time Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subjects",
+          "meaning_ids",
+          "time_mode",
+          "purpose"
+        ],
+        "title": "ModelScope",
+        "type": "object"
+      },
+      "OrientSelector": {
+        "additionalProperties": false,
+        "properties": {
+          "kind": {
+            "const": "orient",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "OrientSelector",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "description": "What the model may ask for.\n\nDeliberately smaller than `ReadRequest`: there is no `read_view` field,\nbecause the server injects the active view. A model that could name a view\ncould name someone else's.",
+    "properties": {
+      "cursor": {
+        "anyOf": [
+          {
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Cursor"
+      },
+      "scope": {
+        "$ref": "#/$defs/ModelScope"
+      },
+      "selector": {
+        "discriminator": {
+          "mapping": {
+            "exact": "#/$defs/ModelExactSelector",
+            "find": "#/$defs/FindSelector",
+            "inspect": "#/$defs/InspectSelector",
+            "orient": "#/$defs/OrientSelector"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/OrientSelector"
+          },
+          {
+            "$ref": "#/$defs/FindSelector"
+          },
+          {
+            "$ref": "#/$defs/InspectSelector"
+          },
+          {
+            "$ref": "#/$defs/ModelExactSelector"
+          }
+        ],
+        "title": "Selector"
+      }
+    },
+    "required": [
+      "scope",
+      "selector",
+      "cursor"
+    ],
+    "title": "ModelReadRequest",
+    "type": "object"
+  },
+  "ModelReadResult": {
+    "$defs": {
+      "Coverage": {
+        "additionalProperties": false,
+        "properties": {
+          "extent": {
+            "enum": [
+              "selected",
+              "exhaustive"
+            ],
+            "title": "Extent",
+            "type": "string"
+          },
+          "index_pending": {
+            "title": "Index Pending",
+            "type": "boolean"
+          },
+          "processing": {
+            "enum": [
+              "ready",
+              "pending",
+              "failed",
+              "mixed"
+            ],
+            "title": "Processing",
+            "type": "string"
+          },
+          "retrieval": {
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Retrieval",
+            "type": "string"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "extent",
+          "truncated",
+          "processing",
+          "retrieval",
+          "index_pending"
+        ],
+        "title": "Coverage",
+        "type": "object"
+      },
+      "Diagnostic": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "no_match",
+              "low_match",
+              "processing_pending",
+              "processing_failed",
+              "index_pending",
+              "keyword_fallback",
+              "context_limit",
+              "work_limit",
+              "time_limit"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "detail": {
+            "minLength": 1,
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "detail"
+        ],
+        "title": "Diagnostic",
+        "type": "object"
+      },
+      "Location": {
+        "additionalProperties": false,
+        "properties": {
+          "char_end": {
+            "minimum": 1,
+            "title": "Char End",
+            "type": "integer"
+          },
+          "char_start": {
+            "minimum": 0,
+            "title": "Char Start",
+            "type": "integer"
+          },
+          "target_id": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Target Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "target_id",
+          "char_start",
+          "char_end"
+        ],
+        "title": "Location",
+        "type": "object"
+      },
+      "ModelReadItem": {
+        "additionalProperties": false,
+        "properties": {
+          "handle": {
+            "minLength": 1,
+            "title": "Handle",
+            "type": "string"
+          },
+          "payload": {
+            "discriminator": {
+              "mapping": {
+                "context": "#/$defs/WireContextPayload",
+                "evidence": "#/$defs/WireEvidencePayload",
+                "knowledge": "#/$defs/WireKnowledgePayload"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/WireKnowledgePayload"
+              },
+              {
+                "$ref": "#/$defs/WireEvidencePayload"
+              },
+              {
+                "$ref": "#/$defs/WireContextPayload"
+              }
+            ],
+            "title": "Payload"
+          }
+        },
+        "required": [
+          "handle",
+          "payload"
+        ],
+        "title": "ModelReadItem",
+        "type": "object"
+      },
+      "SourceLabel": {
+        "additionalProperties": false,
+        "description": "A source the caller may ask about, with its processing state.\n\nDeliberately not a count-based inventory: a label supports documentary and\nsource discovery without certifying that all of the source's text is usable.",
+        "properties": {
+          "handle": {
+            "minLength": 1,
+            "title": "Handle",
+            "type": "string"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "processing": {
+            "enum": [
+              "ready",
+              "pending",
+              "failed"
+            ],
+            "title": "Processing",
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle",
+          "label",
+          "processing"
+        ],
+        "title": "SourceLabel",
+        "type": "object"
+      },
+      "WireContextPayload": {
+        "additionalProperties": false,
+        "properties": {
+          "excerpts": {
+            "items": {
+              "$ref": "#/$defs/WireExcerpt"
+            },
+            "title": "Excerpts",
+            "type": "array"
+          },
+          "handle": {
+            "minLength": 1,
+            "title": "Handle",
+            "type": "string"
+          },
+          "kind": {
+            "const": "context",
+            "title": "Kind",
+            "type": "string"
+          },
+          "relation": {
+            "minLength": 1,
+            "title": "Relation",
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          },
+          "structure_role": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structure Role"
+          }
+        },
+        "required": [
+          "kind",
+          "handle",
+          "relation",
+          "structure_role",
+          "scope",
+          "excerpts"
+        ],
+        "title": "WireContextPayload",
+        "type": "object"
+      },
+      "WireEvidencePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "context_handles": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Context Handles",
+            "type": "array"
+          },
+          "excerpts": {
+            "items": {
+              "$ref": "#/$defs/WireExcerpt"
+            },
+            "minItems": 1,
+            "title": "Excerpts",
+            "type": "array"
+          },
+          "handle": {
+            "minLength": 1,
+            "title": "Handle",
+            "type": "string"
+          },
+          "kind": {
+            "const": "evidence",
+            "title": "Kind",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/$defs/WireSourceRef"
+          },
+          "speaker_handle": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Handle"
+          },
+          "speaker_label": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speaker Label"
+          },
+          "tags": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "kind",
+          "handle",
+          "source",
+          "excerpts",
+          "context_handles",
+          "speaker_handle",
+          "speaker_label",
+          "tags"
+        ],
+        "title": "WireEvidencePayload",
+        "type": "object"
+      },
+      "WireExcerpt": {
+        "additionalProperties": false,
+        "description": "Offsets keep their meaning; the projection ref becomes a handle.",
+        "properties": {
+          "location": {
+            "$ref": "#/$defs/Location"
+          },
+          "projection": {
+            "minLength": 1,
+            "title": "Projection",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "location",
+          "text",
+          "projection"
+        ],
+        "title": "WireExcerpt",
+        "type": "object"
+      },
+      "WireKnowledgePayload": {
+        "additionalProperties": false,
+        "properties": {
+          "conflict_handles": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Conflict Handles",
+            "type": "array"
+          },
+          "epistemic": {
+            "title": "Epistemic",
+            "type": "string"
+          },
+          "handle": {
+            "minLength": 1,
+            "title": "Handle",
+            "type": "string"
+          },
+          "kind": {
+            "const": "knowledge",
+            "title": "Kind",
+            "type": "string"
+          },
+          "meaning_id": {
+            "minLength": 1,
+            "title": "Meaning Id",
+            "type": "string"
+          },
+          "modality": {
+            "title": "Modality",
+            "type": "string"
+          },
+          "qualifications": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Qualifications",
+            "type": "array"
+          },
+          "reported_claimant_label": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reported Claimant Label"
+          },
+          "statement": {
+            "minLength": 1,
+            "title": "Statement",
+            "type": "string"
+          },
+          "subject_label": {
+            "minLength": 1,
+            "title": "Subject Label",
+            "type": "string"
+          },
+          "support_handles": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Support Handles",
+            "type": "array"
+          },
+          "temporal": {
+            "title": "Temporal",
+            "type": "string"
+          },
+          "unresolved": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Unresolved",
+            "type": "array"
+          },
+          "value": {
+            "additionalProperties": true,
+            "title": "Value",
+            "type": "object"
+          }
+        },
+        "required": [
+          "kind",
+          "handle",
+          "meaning_id",
+          "subject_label",
+          "reported_claimant_label",
+          "modality",
+          "statement",
+          "value",
+          "qualifications",
+          "epistemic",
+          "temporal",
+          "unresolved",
+          "support_handles",
+          "conflict_handles"
+        ],
+        "title": "WireKnowledgePayload",
+        "type": "object"
+      },
+      "WireSourceRef": {
+        "additionalProperties": false,
+        "description": "`C2.SourceRef` reduced to a handle and a display label.",
+        "properties": {
+          "handle": {
+            "minLength": 1,
+            "title": "Handle",
+            "type": "string"
+          },
+          "label": {
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle",
+          "label"
+        ],
+        "title": "WireSourceRef",
+        "type": "object"
+      }
+    },
+    "additionalProperties": false,
+    "properties": {
+      "coverage": {
+        "$ref": "#/$defs/Coverage"
+      },
+      "diagnostics": {
+        "items": {
+          "$ref": "#/$defs/Diagnostic"
+        },
+        "title": "Diagnostics",
+        "type": "array"
+      },
+      "gaps": {
+        "default": [],
+        "items": {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        "title": "Gaps",
+        "type": "array"
+      },
+      "items": {
+        "items": {
+          "$ref": "#/$defs/ModelReadItem"
+        },
+        "title": "Items",
+        "type": "array"
+      },
+      "next_cursor": {
+        "anyOf": [
+          {
+            "minLength": 1,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "title": "Next Cursor"
+      },
+      "read_view": {
+        "minLength": 1,
+        "title": "Read View",
+        "type": "string"
+      },
+      "receipt": {
+        "minLength": 1,
+        "title": "Receipt",
+        "type": "string"
+      },
+      "schema": {
+        "const": "c4-tool-1",
+        "title": "Schema",
+        "type": "string"
+      },
+      "sources": {
+        "items": {
+          "$ref": "#/$defs/SourceLabel"
+        },
+        "title": "Sources",
+        "type": "array"
+      }
+    },
+    "required": [
+      "schema",
+      "read_view",
+      "receipt",
+      "items",
+      "sources",
+      "coverage",
+      "diagnostics",
+      "next_cursor"
+    ],
+    "title": "ModelReadResult",
+    "type": "object"
+  }
+}

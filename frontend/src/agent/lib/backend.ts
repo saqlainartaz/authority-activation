@@ -52,8 +52,19 @@ import type { HandleMap } from "@/agent/render";
  * decided rather than re-deriving it from five inconsistent call sites.
  */
 
+/**
+ * Where `read_knowledge` reads (Cycle 5, P5.2, Ruling 68). A chat turn reads
+ * through its session's view; a voice preview has no session and reads
+ * through its own preview-owned view, so it never touches a chat's read cap
+ * or draft basis. Absent means the chat session, as every caller before the
+ * voice preview assumed.
+ */
+export type ReadTarget = { kind: "chat_session" } | { kind: "voice_preview"; previewId: string };
+
 export type ToolContext = {
   sessionId: string;
+  /** Where `read_knowledge` reads; absent is the chat session. */
+  readTarget?: ReadTarget;
   turnId: string;
   /** The server-selected draft at turn start. Required by Python for a
    * revision and never accepted from the model's tool arguments. */

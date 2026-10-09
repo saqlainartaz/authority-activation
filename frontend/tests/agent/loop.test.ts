@@ -11,18 +11,37 @@ import {
   RETRY_BACKOFF_ALLOWANCE_MS,
   anthropicDriver,
   perCallTimeoutMs,
-  providerMessages,
+  MAX_MESSAGE_CACHE_BREAKPOINTS,
+  withCacheBreakpoints,
 } from "@/agent/lib/loop";
 
 describe("the model configuration", () => {
-  it('caches the stable source prefix, not client messages, and preserves bytes', () => {
-    expect(providerMessages([
+  it('caches the stable source prefix, not earlier client messages, and preserves bytes', () => {
+    // CHANGED EXPECTATION (C4 merged main, 2026-09-25). Main's providerMessages
+    // marked only the flagged source message. C4 sends every message through
+    // withCacheBreakpoints, which ALSO marks the newest message -- the boundary
+    // that pays within a turn -- so "not client messages" now means not the
+    // EARLIER ones. A marker caches a prefix; it changes no text.
+    expect(withCacheBreakpoints([
       { role: 'user', content: '<client-knowledge>source &amp; bytes</client-knowledge>', cache: true },
       { role: 'user', content: 'Who do we serve?' },
-    ])).toEqual([
+      { role: 'user', content: 'And where?' },
+    ], null)).toEqual([
       { role: 'user', content: [{ type: 'text', text: '<client-knowledge>source &amp; bytes</client-knowledge>', cache_control: { type: 'ephemeral' } }] },
       { role: 'user', content: 'Who do we serve?' },
+      { role: 'user', content: [{ type: 'text', text: 'And where?', cache_control: { type: 'ephemeral' } }] },
     ]);
+  });
+
+  it('never sends more message cache markers than the provider allows beside the system one', () => {
+    // Four is the API's limit and the system prompt takes one. More is a 400.
+    const flagged = Array.from({ length: 6 }, (_, i) => ({ role: 'user' as const, content: `source ${i}`, cache: true }));
+    const sent = withCacheBreakpoints([...flagged, { role: 'user', content: 'now' }], 2) as { content: unknown }[];
+    const marked = sent.filter(m => Array.isArray(m.content) && JSON.stringify(m.content).includes('cache_control'));
+    expect(marked).toHaveLength(MAX_MESSAGE_CACHE_BREAKPOINTS);
+    // The newest message and the conversation boundary always win.
+    expect(JSON.stringify(sent.at(-1))).toContain('cache_control');
+    expect(JSON.stringify(sent[2])).toContain('cache_control');
   });
   it("pins §5.8's values", () => {
     // Each is either measured or a documented divergence — none is a taste

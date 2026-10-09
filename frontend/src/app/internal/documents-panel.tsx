@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button, Card, Field, TextArea } from "@/components/ui/primitives";
 import { LoadingRegion, Skeleton } from "@/components/ui/admin-skeleton";
 import type { InternalApi } from "./page";
+import { keepsPollingDetail, operatorStatusLabel, operatorStatusText, type OperatorKnowledge } from "./source-status";
 
 const SOURCE_TYPES = [
   ["other", "Other material"],
@@ -18,7 +19,7 @@ const SOURCE_TYPES = [
 ] as const;
 
 type SourceType = (typeof SOURCE_TYPES)[number][0];
-type Document = { id: string; source_type: string; source_authority: string; status: string };
+type Document = { id: string; source_type: string; source_authority: string; status: string; knowledge?: OperatorKnowledge };
 type PipelineStage = {
   stage: "parse" | "clean" | "atomise" | "embed";
   actor: string;
@@ -42,11 +43,51 @@ function inferredSourceType(file: File | null): SourceType {
   return file && /\.(?:srt|vtt)$/i.test(file.name) ? "meeting_transcript" : "other";
 }
 
+/** What removing a source says (Cycle 5 P2.7). Under the rehaul engine the
+ *  action withdraws the source: the file is kept and stops being used, which is
+ *  not deletion (Delete file arrives in P8). Under M1, today's copy. */
+export function sourceRemovalCopy(knowledgeEngine: boolean) {
+  return knowledgeEngine
+    ? {
+      button: "Stop processing",
+      title: "Stop processing this source?",
+      consequence: "The file is kept, but this source stops being used for the client's knowledge and writing. This does not delete the file.",
+      confirmLabel: "Stop processing",
+      cancelLabel: "Keep processing",
+    }
+    : {
+      button: "Remove source",
+      title: "Remove this source?",
+      consequence: "This removes the source and its extracted knowledge from future generation. Existing citation history is retained for audit, and uploading the same file again restores it.",
+      confirmLabel: "Remove source",
+      cancelLabel: "Keep source",
+    };
+}
+
+export function RemoveSourceButton({ knowledgeEngine, disabled, onClick }: { knowledgeEngine: boolean; disabled: boolean; onClick: () => void }) {
+  return <Button size="sm" variant="secondary" disabled={disabled} onClick={onClick}>{sourceRemovalCopy(knowledgeEngine).button}</Button>;
+}
+
+/** The open detail's actions. Under ke there is no whole-document reprocess (the
+ *  engine retries its own steps; the route answers 409), so it is not offered. */
+export function SourceDetailActions({ knowledgeEngine, busy, disabled, onReprocess, onRemove }: {
+  knowledgeEngine: boolean; busy: boolean; disabled: boolean; onReprocess: () => void; onRemove: () => void;
+}) {
+  return <div className="flex flex-wrap gap-2">{knowledgeEngine ? null : <Button size="sm" variant="secondary" disabled={disabled} onClick={onReprocess}>{busy ? "Working…" : "Reprocess document"}</Button>}<RemoveSourceButton knowledgeEngine={knowledgeEngine} disabled={disabled} onClick={onRemove} /></div>;
+}
+
+export function RemoveSourceConfirm({ knowledgeEngine, busy, error, onConfirm, onCancel }: {
+  knowledgeEngine: boolean; busy: boolean; error: string | null; onConfirm: () => void; onCancel: () => void;
+}) {
+  const copy = sourceRemovalCopy(knowledgeEngine);
+  return <ConfirmDialog intent="destructive" title={copy.title} consequence={copy.consequence} confirmLabel={copy.confirmLabel} cancelLabel={copy.cancelLabel} onConfirm={onConfirm} onCancel={onCancel} busy={busy} error={error} />;
+}
+
 function PanelLoading() {
   return <LoadingRegion><Skeleton className="h-20 rounded-[12px]" /></LoadingRegion>;
 }
 
-export function DocumentsPanel({ clientId, api, onChanged }: { clientId: string; api: InternalApi; onChanged: () => void }) {
+export function DocumentsPanel({ clientId, api, onChanged, knowledgeEngine = false }: { clientId: string; api: InternalApi; onChanged: () => void; knowledgeEngine?: boolean }) {
   const [documents, setDocuments] = useState<Document[] | null>(null);
   const [paste, setPaste] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -97,7 +138,7 @@ export function DocumentsPanel({ clientId, api, onChanged }: { clientId: string;
   }, [api, clientId]);
 
   useEffect(() => {
-    if (!selectedId || !detail || ["atomised", "failed"].includes(detail.status)) return;
+    if (!selectedId || !detail || !keepsPollingDetail(detail)) return;
     let active = true;
     const timer = window.setTimeout(() => {
       void api<DocumentDetail>(
@@ -106,7 +147,7 @@ export function DocumentsPanel({ clientId, api, onChanged }: { clientId: string;
         if (!active) return;
         setDetail(next);
         setDocuments((current) => current?.map((document) => (
-          document.id === next.id ? { ...document, status: next.status } : document
+          document.id === next.id ? { ...document, status: next.status, ...(next.knowledge ? { knowledge: next.knowledge } : {}) } : document
         )) ?? current);
       }).catch((caught) => {
         if (active) {
@@ -213,9 +254,9 @@ export function DocumentsPanel({ clientId, api, onChanged }: { clientId: string;
        {listError && <p role="alert" className="mt-3 break-words text-sm text-danger">{listError}</p>}
        {documents === null ? <div className="mt-5"><PanelLoading /></div> : listError ? null : documents.length === 0 ? (
         <div className="mt-5 rounded-xl border border-dashed border-border px-4 py-8 text-center"><p className="text-sm font-semibold text-ink">Nothing ingested yet</p><p className="mt-1 text-sm text-muted">Upload or paste this client&apos;s material to start the corpus.</p></div>
-      ) : <ul className="divide-y divide-border">{documents.map((document) => <li key={document.id}><button type="button" className="w-full px-5 py-4 text-left hover:bg-surface-3" onClick={() => { setSelectedId(document.id); void loadDetail(document.id); }}><p className="font-semibold text-ink break-words">{SOURCE_TYPES.find(([value]) => value === document.source_type)?.[1] ?? document.source_type} · {document.id.slice(0, 8)}</p><p className="mt-1 text-sm text-muted">{document.source_authority} · {document.status}</p></button></li>)}</ul>}
-       {selectedId && <section className="mt-5 rounded-xl bg-surface-3 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h4 className="text-sm font-bold text-ink">Document detail</h4><p className="mt-1 text-sm text-muted">The progress below is read from persisted pipeline history.</p></div><div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={busy || detailLoading} onClick={() => void reprocess()}>{busy ? "Working…" : "Reprocess document"}</Button><Button size="sm" variant="secondary" disabled={busy || detailLoading} onClick={() => setRemoveOpen(true)}>Remove source</Button></div></div>{detailError && <p role="alert" className="mt-3 break-words text-sm text-danger">{detailError}</p>}{detailLoading ? <div className="mt-4"><PanelLoading /></div> : detail ? <div className="mt-4 space-y-4"><dl className="grid gap-2 text-sm"><div><dt className="inline text-muted">Source type: </dt><dd className="inline font-semibold text-ink">{detail.source_type}</dd></div><div><dt className="inline text-muted">Source authority: </dt><dd className="inline font-semibold text-ink break-words">{detail.source_authority}</dd></div><div><dt className="inline text-muted">Status: </dt><dd className="inline font-semibold text-ink">{detail.status}</dd></div><div><dt className="inline text-muted">Pipeline version: </dt><dd className="inline font-semibold text-ink">{detail.pipeline_version}</dd></div></dl><ol aria-label="Document processing pipeline" className="grid gap-2 sm:grid-cols-5"><li className="rounded-lg border border-line bg-surface px-3 py-2"><p className="text-sm font-semibold text-ink">Uploaded</p><p className="mt-1 text-xs text-muted">{new Date(detail.created_at).toLocaleString()}</p></li>{(["parse", "clean", "atomise", "embed"] as const).map((stageName) => { const stage = detail.pipeline_stages.find((candidate) => candidate.stage === stageName); return <li key={stageName} className="rounded-lg border border-line bg-surface px-3 py-2"><p className="text-sm font-semibold text-ink">{PIPELINE_LABELS[stageName]}</p><p className="mt-1 text-xs text-muted">{stage ? `${new Date(stage.completed_at).toLocaleString()} · ${stage.actor}` : "Waiting"}</p></li>; })}</ol><p className="text-sm font-semibold text-ink">{detail.atom_count} active knowledge {detail.atom_count === 1 ? "item" : "items"} extracted from this source.</p></div> : null}</section>}
-      {removeOpen && <ConfirmDialog intent="destructive" title="Remove this source?" consequence="This removes the source and its extracted knowledge from future generation. Existing citation history is retained for audit, and uploading the same file again restores it." confirmLabel="Remove source" cancelLabel="Keep source" onConfirm={() => void remove()} onCancel={() => setRemoveOpen(false)} busy={busy} error={detailError} />}
+      ) : <ul className="divide-y divide-border">{documents.map((document) => <li key={document.id}><button type="button" className="w-full px-5 py-4 text-left hover:bg-surface-3" onClick={() => { setSelectedId(document.id); void loadDetail(document.id); }}><p className="font-semibold text-ink break-words">{SOURCE_TYPES.find(([value]) => value === document.source_type)?.[1] ?? document.source_type} · {document.id.slice(0, 8)}</p><p className="mt-1 text-sm text-muted">{document.source_authority} · {operatorStatusLabel(document)}</p></button></li>)}</ul>}
+       {selectedId && <section className="mt-5 rounded-xl bg-surface-3 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h4 className="text-sm font-bold text-ink">Document detail</h4><p className="mt-1 text-sm text-muted">The progress below is read from persisted pipeline history.</p></div><SourceDetailActions knowledgeEngine={knowledgeEngine} busy={busy} disabled={busy || detailLoading} onReprocess={() => void reprocess()} onRemove={() => setRemoveOpen(true)} /></div>{detailError && <p role="alert" className="mt-3 break-words text-sm text-danger">{detailError}</p>}{detailLoading ? <div className="mt-4"><PanelLoading /></div> : detail ? <div className="mt-4 space-y-4"><dl className="grid gap-2 text-sm"><div><dt className="inline text-muted">Source type: </dt><dd className="inline font-semibold text-ink">{detail.source_type}</dd></div><div><dt className="inline text-muted">Source authority: </dt><dd className="inline font-semibold text-ink break-words">{detail.source_authority}</dd></div><div><dt className="inline text-muted">Status: </dt><dd className="inline font-semibold text-ink">{operatorStatusText(detail)}</dd></div><div><dt className="inline text-muted">Pipeline version: </dt><dd className="inline font-semibold text-ink">{detail.pipeline_version}</dd></div></dl><ol aria-label="Document processing pipeline" className="grid gap-2 sm:grid-cols-5"><li className="rounded-lg border border-line bg-surface px-3 py-2"><p className="text-sm font-semibold text-ink">Uploaded</p><p className="mt-1 text-xs text-muted">{new Date(detail.created_at).toLocaleString()}</p></li>{(["parse", "clean", "atomise", "embed"] as const).map((stageName) => { const stage = detail.pipeline_stages.find((candidate) => candidate.stage === stageName); return <li key={stageName} className="rounded-lg border border-line bg-surface px-3 py-2"><p className="text-sm font-semibold text-ink">{PIPELINE_LABELS[stageName]}</p><p className="mt-1 text-xs text-muted">{stage ? `${new Date(stage.completed_at).toLocaleString()} · ${stage.actor}` : "Waiting"}</p></li>; })}</ol><p className="text-sm font-semibold text-ink">{detail.atom_count} active knowledge {detail.atom_count === 1 ? "item" : "items"} extracted from this source.</p></div> : null}</section>}
+      {removeOpen && <RemoveSourceConfirm knowledgeEngine={knowledgeEngine} onConfirm={() => void remove()} onCancel={() => setRemoveOpen(false)} busy={busy} error={detailError} />}
     </Card>
   );
 }

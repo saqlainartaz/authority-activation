@@ -292,6 +292,14 @@ export function useChatSession(sessionId: string | null, platform: SocialPlatfor
   sendCommand: (command: ChatCommandWithoutIdempotency, actionId: string) => Promise<ChatSessionEnvelope | null>;
   retryTransport: () => Promise<void>;
   pendingMutation: PendingMutation | null;
+  /** Moves when the agent proposes a schedule card this run. */
+  proposed: number;
+  /** When the writing limit resets, if the latest turn said it is at 80% or more. */
+  approachingResetsAt: string | null;
+  /** Which writing budget that is, when the backend named it. */
+  approachingMeter: "writing_daily" | "writing_monthly" | null;
+  /** The latest turn said the session is near the compaction threshold. */
+  sessionLong: boolean;
 } {
   const requestKey = sessionId ?? "active";
   const [resolvedSessionId, setResolvedSessionId] = useState<string | null>(sessionId);
@@ -489,5 +497,14 @@ export function useChatSession(sessionId: string | null, platform: SocialPlatfor
     sendCommand,
     retryTransport,
     pendingMutation: pendingMutation ?? null,
+    /** Moves when the agent proposes a schedule card this run. */
+    proposed: turn.proposed,
+    /** When the writing limit resets, if the latest turn said it is at 80% or
+     *  more (`usage.approaching`); null otherwise, and always under M1. */
+    approachingResetsAt: turn.approachingResetsAt,
+    approachingMeter: turn.approachingMeter,
+    /** The latest turn said the session is near the compaction threshold
+     *  (`session.long`); always false under M1. */
+    sessionLong: turn.sessionLong,
   };
 }
