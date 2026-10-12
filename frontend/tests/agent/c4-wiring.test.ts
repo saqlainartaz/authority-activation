@@ -724,6 +724,91 @@ describe("the perspective reaches the stored basis", () => {
   });
 });
 
+describe("the client's answer to who a piece comes from reaches the server", () => {
+  /**
+   * Ruling 96 (2026-10-12). The client answered "as me", then their own name,
+   * and every re-prepare asked again: the tool had no field for the answer,
+   * so the runtime forwarded only the mode and the server never heard it.
+   * Synthetic names only -- this repo is public.
+   */
+  it("forwards writing_as exactly as the model reported it", async () => {
+    await executor("c4").executor("prepare_generation", { ...ARGS, perspective: "personal", writing_as: "Jordan Avery" });
+
+    const [, , body] = vi.mocked(createChatContext).mock.calls[0];
+    expect(body.writing_as).toBe("Jordan Avery");
+    expect(body.perspective_mode).toBe("personal");
+  });
+
+  it("sends no writing_as when the client has not answered", async () => {
+    await executor("c4").executor("prepare_generation", { ...ARGS, perspective: "personal" });
+
+    const [, , body] = vi.mocked(createChatContext).mock.calls[0];
+    expect(body).not.toHaveProperty("writing_as");
+  });
+
+  it("offers writing_as to a c4 model only, and tells it when to send it", async () => {
+    const { PROFILES } = await import("@/agent/profile");
+    const spec = (contract: "context.v1" | "c4", tools: readonly string[]) =>
+      buildToolSpecs(tools as never, contract).find((t) => t.name === "prepare_generation")!;
+    const c4 = spec("c4", PROFILES["linkedin-c4"].tools);
+
+    expect((c4.inputSchema as { properties: Record<string, unknown> }).properties).toHaveProperty("writing_as");
+    expect(c4.description).toMatch(/call prepare_generation again with writing_as set to the name they chose/);
+    expect(c4.description).toMatch(/no business or brand is registered.*writing_as "me"/);
+    // v1's cached prefix must not move by a byte.
+    const v1 = spec("context.v1", PROFILES.linkedin.tools);
+    expect((v1.inputSchema as { properties: Record<string, unknown> }).properties).not.toHaveProperty("writing_as");
+  });
+
+  it("writes as the client when the server resolves no entity, and the basis records it", async () => {
+    // The fallback: no person on record named as the client and no registered
+    // profile. The server answers personal with no author, named as the
+    // account -- the model is told that name, and the basis carries no id.
+    vi.mocked(createChatContext).mockResolvedValue({
+      ...CONTEXT_V2,
+      perspective: { mode: "personal", author: null, brand: null, label: "Acme Studio" },
+    } as never);
+    const product = await import("@/lib/product");
+    const basis = vi.spyOn(product, "createChatBasis").mockResolvedValue({
+      basis_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    } as never);
+    vi.spyOn(product, "submitChatDraft").mockResolvedValue({
+      variants: [],
+      payload: { outcome: "verified", variant_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" },
+    } as never);
+
+    const { state, executor: run } = executor("c4");
+    const prepared = await run("prepare_generation", { ...ARGS, perspective: "personal" });
+    expect(prepared.kind === "ok" && (prepared.result as { perspective: unknown }).perspective).toEqual({
+      mode: "personal",
+      writing_as: "Acme Studio",
+    });
+    state.namespace.set("K1", {
+      atom_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      atom_type: "fact",
+      text: "Membership costs 49.00 USD per month.",
+    } as never);
+    state.handles = state.namespace.asMap();
+    const submitted = await run("submit_draft", {
+      body: "Membership costs 49.00 USD per month.",
+      title: "Membership price",
+      cited_atom_ids: [
+        {
+          handle: "K1",
+          quoted_span: "Membership costs 49.00 USD per month.",
+          claim_text: "Membership costs 49.00 USD per month.",
+        },
+      ],
+      agent_text: "Here it is.",
+    });
+
+    expect(submitted.kind).not.toBe("rejected");
+    const basisBody = basis.mock.calls[0][2] as Record<string, unknown>;
+    expect(basisBody.perspective_mode).toBe("personal");
+    expect(basisBody.perspective_author_id).toBeNull();
+  });
+});
+
 describe("schedule asks a c4 model for no identifier", () => {
   /**
    * The outside review's O2, second half. The v1 `schedule` schema asks the

@@ -225,6 +225,10 @@ const C4_DESCRIPTIONS: Partial<Record<ToolName, string>> = {
     // "first person as the founder, or unnamed?" instead of a revision, though
     // the client had already chosen the voice. Tone is not perspective.
     "On a revision, keep the perspective the draft is already written in and send that same perspective. A tone request -- shorter, more personal, warmer, punchier, more casual -- changes the wording, not who is speaking: revise straight away, without asking. Ask who should speak only when the client asks to change it (\"write it as me\", \"from the brand\"). " +
+    // Ruling 96, 2026-10-12: the client answered "as me", then his own name,
+    // and every re-prepare asked again -- there was no field to carry the
+    // answer, so the server never heard it.
+    "When status is answer_needed with a question about who the piece comes from, ask it; when the client answers, call prepare_generation again with writing_as set to the name they chose, or \"me\" when they mean themselves. Keep sending that writing_as for the rest of this piece. If it says no business or brand is registered, tell the client so; if they agree to write it as themselves, call prepare_generation again with writing_as \"me\". " +
     'Example: {"message":"write about our pricing","operation":"generate","subject":"membership pricing","retrieval_query":"membership price per month"}',
   read_knowledge:
     "Look up facts about this client. Use it before you state anything about the client, and pick the selector by what you need: " +
@@ -282,6 +286,17 @@ const C4_INPUT_SCHEMAS: Partial<Record<ToolName, z.ZodType>> = {
           // Test-client check run, 2026-09-27: "more personal" was sent as `personal`
           // on a neutral draft, and the server then asked who should speak.
           "On a revision, send the perspective the draft already has: \"more personal\" is a tone request, not the personal mode",
+      ),
+    // The client's ANSWER to "who should this come from?", as they said it.
+    // A name the server matches only against its own candidates (the client
+    // and the registered profiles), so naming somebody grants nothing.
+    writing_as: z
+      .string()
+      .min(1)
+      .max(200)
+      .optional()
+      .describe(
+        "Who the client said this piece comes from, in their words: a name from the question's choices, or \"me\" when they mean themselves. Send it only after they have answered who it comes from; omit it otherwise. The server checks it against the people it may write as and asks again if the name is not one of them",
       ),
   }),
 };

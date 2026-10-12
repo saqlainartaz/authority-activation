@@ -1292,6 +1292,10 @@ export type ChatContextCreate = {
   /** Who the turn writes as. Ignored by `context.v1`. The server checks it
    *  against the permitted set; naming a mode grants nothing. */
   perspective_mode?: "personal" | "brand" | "neutral";
+  /** The client's answer to "who should this come from?": a name or "me".
+   *  Matched by the server against the client and the registered profiles
+   *  only (Ruling 96). Ignored by `context.v1`. */
+  writing_as?: string;
   idempotency_key: string;
 };
 

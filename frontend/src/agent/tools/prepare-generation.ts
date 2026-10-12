@@ -24,6 +24,10 @@ export type PrepareGenerationRuntime = {
   contract?: "context.v1" | "context.v2";
   /** The mode the client asked for, as the model reported it. c4 only. */
   perspectiveMode?: "personal" | "brand" | "neutral";
+  /** The client's answer to "who should this come from?" -- a name or "me" --
+   *  as the model reported it (Ruling 96). c4 only. The server matches it
+   *  against its own candidates; it grants nothing. */
+  writingAs?: string;
 };
 
 /**
@@ -77,6 +81,8 @@ export async function prepareGeneration(
     // Omitted rather than defaulted, so a v1 request body is byte-identical to
     // what it always was. The server defaults an absent mode to neutral.
     ...(runtime.perspectiveMode ? { perspective_mode: runtime.perspectiveMode } : {}),
+    // Omitted unless the client answered, so every other body is unchanged.
+    ...(runtime.writingAs ? { writing_as: runtime.writingAs } : {}),
     idempotency_key: derivedKey(context.turnId, "prepare_generation", attempt),
   });
 }
