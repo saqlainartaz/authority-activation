@@ -374,6 +374,11 @@ export function createExecutor(options: CreateExecutorOptions): { executor: Tool
               options.contract === "c4"
                 ? (args as { perspective?: "personal" | "brand" | "neutral" }).perspective
                 : undefined,
+            // The client's answer to "who should this come from?" (Ruling 96).
+            // c4 only, and only what the model reported the client SAID: the
+            // server matches it against its own candidates.
+            writingAs:
+              options.contract === "c4" ? (args as { writing_as?: string }).writing_as : undefined,
             contract: options.contract === "c4" ? "context.v2" : undefined,
             // c4 sends the selection on every operation (C4 P2); v1 keeps main's
             // rule, only on a revise, which `prepareGeneration` applies itself.
